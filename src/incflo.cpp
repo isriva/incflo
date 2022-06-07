@@ -1,9 +1,7 @@
 #include <incflo.H>
 
-// Need this for TagCutCells
-#ifdef AMREX_USE_EB
-#include <AMReX_EBAmrUtil.H>
-#endif
+std::string particle_init_type {"particle_locations"};
+std::string particle_file      {"particle_input.dat"};
 
 using namespace amrex;
 
@@ -75,11 +73,6 @@ void incflo::InitData ()
             WritePlotFile();
             m_last_plt = 0;
         }
-        if (m_KE_int > 0)
-        {
-            amrex::Abort("xxxxx m_KE_int todo");
-//          amrex::Print() << "Time, Kinetic Energy: " << m_cur_time << ", " << ComputeKineticEnergy() << std::endl;
-        }
     }
     else
     {
@@ -93,6 +86,15 @@ void incflo::InitData ()
         }
     }
 
+    /****************************************************************************
+    *                                                                          *
+    * Create particle container using ccm::ParGDB                             *
+    *                                                                          *
+    ***************************************************************************/
+    pc = new CCMParticleContainer(this);
+
+    InitParticleData();
+
 #ifdef AMREX_USE_EB
 #if (AMREX_SPACEDIM == 3)
     ParmParse pp("incflo");
@@ -105,6 +107,30 @@ void incflo::InitData ()
     if (m_verbose > 0 && ParallelDescriptor::IOProcessor()) {
         printGridSummary(amrex::OutStream(), 0, finest_level);
     }
+}
+
+void incflo::InitParticleData ()
+{
+    // Allocate the particle data
+    Real strt_init_part = ParallelDescriptor::second();
+
+    pc->AllocData();
+
+    ParmParse pp("incflo");
+    pp.query("particle_file",particle_file);
+    pp.query("particle_init_type",particle_init_type);
+    if (particle_init_type != "particle_locations")
+        amrex::Abort("Bad particle_init_type!");
+
+    amrex::Print() << "Reading particles from " << particle_file << std::endl;
+    pc->InitParticlesAscii(particle_init_type, particle_file);
+    pc->InitParticleParams();
+
+    pc->Redistribute();
+
+    Real end_init_part = ParallelDescriptor::second() - strt_init_part;
+    ParallelDescriptor::ReduceRealMax(end_init_part, ParallelDescriptor::IOProcessorNumber());
+    amrex::Print() << "Time spent in initializing particles " << end_init_part << std::endl;
 }
 
 void incflo::Evolve()

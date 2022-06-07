@@ -66,6 +66,15 @@ void incflo::Advance()
         ApplyCorrector();
     }
 
+    /*******************************************************************************
+    * Evolve particles independently of fluid
+    *******************************************************************************/
+
+    // This looks multilevel but not actually sure if it works multilevel
+    for (int ilev = 0; ilev <= finest_level; ++ilev) {
+        pc->EvolveParticles(ilev, m_nstep, m_dt, m_cur_time);
+    }
+
     if (m_verbose > 2)
     {
         amrex::Print() << "End of time step: " << std::endl;

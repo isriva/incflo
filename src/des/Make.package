@@ -1,0 +1,8 @@
+CEXE_headers += ccm_pc.H
+CEXE_headers += ccm_pc_K.H
+
+CEXE_sources += ccm_pc.cpp
+CEXE_sources += ccm_pc_diagnostics.cpp
+CEXE_sources += ccm_pc_evolve.cpp
+CEXE_sources += ccm_pc_init.cpp
+CEXE_sources += ccm_pc_write.cpp

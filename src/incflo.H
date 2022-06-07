@@ -9,6 +9,8 @@
 #include <hydro_MacProjector.H>
 #include <hydro_NodalProjector.H>
 
+#include <ccm_pc.H>
+
 #ifdef AMREX_USE_EB
 #include <AMReX_EBMultiFabUtil.H>
 #endif
@@ -32,6 +34,7 @@ public:
 
     // Initialize multilevel AMR data
     void InitData ();
+    void InitParticleData ();
 
 #ifdef AMREX_USE_EB
     void WriteMyEBSurface ();
@@ -273,6 +276,11 @@ private:
     //
     // member variables
     //
+
+    //
+    // Particle container
+    //
+    CCMParticleContainer* pc; 
 
     // Be verbose?
     int m_verbose = 0;
