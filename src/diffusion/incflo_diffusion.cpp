@@ -52,6 +52,16 @@ incflo::compute_divtau(Vector<MultiFab      *> const& divtau,
     }
 }
 
+void
+incflo::compute_divtau1(Vector<MultiFab      *> const& divtau,
+                        Vector<MultiFab const*> const& vel,
+                        Vector<MultiFab const*> const& density,
+                        Vector<MultiFab const*> const& eta)
+{
+    if (use_tensor_solve) {
+        get_diffusion_tensor_op1()->compute_divtau(divtau, vel, density, eta);
+    }
+}
 
 void
 incflo::compute_laps(Vector<MultiFab      *> const& laps,
@@ -78,6 +88,8 @@ incflo::diffuse_velocity(Vector<MultiFab      *> const& vel,
                          Vector<MultiFab const*> const& eta,
                          Real dt_diff)
 {
+    // We only do the linear operator implicitly
+    // get_diffusion_tensor_op()->diffuse_velocity(vel, density, eta, dt_diff);
     if (use_tensor_correction) {
         amrex::Print() << " \n ... diffuse components separately but with tensor terms added explicitly... " << std::endl;
         get_diffusion_scalar_op()->diffuse_vel_components(vel, density, eta, dt_diff);
@@ -93,6 +105,12 @@ incflo::get_diffusion_tensor_op ()
 {
     if (!m_diffusion_tensor_op) m_diffusion_tensor_op.reset(new DiffusionTensorOp(this));
     return m_diffusion_tensor_op.get();
+}
+DiffusionTensorOp1*
+incflo::get_diffusion_tensor_op1 ()
+{
+    if (!m_diffusion_tensor_op1) m_diffusion_tensor_op1.reset(new DiffusionTensorOp1(this));
+    return m_diffusion_tensor_op1.get();
 }
 
 DiffusionScalarOp*

@@ -13,19 +13,20 @@
 #include <AMReX_EBMultiFabUtil.H>
 #endif
 
-#include <DiffusionTensorOp.H>
 #include <DiffusionScalarOp.H>
+#include <DiffusionTensorOp.H>
+#include <DiffusionTensorOp1.H>
 
 class incflo : public amrex::AmrCore
 {
 public:
 
     friend DiffusionTensorOp;
+    friend DiffusionTensorOp1;
     friend DiffusionScalarOp;
 
     enum struct FluidModel {
-        Newtonian, powerlaw, Bingham, HerschelBulkley, deSouzaMendesDutra
-    };
+        Newtonian, Powerlaw, Bingham, HerschelBulkley, deSouzaMendesDutra, Granular};
 
     incflo ();
     virtual ~incflo ();
@@ -106,7 +107,7 @@ public: // for cuda
     ///////////////////////////////////////////////////////////////////////////
 
     void ApplyPredictor(bool incremental_projection = false);
-    void ApplyCorrector();
+//    void ApplyCorrector();
     void compute_convective_term (amrex::Vector<amrex::MultiFab*> const& conv_u,
                                   amrex::Vector<amrex::MultiFab*> const& conv_r,
                                   amrex::Vector<amrex::MultiFab*> const& conv_t,
@@ -181,10 +182,19 @@ public: // for cuda
     amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
     average_velocity_eta_to_faces (int lev, amrex::MultiFab const& cc_eta) const;
 
-    void compute_divtau  (amrex::Vector<amrex::MultiFab      *> const& divtau,
+    void compute_divtau (amrex::Vector<amrex::MultiFab      *> const& divtau,
                           amrex::Vector<amrex::MultiFab const*> const& velocity,
                           amrex::Vector<amrex::MultiFab const*> const& density,
                           amrex::Vector<amrex::MultiFab const*> const& eta);
+    void compute_divtau1 (amrex::Vector<amrex::MultiFab      *> const& divtau,
+                          amrex::Vector<amrex::MultiFab const*> const& velocity,
+                          amrex::Vector<amrex::MultiFab const*> const& density,
+                          amrex::Vector<amrex::MultiFab const*> const& eta);
+    // TODO: Second RE tensor
+    //void compute_divtau3 (amrex::Vector<amrex::MultiFab      *> const& divtau,
+    //                      amrex::Vector<amrex::MultiFab const*> const& velocity,
+    //                      amrex::Vector<amrex::MultiFab const*> const& density,
+    //                      amrex::Vector<amrex::MultiFab const*> const& eta);
 
     void diffuse_velocity (amrex::Vector<amrex::MultiFab      *> const&  velocity,
                            amrex::Vector<amrex::MultiFab      *> const&  density,
@@ -242,13 +252,13 @@ public: // for cuda
     virtual void compute_viscosity (amrex::Vector<amrex::MultiFab*> const& eta,
                                     amrex::Vector<amrex::MultiFab*> const& rho,
                                     amrex::Vector<amrex::MultiFab*> const& vel,
-                                    amrex::Real time, int nghost);
+                                    amrex::Real time, int nghost, int type=1);
     virtual void compute_viscosity_at_level (int lev,
                                              amrex::MultiFab* eta,
                                              amrex::MultiFab* rho,
                                              amrex::MultiFab* vel,
                                              amrex::Geometry& lev_geom,
-                                             amrex::Real time, int nghost);
+                                             amrex::Real time, int nghost, int type);
     virtual void compute_tracer_diff_coeff (amrex::Vector<amrex::MultiFab*> const& tra_eta,
                                             int nghost);
 
@@ -456,36 +466,80 @@ private:
     };
     DiffusionType m_diff_type = DiffusionType::Implicit;
 
-    // Fluid properties
-    FluidModel m_fluid_model;
-    amrex::Real m_mu = 1.0;
-    amrex::Real m_n_0 = 0.0;
-    amrex::Real m_tau_0 = 0.0;
-    amrex::Real m_papa_reg = 0.0;
-    amrex::Real m_eta_0 = 0.0;
-
-    // Volume of Fluid flag
-    bool m_do_vof = false; // do VoF?
-    struct FluidVOF_t {
+    // Setup Fluid Properties
+    struct FLUID_t {
         FluidModel fluid_model;
         amrex::Real rho;
+        amrex::Real diam;
+
+        // first order rheology
         amrex::Real mu;
         amrex::Real n_0;
         amrex::Real tau_0;
-        amrex::Real papa_reg;
-        amrex::Real eta_0;
+        amrex::Real papa_reg_0;
+        amrex::real eta_0;
+        amrex::real alpha_0;
+        amrex::real A_0;
 
-        FluidVOF_t ()
+        // second-order rheology (1st Rivlin-Ericksen)
+        amrex::Real mu_1;
+        amrex::Real n_1;
+        amrex::Real tau_1;
+        amrex::Real papa_reg_1;
+        amrex::Real eta_1;
+        amrex::Real alpha_1;
+        amrex::Real A_1;
+
+        // second-order rheology (2nd Rivlin-Ericksen)
+        amrex::Real mu_2;
+        amrex::Real n_2;
+        amrex::Real tau_2;
+        amrex::Real papa_reg_2;
+        amrex::Real eta_2;
+        amrex::Real alpha_2;
+        amrex::Real A_2;
+
+        Fluid_t ()
             : fluid_model(FluidModel::Newtonian)
             , rho(1.0)
+            , diam(1.0)
+
             , mu(1.0)
             , n_0(0.0)
             , tau_0(0.0)
-            , papa_reg(0.0)
+            , papa_reg_0(0.0)
             , eta_0(0.0)
+            , alpha_0(0.0)
+            , A_0(0.0)
+
+            , mu_1(0.0)
+            , n_1(0.0)
+            , tau_1(0.0)
+            , papa_reg_1(0.0)
+            , eta_1(0.0)
+            , alpha_1(0.0)
+            , A_1(0.0)
+
+            , mu_2(0.0)
+            , n_2(0.0)
+            , tau_2(0.0)
+            , papa_reg_2(0.0)
+            , eta_2(0.0)
+            , alpha_2(0.0)
+            , A_2(0.0)
         {}
     };
-    amrex::Vector<FluidVOF_t> m_fluid_vof;
+    FLUID_t m_fluid;
+    bool m_do_second_rheology_1 = false; // first Rivlin-Ericksen (RE) tensor
+    bool m_do_second_rheology_2 = false; // second Rivlin-Ericksen (RE) tensor
+    bool m_do_vof = false; // do VoF?
+    amrex::Vector<FLUID_t> m_fluid_vof;
+    
+    amrex::Real m_p_bg = 0.0;
+
+    amrex::Real m_vert_hi = 0.0;
+    amrex::Real m_vert_lo = 0.0;
+    amrex::Real m_vert_n = 0.0;
 
     int m_plot_int = -1;
 
@@ -514,24 +568,29 @@ private:
     int m_plt_velx        = 1;
     int m_plt_vely        = 1;
     int m_plt_velz        = 1;
-    int m_plt_gpx         = 1;
-    int m_plt_gpy         = 1;
-    int m_plt_gpz         = 1;
+    int m_plt_gpx         = 0;
+    int m_plt_gpy         = 0;
+    int m_plt_gpz         = 0;
     int m_plt_rho         = 1;
-    int m_plt_tracer      = 1;
+    int m_plt_tracer      = 0;
     int m_plt_p_nd        = 0;
     int m_plt_macphi      = 0;
-    int m_plt_eta         = 0;
-    int m_plt_vort        = 1;
+    int m_plt_eta         = 1;
+    int m_plt_vort        = 0;
     int m_plt_forcing     = 0;
-    int m_plt_strainrate  = 0;
+    int m_plt_strainrate  = 1;
     int m_plt_divu        = 0;
-    int m_plt_vfrac       = 1;
+    int m_plt_divtau      = 0;
+    int m_plt_divtau1     = 0;
+    int m_plt_vfrac       = 0;
     int m_plt_error_u     = 0;
     int m_plt_error_v     = 0;
     int m_plt_error_w     = 0;
     int m_plt_error_p     = 0;
     int m_plt_error_mac_p = 0;
+    // EY: Granular rheology
+    int m_plt_eta2        = 0;
+    int m_plt_eta3        = 0;
 
     struct LevelData {
         LevelData () = default;
@@ -569,6 +628,7 @@ private:
 
         amrex::MultiFab divtau;
         amrex::MultiFab divtau_o;
+        amrex::MultiFab divtau_o1;
         amrex::MultiFab laps;
         amrex::MultiFab laps_o;
     };
@@ -613,6 +673,7 @@ private:
     int m_ntrac = 1;
 
     std::unique_ptr<DiffusionTensorOp> m_diffusion_tensor_op;
+    std::unique_ptr<DiffusionTensorOp1> m_diffusion_tensor_op1;
     std::unique_ptr<DiffusionScalarOp> m_diffusion_scalar_op;
 
     //
@@ -689,6 +750,7 @@ private:
 #endif
 
     DiffusionTensorOp* get_diffusion_tensor_op ();
+    DiffusionTensorOp1* get_diffusion_tensor_op1 ();
     DiffusionScalarOp* get_diffusion_scalar_op ();
 
     amrex::Vector<amrex::MultiFab*> get_velocity_old () noexcept;
@@ -710,6 +772,7 @@ private:
     amrex::Vector<amrex::MultiFab*> get_conv_tracer_old () noexcept;
     amrex::Vector<amrex::MultiFab*> get_conv_tracer_new () noexcept;
     amrex::Vector<amrex::MultiFab*> get_divtau_old () noexcept;
+    amrex::Vector<amrex::MultiFab*> get_divtau_old1 () noexcept;
     amrex::Vector<amrex::MultiFab*> get_divtau_new () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_old () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_new () noexcept;

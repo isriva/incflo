@@ -447,6 +447,16 @@ Vector<MultiFab*> incflo::get_divtau_old () noexcept
     return r;
 }
 
+Vector<MultiFab*> incflo::get_divtau_old1 () noexcept
+{
+    Vector<MultiFab*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->divtau_o1));
+    }
+    return r;
+}
+
 Vector<MultiFab*> incflo::get_divtau_new () noexcept
 {
     Vector<MultiFab*> r;
