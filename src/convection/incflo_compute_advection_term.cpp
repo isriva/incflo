@@ -136,8 +136,10 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
         compute_vel_forces(vel_forces, vel, density, tracer, tracer);
 
         if (m_godunov_include_diff_in_forcing)
-            for (int lev = 0; lev <= finest_level; ++lev)
-                MultiFab::Add(*vel_forces[lev], m_leveldata[lev]->divtau_o, 0, 0, AMREX_SPACEDIM, 0);
+            for (int lev = 0; lev <= finest_level; ++lev) {
+                MultiFab::Add(*vel_forces[lev], m_leveldata[lev]->divtau_o1, 0, 0, AMREX_SPACEDIM, 0);
+                MultiFab::Add(*vel_forces[lev], m_leveldata[lev]->divtau_o2, 0, 0, AMREX_SPACEDIM, 0);
+            }
 
         if (nghost_force() > 0)
             fillpatch_force(m_cur_time, vel_forces, nghost_force());

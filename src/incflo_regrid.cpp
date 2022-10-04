@@ -43,7 +43,8 @@ void incflo::MakeNewLevelFromCoarse (int lev,
     m_leveldata[lev] = std::move(new_leveldata);
     m_factory[lev] = std::move(new_fact);
 
-    m_diffusion_tensor_op.reset();
+    m_diffusion_tensor_op1.reset();
+    m_diffusion_tensor_op2.reset();
     m_diffusion_scalar_op.reset();
 
 #ifdef AMREX_USE_EB
@@ -95,7 +96,8 @@ void incflo::RemakeLevel (int lev, Real time, const BoxArray& ba,
     m_leveldata[lev] = std::move(new_leveldata);
     m_factory[lev] = std::move(new_fact);
 
-    m_diffusion_tensor_op.reset();
+    m_diffusion_tensor_op1.reset();
+    m_diffusion_tensor_op2.reset();
     m_diffusion_scalar_op.reset();
 
 #ifdef AMREX_USE_EB
@@ -115,7 +117,8 @@ void incflo::ClearLevel (int lev)
     BL_PROFILE("incflo::ClearLevel()");
     m_leveldata[lev].reset();
     m_factory[lev].reset();
-    m_diffusion_tensor_op.reset();
+    m_diffusion_tensor_op1.reset();
+    m_diffusion_tensor_op2.reset();
     m_diffusion_scalar_op.reset();
     macproj.reset();
 }

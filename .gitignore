@@ -3,15 +3,24 @@
 *.mic
 *.mod
 *.o
+__pycache__
 *~
 
 tmp.*
+*.swp
 
 *.OUT
 *.RES
 *.LOG
 
 Size*
+*.pvtp
+*.vtp
+*.vtr
+chk?????
+plt?????
+chk?????.old.???????
+plt?????.old.???????
 
 # Code Info
 compile_commands.json
@@ -27,6 +36,8 @@ Makefile
 
 # IDE Lint
 build/
+build-*/
+build_*/
 .build/
 .vscode/
 
@@ -56,3 +67,9 @@ test/tmp_build_dir/
 test/Backtrace.*
 test/*plt*/
 test/chk*/
+test*/tmp_build_dir/
+test*/*.ex
+
+CMakeFiles
+CMakeCache.txt
+

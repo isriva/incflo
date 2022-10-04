@@ -103,7 +103,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // Forcing terms
     Vector<MultiFab> vel_forces, tra_forces;
 
-    Vector<MultiFab> vel_eta, tra_eta;
+    Vector<MultiFab> vel_eta, vel_eta2, tra_eta;
 
     // *************************************************************************************
     // Allocate space for the forcing terms
@@ -117,6 +117,9 @@ void incflo::ApplyPredictor (bool incremental_projection)
                                     MFInfo(), Factory(lev));
         }
         vel_eta.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
+        if ((m_fluid_model == FluidModel::Granular) or (m_fluid_model == FluidModel::SecondOrder) or (m_fluid_model == FluidModel::HerschelBulkley2) or (m_fluid_model == FluidModel::powerlaw2)) {
+            vel_eta2.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
+        }
         if (m_advect_tracer) {
             tra_eta.emplace_back(grids[lev], dmap[lev], m_ntrac, 1, MFInfo(), Factory(lev));
         }
@@ -131,7 +134,14 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     compute_viscosity(GetVecOfPtrs(vel_eta),
                       get_density_old(), get_velocity_old(),
-                      m_cur_time, 1);
+                      m_cur_time, 1, 1);
+    if ((m_fluid_model == FluidModel::Granular) or (m_fluid_model == FluidModel::SecondOrder) or (m_fluid_model == FluidModel::HerschelBulkley2) or (m_fluid_model == FluidModel::powerlaw2))
+    {
+        compute_viscosity(GetVecOfPtrs(vel_eta2),
+                        get_density_old(), get_velocity_old(),
+                        m_cur_time, 1, 2);
+    }
+
     compute_tracer_diff_coeff(GetVecOfPtrs(tra_eta),1);
 
     // *************************************************************************************
@@ -139,8 +149,15 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     if (need_divtau() || use_tensor_correction)
     {
-        compute_divtau(get_divtau_old(),get_velocity_old_const(),
-                       get_density_old_const(),GetVecOfConstPtrs(vel_eta));
+        compute_divtau1(get_divtau_old1(),get_velocity_old_const(),
+                        get_density_old_const(),GetVecOfConstPtrs(vel_eta));
+    }
+    if ((m_fluid_model == FluidModel::Granular) or (m_fluid_model == FluidModel::SecondOrder) or (m_fluid_model == FluidModel::HerschelBulkley2) or (m_fluid_model == FluidModel::powerlaw2)) {
+        if (need_divtau2() || use_tensor_correction)
+        {
+            compute_divtau2(get_divtau_old2(),get_velocity_old_const(),
+                            get_density_old_const(),GetVecOfConstPtrs(vel_eta2));
+        }
     }
 
     // *************************************************************************************
@@ -357,42 +374,82 @@ void incflo::ApplyPredictor (bool incremental_projection)
 
                 if (use_tensor_correction)
                 {
-                    Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+                    Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
+                    Array4<Real const> const& divtau_o2 = ld.divtau_o2.const_array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
+                        if ((m_fluid_model == FluidModel::Granular) or (m_fluid_model == FluidModel::SecondOrder) or (m_fluid_model == FluidModel::HerschelBulkley2) or (m_fluid_model == FluidModel::powerlaw2)) {
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o1(i,j,k,0)+divtau_o2(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o1(i,j,k,1)+divtau_o2(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o1(i,j,k,2)+divtau_o2(i,j,k,2)););
+                        }
+                        else {
                         // Here divtau_o is the difference of tensor and scalar divtau_o!
-                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
-                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
-                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o1(i,j,k,0));,
+                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o1(i,j,k,1));,
+                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o1(i,j,k,2)););
+                        }
                     });
                 } else {
+                    Array4<Real const> const& divtau_o2 = ld.divtau_o2.const_array(mfi);
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
+                        if ((m_fluid_model == FluidModel::Granular) or (m_fluid_model == FluidModel::SecondOrder) or (m_fluid_model == FluidModel::HerschelBulkley2) or (m_fluid_model == FluidModel::powerlaw2)) {
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o2(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o2(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o2(i,j,k,2)););
+                        }
+                        else {
+                        // Here divtau_o is the difference of tensor and scalar divtau_o!
                         AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0));,
                                      vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1));,
                                      vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)););
+                        }
                     });
                 }
             }
             else if (m_diff_type == DiffusionType::Crank_Nicolson)
             {
-
-                Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+                Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
+                Array4<Real const> const& divtau_o2 = ld.divtau_o2.const_array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                 {
-                    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+0.5*divtau_o(i,j,k,0));,
-                                 vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+0.5*divtau_o(i,j,k,1));,
-                                 vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+0.5*divtau_o(i,j,k,2)););
+                    // HERE INCLUDE HALF OF DIVTAU1 and ALL OF DIVTAU2
+                    if ((m_fluid_model == FluidModel::Granular) or (m_fluid_model == FluidModel::SecondOrder) or (m_fluid_model == FluidModel::HerschelBulkley2) or (m_fluid_model == FluidModel::powerlaw2)) {
+                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+
+                                                           0.5*divtau_o1(i,j,k,0) + divtau_o2(i,j,k,0));,
+                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+
+                                                           0.5*divtau_o1(i,j,k,1) + divtau_o2(i,j,k,1));,
+                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+
+                                                           0.5*divtau_o1(i,j,k,2) + divtau_o2(i,j,k,2)););
+                    }
+                    else {
+                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+0.5*divtau_o1(i,j,k,0));,
+                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+0.5*divtau_o1(i,j,k,1));,
+                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+0.5*divtau_o1(i,j,k,2)););
+                    }
                 });
             }
             else if (m_diff_type == DiffusionType::Explicit)
             {
-                Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+                Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
+                Array4<Real const> const& divtau_o2 = ld.divtau_o2.const_array(mfi);
                 amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                 {
-                    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
-                                 vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
-                                 vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+                    // HERE INCLUDE ALL DIVTAU1 and ALL OF DIVTAU2
+                    if ((m_fluid_model == FluidModel::Granular) or (m_fluid_model == FluidModel::SecondOrder) or (m_fluid_model == FluidModel::HerschelBulkley2) or (m_fluid_model == FluidModel::powerlaw2)) {
+                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+
+                                                           divtau_o1(i,j,k,0) + divtau_o2(i,j,k,0));,
+                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+
+                                                           divtau_o1(i,j,k,1) + divtau_o2(i,j,k,1));,
+                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+
+                                                           divtau_o1(i,j,k,2) + divtau_o2(i,j,k,2)););
+                    }
+                    else {
+                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o1(i,j,k,0));,
+                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o1(i,j,k,1));,
+                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o1(i,j,k,2)););
+                    }
                 });
             }
         } // mfi
