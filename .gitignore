@@ -69,6 +69,7 @@ test/*plt*/
 test/chk*/
 test*/tmp_build_dir/
 test*/*.ex
+test*/*.cpp
 
 CMakeFiles
 CMakeCache.txt
