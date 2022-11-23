@@ -54,17 +54,17 @@ void incflo::Advance()
 
     ApplyPredictor();
 
-    if (m_advection_type == "MOL") {
-        for (int lev = 0; lev <= finest_level; ++lev) {
-            fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity, ng);
-            fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density, ng);
-            if (m_advect_tracer) {
-                fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer, ng);
-            }
-        }
+    //if (m_advection_type == "MOL") {
+    //    for (int lev = 0; lev <= finest_level; ++lev) {
+    //        fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity, ng);
+    //        fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density, ng);
+    //        if (m_advect_tracer) {
+    //            fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer, ng);
+    //        }
+    //    }
 
-        ApplyCorrector();
-    }
+    //    ApplyCorrector();
+    //}
 
 #if 0
     // This sums over all levels

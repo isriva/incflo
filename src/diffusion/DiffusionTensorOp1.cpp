@@ -27,7 +27,7 @@ DiffusionTensorOp1::DiffusionTensorOp1 (incflo* a_incflo)
                                         m_incflo->get_diffuse_tensor_bc(Orientation::high));
         }
 
-        if (m_incflo->need_divtau1() || m_incflo->useTensorCorrection())
+        if (m_incflo->need_divtau() || m_incflo->useTensorCorrection())
         {
             m_reg_apply_op1.reset(new MyTensorOp(m_incflo->Geom(0,finest_level),
                                                 m_incflo->boxArray(0,finest_level),

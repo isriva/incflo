@@ -315,7 +315,7 @@ void incflo::WriteJobInfo(const std::string& path) const
 void incflo::WritePlotFile()
 {
     BL_PROFILE("incflo::WritePlotFile()");
-    if (m_plt_vort || m_plt_divu || m_plt_forcing || m_plt_eta || m_plt_eta2 || m_plt_eta3 || m_plt_strainrate) {
+    if (m_plt_vort || m_plt_divu || m_plt_forcing || m_plt_eta || m_plt_eta_1 || m_plt_eta_2 || m_plt_strainrate) {
         for (int lev = 0; lev <= finest_level; ++lev) {
 #ifdef AMREX_USE_EB
             const int ng = (EBFactory(0).isAllRegular()) ? 1 : 2;
@@ -380,11 +380,11 @@ void incflo::WritePlotFile()
     // Apparent viscosity
     if(m_plt_eta) ++ncomp;
 
-    // EY: Granular rheology
-    if(m_plt_eta2) ++ncomp;
+    // Non-newtonian 2nd order viscosity
+    if(m_plt_eta_1) ++ncomp;
 
-    // EY: Granular rheology
-    if(m_plt_eta3) ++ncomp;
+    // Non-newtonian 2nd order viscosity
+    if(m_plt_eta_2) ++ncomp;
 
     // Vorticity
     if(m_plt_vort) ++ncomp;
@@ -398,11 +398,14 @@ void incflo::WritePlotFile()
     // Divergence of velocity field
     if(m_plt_divu) ++ncomp;
 
-    // DivTau1
+    // DivTau
     if (m_plt_divtau) ncomp += 3;
 
-    // DivTau2
-    if (m_plt_divtau1) ncomp += 3;
+    // DivTau1: non-Newtonian
+    if (m_plt_divtau_1) ncomp += 3;
+
+    // DivTau1: non-Newtonian
+    // if (m_plt_divtau_2) ncomp += 3;
 
 #ifdef AMREX_USE_EB
     // Cut cell volume fraction
@@ -579,14 +582,33 @@ void incflo::WritePlotFile()
                                        &m_leveldata[lev]->density,
                                        &m_leveldata[lev]->velocity,
                                        Geom(lev),
-                                       m_cur_time, 0, 1);
+                                       m_cur_time, 0, 0);
         }
         pltscaVarsName.push_back("eta");
         ++icomp;
     }
 
-    if (m_plt_eta2) {
-        if ((m_fluid_model == FluidModel::Granular) or (m_fluid_model == FluidModel::SecondOrder) or (m_fluid_model == FluidModel::HerschelBulkley2) or (m_fluid_model == FluidModel::powerlaw2)) {
+    if (m_plt_eta_1) {
+        if (m_do_second_rheology_1) {
+            for (int lev = 0; lev <= finest_level; ++lev) {
+                MultiFab vel_eta1(mf[lev], amrex::make_alias, icomp, 1);
+                compute_viscosity_at_level(lev,
+                                           &vel_eta1,
+                                           &m_leveldata[lev]->density,
+                                           &m_leveldata[lev]->velocity,
+                                           Geom(lev),
+                                           m_cur_time, 0, 1);
+            }
+            pltscaVarsName.push_back("eta2");
+            ++icomp;
+        }
+        else {
+            amrex::Error("2nd viscosity output only for when m_do_second_rheology_1 = 1");
+        }
+    }
+
+    if (m_plt_eta_2) {
+        if (m_do_second_rheology_2) {
             for (int lev = 0; lev <= finest_level; ++lev) {
                 MultiFab vel_eta2(mf[lev], amrex::make_alias, icomp, 1);
                 compute_viscosity_at_level(lev,
@@ -596,30 +618,11 @@ void incflo::WritePlotFile()
                                            Geom(lev),
                                            m_cur_time, 0, 2);
             }
-            pltscaVarsName.push_back("eta2");
-            ++icomp;
-        }
-        else {
-            amrex::Error("2nd viscosity output only for granular models");
-        }
-    }
-
-    if (m_plt_eta3) {
-        if (m_fluid_model == FluidModel::Granular) {
-            for (int lev = 0; lev <= finest_level; ++lev) {
-                MultiFab vel_eta3(mf[lev], amrex::make_alias, icomp, 1);
-                compute_viscosity_at_level(lev,
-                                           &vel_eta3,
-                                           &m_leveldata[lev]->density,
-                                           &m_leveldata[lev]->velocity,
-                                           Geom(lev),
-                                           m_cur_time, 0, 3);
-            }
             pltscaVarsName.push_back("eta3");
             ++icomp;
         }
         else {
-            amrex::Error("3rd viscosity output only for granular models");
+            amrex::Error("3rd viscosity output only for m_do_second_rheology_2 = 1");
         }
     }
 
@@ -685,7 +688,7 @@ void incflo::WritePlotFile()
         ++icomp;
     }
 
-    if (m_plt_divtau1) {
+    if (m_plt_divtau_1) {
         for (int lev = 0; lev <= finest_level; ++lev) {
             MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o1, 0, icomp, 1, 0);
         }
@@ -704,6 +707,26 @@ void incflo::WritePlotFile()
         pltscaVarsName.push_back("divtau1z");
         ++icomp;
     }
+
+    //if (m_plt_divtau_2) {
+    //    for (int lev = 0; lev <= finest_level; ++lev) {
+    //        MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o2, 0, icomp, 1, 0);
+    //    }
+    //    pltscaVarsName.push_back("divtau2x");
+    //    ++icomp;
+
+    //    for (int lev = 0; lev <= finest_level; ++lev) {
+    //        MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o2, 1, icomp, 1, 0);
+    //    }
+    //    pltscaVarsName.push_back("divtau2y");
+    //    ++icomp;
+
+    //    for (int lev = 0; lev <= finest_level; ++lev) {
+    //        MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o2, 2, icomp, 1, 0);
+    //    }
+    //    pltscaVarsName.push_back("divtau2z");
+    //    ++icomp;
+    //}
 
 #ifdef AMREX_USE_EB
     if (m_plt_vfrac) {

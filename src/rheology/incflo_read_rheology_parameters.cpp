@@ -143,9 +143,9 @@ void incflo::ReadRheologyParameters()
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.rho > 0.0,
                         "Particle material density must be positive");
 
-             pp.query("p_bg", m_fluid.p_bg);
-                AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.p_bg > 0.0,
-                        "Background pressure must be positive");
+             //pp.query("p_bg", m_fluid.p_bg);
+             //   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.p_bg > 0.0,
+             //           "Background pressure must be positive");
 
              pp.query("tau_0", m_fluid.tau_0);
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.tau_0 > 0.0,
@@ -163,7 +163,7 @@ void incflo::ReadRheologyParameters()
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.alpha_0 >= 0.0,
                          "Fitting parameter must be positive");
 
-             pp.query("tau_1", m_fluid.tau_1;
+             pp.query("tau_1", m_fluid.tau_1);
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.tau_1 > 0.0,
                         "Papanastasiou regularisation parameter must be positive");
 
@@ -212,7 +212,7 @@ void incflo::ReadRheologyParameters()
          for (int i=0; i<2; ++i) {
 
              std::string name = names[i];
-             FluidVOF_t fluid;
+             FLUID_t fluid;
 
              Real temp; 
              std::string temp_s, fluid_model_s;
@@ -398,12 +398,12 @@ void incflo::ReadRheologyParameters()
                      AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.diam > 0.0,
                             "Particle diameter must be positive");
                  }
-                 {
-                     amrex::ParmParse pp("incflo.vof.p_bg");
-                     pp.query(name.c_str(), fluid.p_bg);
-                     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.p_bg > 0.0,
-                            "Particle diameter must be positive");
-                 }
+                 //{
+                 //    amrex::ParmParse pp("incflo.vof.p_bg");
+                 //    pp.query(name.c_str(), fluid.p_bg);
+                 //    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.p_bg > 0.0,
+                 //           "Particle diameter must be positive");
+                 //}
                  {
                     amrex::ParmParse pp("incflo.vof.tau_0");
                     pp.query(name.c_str(),fluid.tau_0);

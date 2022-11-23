@@ -261,6 +261,75 @@ public: // for cuda
                                              amrex::Real time, int nghost, int type);
     virtual void compute_tracer_diff_coeff (amrex::Vector<amrex::MultiFab*> const& tra_eta,
                                             int nghost);
+    // Setup Fluid Properties
+    struct FLUID_t {
+        FluidModel fluid_model;
+        amrex::Real rho;
+        amrex::Real diam;
+
+        // first order rheology
+        amrex::Real mu;
+        amrex::Real n_0;
+        amrex::Real tau_0;
+        amrex::Real papa_reg_0;
+        amrex::Real eta_0;
+        amrex::Real alpha_0;
+        amrex::Real A_0;
+
+        // second-order rheology (1st Rivlin-Ericksen)
+        amrex::Real mu_1;
+        amrex::Real n_1;
+        amrex::Real tau_1;
+        amrex::Real papa_reg_1;
+        amrex::Real eta_1;
+        amrex::Real alpha_1;
+        amrex::Real A_1;
+
+        // second-order rheology (2nd Rivlin-Ericksen)
+        amrex::Real mu_2;
+        amrex::Real n_2;
+        amrex::Real tau_2;
+        amrex::Real papa_reg_2;
+        amrex::Real eta_2;
+        amrex::Real alpha_2;
+        amrex::Real A_2;
+
+        FLUID_t ()
+            : fluid_model(FluidModel::Newtonian)
+            , rho(1.0)
+            , diam(1.0)
+
+            , mu(1.0)
+            , n_0(0.0)
+            , tau_0(0.0)
+            , papa_reg_0(0.0)
+            , eta_0(0.0)
+            , alpha_0(0.0)
+            , A_0(0.0)
+
+            , mu_1(0.0)
+            , n_1(0.0)
+            , tau_1(0.0)
+            , papa_reg_1(0.0)
+            , eta_1(0.0)
+            , alpha_1(0.0)
+            , A_1(0.0)
+
+            , mu_2(0.0)
+            , n_2(0.0)
+            , tau_2(0.0)
+            , papa_reg_2(0.0)
+            , eta_2(0.0)
+            , alpha_2(0.0)
+            , A_2(0.0)
+        {}
+    };
+    
+    FLUID_t m_fluid;
+    bool m_do_second_rheology_1 = false; // first Rivlin-Ericksen (RE) tensor
+    bool m_do_second_rheology_2 = false; // second Rivlin-Ericksen (RE) tensor
+    bool m_do_vof = false; // do VoF?
+    amrex::Vector<FLUID_t> m_fluid_vof;
 
     ///////////////////////////////////////////////////////////////////////////
     //
@@ -466,74 +535,6 @@ private:
     };
     DiffusionType m_diff_type = DiffusionType::Implicit;
 
-    // Setup Fluid Properties
-    struct FLUID_t {
-        FluidModel fluid_model;
-        amrex::Real rho;
-        amrex::Real diam;
-
-        // first order rheology
-        amrex::Real mu;
-        amrex::Real n_0;
-        amrex::Real tau_0;
-        amrex::Real papa_reg_0;
-        amrex::real eta_0;
-        amrex::real alpha_0;
-        amrex::real A_0;
-
-        // second-order rheology (1st Rivlin-Ericksen)
-        amrex::Real mu_1;
-        amrex::Real n_1;
-        amrex::Real tau_1;
-        amrex::Real papa_reg_1;
-        amrex::Real eta_1;
-        amrex::Real alpha_1;
-        amrex::Real A_1;
-
-        // second-order rheology (2nd Rivlin-Ericksen)
-        amrex::Real mu_2;
-        amrex::Real n_2;
-        amrex::Real tau_2;
-        amrex::Real papa_reg_2;
-        amrex::Real eta_2;
-        amrex::Real alpha_2;
-        amrex::Real A_2;
-
-        Fluid_t ()
-            : fluid_model(FluidModel::Newtonian)
-            , rho(1.0)
-            , diam(1.0)
-
-            , mu(1.0)
-            , n_0(0.0)
-            , tau_0(0.0)
-            , papa_reg_0(0.0)
-            , eta_0(0.0)
-            , alpha_0(0.0)
-            , A_0(0.0)
-
-            , mu_1(0.0)
-            , n_1(0.0)
-            , tau_1(0.0)
-            , papa_reg_1(0.0)
-            , eta_1(0.0)
-            , alpha_1(0.0)
-            , A_1(0.0)
-
-            , mu_2(0.0)
-            , n_2(0.0)
-            , tau_2(0.0)
-            , papa_reg_2(0.0)
-            , eta_2(0.0)
-            , alpha_2(0.0)
-            , A_2(0.0)
-        {}
-    };
-    FLUID_t m_fluid;
-    bool m_do_second_rheology_1 = false; // first Rivlin-Ericksen (RE) tensor
-    bool m_do_second_rheology_2 = false; // second Rivlin-Ericksen (RE) tensor
-    bool m_do_vof = false; // do VoF?
-    amrex::Vector<FLUID_t> m_fluid_vof;
     
     amrex::Real m_p_bg = 0.0;
 
@@ -576,21 +577,21 @@ private:
     int m_plt_p_nd        = 0;
     int m_plt_macphi      = 0;
     int m_plt_eta         = 1;
+    int m_plt_eta_1       = 0;
+    int m_plt_eta_2       = 0;
     int m_plt_vort        = 0;
     int m_plt_forcing     = 0;
     int m_plt_strainrate  = 1;
     int m_plt_divu        = 0;
     int m_plt_divtau      = 0;
-    int m_plt_divtau1     = 0;
+    int m_plt_divtau_1    = 0;
+    int m_plt_divtau_2    = 0;
     int m_plt_vfrac       = 0;
     int m_plt_error_u     = 0;
     int m_plt_error_v     = 0;
     int m_plt_error_w     = 0;
     int m_plt_error_p     = 0;
     int m_plt_error_mac_p = 0;
-    // EY: Granular rheology
-    int m_plt_eta2        = 0;
-    int m_plt_eta3        = 0;
 
     struct LevelData {
         LevelData () = default;

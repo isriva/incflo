@@ -34,6 +34,23 @@ void incflo::ComputeDt (int initialization, bool explicit_diffusion)
     Real diff_cfl = Real(0.0);
     Real forc_cfl = Real(0.0);
 
+    // Get viscosity scale
+    Real mu;
+    if (!m_do_vof) {
+        mu = m_fluid.mu;
+        if (m_fluid.fluid_model == incflo::FluidModel::Granular) {
+        }
+    }
+    else { // get the higher of the two viscosities
+        Real mu1 = m_fluid_vof[0].mu;
+        Real mu2 = m_fluid_vof[1].mu;
+        if (m_fluid_vof[0].fluid_model == incflo::FluidModel::Granular) {
+        }
+        if (m_fluid_vof[1].fluid_model == incflo::FluidModel::Granular) {
+        }
+        mu = std::max(mu1,mu2); 
+    }
+
     for (int lev = 0; lev <= finest_level; ++lev)
     {
         auto const dxinv = geom[lev].InvCellSizeArray();
@@ -48,7 +65,6 @@ void incflo::ComputeDt (int initialization, bool explicit_diffusion)
 
        // Make a temporary here to hold vel_forces
        MultiFab vel_forces(grids[lev], dmap[lev], AMREX_SPACEDIM, 0);
-
        compute_vel_forces_on_level (lev, vel_forces, vel, rho, tra_o, tra);
 
 #ifdef AMREX_USE_EB
@@ -81,12 +97,13 @@ void incflo::ComputeDt (int initialization, bool explicit_diffusion)
                               {
                                   if (!f(i,j,k).isCovered()) {
                                       Real rho_inv = Real(1.0)/r(i,j,k);
+                                      Real visc = eta(i,j,k);
                                       mx = amrex::max(rho_inv, mx);
                                   }
                               });
                               return mx;
                           });
-                diff_lev *= m_mu;
+                diff_lev *= mu;
             }
 
             // Forcing term -- old way of computing
@@ -142,7 +159,7 @@ void incflo::ComputeDt (int initialization, bool explicit_diffusion)
                                });
                                return mx;
                            });
-                diff_lev *= m_mu;
+                diff_lev *= mu;
             }
 
             // Forcing term -- old way of computing

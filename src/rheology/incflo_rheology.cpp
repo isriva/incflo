@@ -49,7 +49,7 @@ amrex::Real kappaterm (amrex::Real mu, amrex::Real p)
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const FLUID_t& fluid) 
+amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const incflo::FLUID_t& fluid) 
 {
     amrex::Real visc;
     
@@ -57,23 +57,23 @@ amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const FLUID_
         visc = fluid.mu;
     }
     else if (fluid.fluid_model == incflo::FluidModel::Powerlaw) {
-        if (order == 1) {
+        if (order == 0) {
             visc = (fluid.mu * std::pow(sr,fluid.n_0-1.0));
         }
-        else if (order == 2) {
+        else if (order == 1) {
             visc = (fluid.mu_1 * std::pow(sr,fluid.n_1-1.0));
         }
     }
     else if (fluid.fluid_model == incflo::FluidModel::Bingham) {
         visc = fluid.mu + fluid.tau_0 * expterm(sr/fluid.papa_reg_0) / fluid.papa_reg_0;
     }
-    else if (fluid.fluid_model == incflo::FluidModel::HerschelBulkley2) {
-        if (order == 1) {
+    else if (fluid.fluid_model == incflo::FluidModel::HerschelBulkley) {
+        if (order == 0) {
             //visc = (fluid.mu*std::pow(sr,fluid.n_0)+fluid.tau_0)*expterm(sr/fluid.papa_reg_0)/fluid.papa_reg_0;
             // return (mu*std::pow(sr,n_flow)+tau_0)*expterm(sr/papa_reg)/papa_reg;
             visc = ( fluid.mu*std::pow(sr,fluid.n_0-1.0) + (fluid.tau_0/sr)*(1.0-expterm(-1.0*sr/fluid.papa_reg_0)));
         }
-        else if (order == 2) {
+        else if (order == 1) {
             // visc =  (mu_1*std::pow(sr,n_flow_1)+tau_1)*expterm(sr/papa_reg_1)/papa_reg_1;
             visc = ( fluid.mu_1*std::pow(sr,fluid.n_1-1.0) + (fluid.tau_1/sr)*(1.0-expterm(-1.0*sr/fluid.papa_reg_1)));
         }
@@ -84,13 +84,14 @@ amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const FLUID_
     else if (fluid.fluid_model == incflo::FluidModel::Granular) {
         // If you want a pressure gradient due to gravity, add p_ext to p_bg
         // For the strainrate, power is zero for an initial test. Make it "1" for a real simulation
-        if (order == 1) {
-            visc = std::pow(2*(expterm(sr/fluid.papa_reg_0) / fluid.papa_reg_0),1)*(fluid.p_bg)*inertialNum(sr,fluid.p_bg, fluid.rho, fluid.diam, fluid.mu, fluid.A_0, fluid.alpha_0);
+        Real p_bg = 1.0;
+        if (order == 0) {
+            visc = std::pow(2*(expterm(sr/fluid.papa_reg_0) / fluid.papa_reg_0),1)*(p_bg)*inertialNum(sr,p_bg, fluid.rho, fluid.diam, fluid.mu, fluid.A_0, fluid.alpha_0);
         }
-        //else if (order == 2) {
+        //else if (order == 1) {
         //    visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(fluid.p_bg)*inertialNum(sr,fluid.p_bg, fluid.rho, fluid.diam, fluid.mu_2, fluid.A_2, 2*fluid.alpha_2);
         //}
-        //else if (order == 3) {
+        //else if (order == 2) {
         //    visc = -1*std::pow(2*(expterm(sr/papa_reg) / papa_reg),2)*(p_bg)*inertialNum(sr, p_bg, ro_0, diam, mu_3, A_3, 2*alpha_3);
         //}
     }
@@ -98,13 +99,15 @@ amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const FLUID_
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const int order, const amrex::Vector<FLUID_t>& fluid_vof) 
+amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const int order, const amrex::Vector<incflo::FLUID_t>& fluid_vof) 
 {
     amrex::Real conc = get_concentration(dens,fluid_vof[0].rho,fluid_vof[1].rho);
-    amrex::Real visc0 = Viscosity_Single(sr,dens,order,fluid_vof[0]);
-    amrex::Real visc1 = Viscosity_Single(sr,dens,order,fluid_vof[1]);
+    amrex::Real visc0 = Viscosity_Single(sr,order,fluid_vof[0]);
+    amrex::Real visc1 = Viscosity_Single(sr,order,fluid_vof[1]);
 
     return mixture_viscosity(conc,visc0,visc1);
+}
+
 }
 
 
@@ -169,7 +172,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
             {
                 Real sr = incflo_strainrate_eb(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,flag_arr(i,j,k));
                 Real dens = rho_arr(i,j,k);
-                if (m_do_vof) eta_arr(i,j,k) = Viscosity_VoF(sr,dens,order,m_fluid_vof);
+                if (m_do_vof) eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
                 else eta_arr(i,j,k) = Viscosity_Single(sr,order,m_fluid);
             });
         }
@@ -180,7 +183,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
             {
                 Real sr = incflo_strainrate(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
                 Real dens = rho_arr(i,j,k);
-                if (m_do_vof) eta_arr(i,j,k) = Viscosity_VoF(sr,dens,order,m_fluid_vof);
+                if (m_do_vof) eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
                 else eta_arr(i,j,k) = Viscosity_Single(sr,order,m_fluid);
             });
         }

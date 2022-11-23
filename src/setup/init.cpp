@@ -118,9 +118,6 @@ void incflo::ReadParameters ()
         pp.query("ic_p", m_ic_p);
         pp.query("ic_t", m_ic_t);
 
-        // Viscosity (if constant)
-        pp.query("mu", m_mu);
-
         // Density (if constant)
         pp.query("ro_0", m_ro_0);
         AMREX_ALWAYS_ASSERT(m_ro_0 >= 0.0);
@@ -233,16 +230,15 @@ void incflo::ReadIOParameters()
         m_plt_p_nd       = 0;
         m_plt_macphi     = 0;
         m_plt_eta        = 1;
+        m_plt_eta_1      = 0;
+        m_plt_eta_2      = 0;
         m_plt_vort       = 0;
         m_plt_strainrate = 1;
         m_plt_divu       = 0;
         m_plt_divtau     = 1;
-        m_plt_divtau1    = 1;
+        m_plt_divtau_1   = 0;
+        m_plt_divtau_2   = 0;
         m_plt_vfrac      = 0;
-        
-        // EY: Granular rheology
-        m_plt_eta2       = 0;
-        m_plt_eta3       = 0;
     }
 
     // Which variables to write to plotfile
@@ -260,11 +256,14 @@ void incflo::ReadIOParameters()
     pp.query("plt_p_nd",       m_plt_p_nd  );
     pp.query("plt_macphi",     m_plt_macphi);
     pp.query("plt_eta",        m_plt_eta   );
+    pp.query("plt_eta_1",      m_plt_eta_1  );
+    pp.query("plt_eta_2",      m_plt_eta_2  );
     pp.query("plt_vort",       m_plt_vort  );
     pp.query("plt_strainrate", m_plt_strainrate);
     pp.query("plt_divu",       m_plt_divu  );
     pp.query("plt_divtau",     m_plt_divtau  );
-    pp.query("plt_divtau1",    m_plt_divtau1  );
+    pp.query("plt_divtau_1",   m_plt_divtau_1  );
+    pp.query("plt_divtau_2",   m_plt_divtau_2  );
     pp.query("plt_vfrac",      m_plt_vfrac );
 
     pp.query("plt_forcing",    m_plt_forcing );
@@ -275,9 +274,6 @@ void incflo::ReadIOParameters()
     pp.query("plt_error_p",    m_plt_error_p );
     pp.query("plt_error_mac_p",m_plt_error_mac_p );
 
-    //EY
-    pp.query("plt_eta2",       m_plt_eta2  );
-    pp.query("plt_eta3",       m_plt_eta3  );
 }
 
 //
