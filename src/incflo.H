@@ -271,7 +271,7 @@ public: // for cuda
         amrex::Real mu;
         amrex::Real n_0;
         amrex::Real tau_0;
-        amrex::Real papa_reg_0;
+        amrex::Real papa_reg;
         amrex::Real eta_0;
         amrex::Real alpha_0;
         amrex::Real A_0;
@@ -302,7 +302,7 @@ public: // for cuda
             , mu(1.0)
             , n_0(0.0)
             , tau_0(0.0)
-            , papa_reg_0(0.0)
+            , papa_reg(0.0)
             , eta_0(0.0)
             , alpha_0(0.0)
             , A_0(0.0)

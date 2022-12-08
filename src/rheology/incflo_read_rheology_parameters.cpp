@@ -36,17 +36,17 @@ void incflo::ReadRheologyParameters()
             pp.query("mu_1", m_fluid.mu_1);
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.mu_1 >= 0.0,
                     "viscosity mu_1 must be positive or zero");
-            pp.query("n_0", m_fluid.n_0);
+            pp.query("n", m_fluid.n_0);
             AMREX_ALWAYS_ASSERT(m_fluid.n_0 > 0.0);
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.n_0 != 1.0,
-                    "specify power-law rheology exponent n_0 != 1.0");
+                    "specify power-law rheology exponent n != 1.0");
             pp.query("n_1", m_fluid.n_1);
             AMREX_ALWAYS_ASSERT(m_fluid.n_1 > 0.0);
 
             amrex::Print() << "Power-law fluid with"
                            << " mu = " << m_fluid.mu
                            << " mu_1 = " << m_fluid.mu_1
-                           << ", n_0 = " << m_fluid.n_0
+                           << ", n = " << m_fluid.n_0
                            << ", n_1 = " << m_fluid.n_1 << std::endl;
          }
 
@@ -58,15 +58,15 @@ void incflo::ReadRheologyParameters()
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.tau_0 > 0.0,
                     "No point in using Bingham rheology with tau_0 = 0");
 
-            pp.query("papa_reg_0", m_fluid.papa_reg_0);
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg_0 > 0.0,
+            pp.query("papa_reg", m_fluid.papa_reg);
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg > 0.0,
                     "Papanastasiou regularisation parameter must be positive");
 
 
             amrex::Print() << "Bingham fluid with"
                             << " mu = " << m_fluid.mu
                             << ", tau_0 = " << m_fluid.tau_0
-                            << ", papa_reg_0 = " << m_fluid.papa_reg_0 << std::endl;
+                            << ", papa_reg = " << m_fluid.papa_reg << std::endl;
          }
 
          // second-order Herschel-Bulkley
@@ -78,10 +78,10 @@ void incflo::ReadRheologyParameters()
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.mu_1 >= 0.0,
                  "viscosities mu_1 must be positive or zero");
 
-            pp.query("n_0", m_fluid.n_0);
+            pp.query("n", m_fluid.n_0);
             AMREX_ALWAYS_ASSERT(m_fluid.n_0 > 0.0);
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.n_0 != 1.0,
-                    "specify power-law rheology exponent n_0 != 1.0");
+                    "specify power-law rheology exponent n != 1.0");
             pp.query("n_1", m_fluid.n_1);
             AMREX_ALWAYS_ASSERT(m_fluid.n_1 > 0.0);
 
@@ -90,8 +90,8 @@ void incflo::ReadRheologyParameters()
                  "No point in using Herschel-Bulkley rheology with tau_0 = 0");
             pp.query("tau_1", m_fluid.tau_1);
 
-            pp.query("papa_reg_0", m_fluid.papa_reg_0);
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg_0 > 0.0,
+            pp.query("papa_reg", m_fluid.papa_reg);
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg > 0.0,
                     "Papanastasiou regularisation parameter must be positive");
             pp.query("papa_reg_1", m_fluid.papa_reg_1);
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg_1 > 0.0,
@@ -100,11 +100,11 @@ void incflo::ReadRheologyParameters()
             amrex::Print() << "Herschel-Bulkley second-order fluid with"
                            << " mu = " << m_fluid.mu
                            << " mu_1 = " << m_fluid.mu_1
-                           << ", n_0 = " << m_fluid.n_0
+                           << ", n = " << m_fluid.n_0
                            << ", n_1 = " << m_fluid.n_1
                            << ", tau_0 = " << m_fluid.tau_0
                            << ", tau_1 = " << m_fluid.tau_1
-                           << ", papa_reg_0 = " << m_fluid.papa_reg_0 
+                           << ", papa_reg = " << m_fluid.papa_reg 
                            << ", papa_reg_1 = " << m_fluid.papa_reg_1 << std::endl;
          }
 
@@ -113,7 +113,7 @@ void incflo::ReadRheologyParameters()
          {
              m_fluid.fluid_model = FluidModel::deSouzaMendesDutra;
              
-             pp.query("n_0", m_fluid.n_0);
+             pp.query("n", m_fluid.n_0);
              AMREX_ALWAYS_ASSERT(m_fluid.n_0 > 0.0);
 
              pp.query("tau_0", m_fluid.tau_0);
@@ -125,7 +125,7 @@ void incflo::ReadRheologyParameters()
 
              amrex::Print() << "de Souza Mendes-Dutra fluid with"
                             << " mu = " << m_fluid.mu
-                            << ", n_0 = " << m_fluid.n_0
+                            << ", n = " << m_fluid.n_0
                             << ", tau_0 = " << m_fluid.tau_0
                             << ", eta_0 = " << m_fluid.eta_0 << std::endl;
          }
@@ -151,8 +151,8 @@ void incflo::ReadRheologyParameters()
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.tau_0 > 0.0,
                         "Papanastasiou regularisation parameter must be positive");
 
-             pp.query("papa_reg_0", m_fluid.papa_reg_0);
-                AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg_0 > 0.0,
+             pp.query("papa_reg", m_fluid.papa_reg);
+                AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg > 0.0,
                         "Papanastasiou regularisation parameter must be positive");
 
              pp.query("A_0", m_fluid.A_0);
@@ -185,7 +185,7 @@ void incflo::ReadRheologyParameters()
                             << ", A_0 = " << m_fluid.A_0
                             << " alpha_0 = " << m_fluid.alpha_0
                             << " tau_0 = " << m_fluid.tau_0
-                            << ", papa_reg_0 = " << m_fluid.papa_reg_0
+                            << ", papa_reg = " << m_fluid.papa_reg
                             << ", A_1 = " << m_fluid.A_1
                             << " alpha_1 = " << m_fluid.alpha_1
                             << " tau_1 = " << m_fluid.tau_1
@@ -250,11 +250,11 @@ void incflo::ReadRheologyParameters()
                     pp.query(name.c_str(),fluid.mu);
                  }
                  {
-                    amrex::ParmParse pp("incflo.vof.n_0");
+                    amrex::ParmParse pp("incflo.vof.n");
                     pp.query(name.c_str(),fluid.n_0);
                     AMREX_ALWAYS_ASSERT(fluid.n_0 > 0.0);
                     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.n_0 != 1.0,
-                            "specify power-law rheology exponent n_0 != 1.0");
+                            "specify power-law rheology exponent n != 1.0");
                  }
 
                 amrex::Print() << "Power-law fluid with"
@@ -278,16 +278,16 @@ void incflo::ReadRheologyParameters()
                            "No point in using Bingham rheology with tau_0 = 0");
                 }
                 {
-                   amrex::ParmParse pp("incflo.vof.papa_reg_0");
-                   pp.query(name.c_str(),fluid.papa_reg_0);
-                   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.papa_reg_0 > 0.0,
+                   amrex::ParmParse pp("incflo.vof.papa_reg");
+                   pp.query(name.c_str(),fluid.papa_reg);
+                   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.papa_reg > 0.0,
                            "Papanastasiou regularisation parameter must be positive");
                 }
 
                 amrex::Print() << "Bingham fluid with"
                                 << " mu = " << fluid.mu
                                 << ", tau_0 = " << fluid.tau_0
-                                << ", papa_reg_0 = " << fluid.papa_reg_0 << std::endl;
+                                << ", papa_reg = " << fluid.papa_reg << std::endl;
              }
 
              // second-order Herschel-Bulkley
@@ -306,16 +306,16 @@ void incflo::ReadRheologyParameters()
                            "No point in using Herschel-Bulkley rheology with tau_0 = 0");
                 }
                 {
-                   amrex::ParmParse pp("incflo.vof.n_0");
+                   amrex::ParmParse pp("incflo.vof.n");
                    pp.query(name.c_str(),fluid.n_0);
                    AMREX_ALWAYS_ASSERT(fluid.n_0 > 0.0);
                    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.n_0 != 1.0,
                         "No point in using Herschel-Bulkley rheology with n = 1");
                 }
                 {
-                   amrex::ParmParse pp("incflo.vof.papa_reg_0");
-                   pp.query(name.c_str(),fluid.papa_reg_0);
-                   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.papa_reg_0 > 0.0,
+                   amrex::ParmParse pp("incflo.vof.papa_reg");
+                   pp.query(name.c_str(),fluid.papa_reg);
+                   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.papa_reg > 0.0,
                            "Papanastasiou regularisation parameter must be positive");
                 }
                 {
@@ -343,11 +343,11 @@ void incflo::ReadRheologyParameters()
                 amrex::Print() << "Herschel-Bulkley second-order fluid with"
                                << " mu = " << fluid.mu
                                << " mu_1 = " << fluid.mu_1
-                               << ", n_0 = " << fluid.n_0
+                               << ", n = " << fluid.n_0
                                << ", n_1 = " << fluid.n_1
                                << ", tau_0 = " << fluid.tau_0
                                << ", tau_1 = " << fluid.tau_1
-                               << ", papa_reg_0 = " << fluid.papa_reg_0 
+                               << ", papa_reg = " << fluid.papa_reg 
                                << ", papa_reg_1 = " << fluid.papa_reg_1 << std::endl;
              }
 
@@ -373,7 +373,7 @@ void incflo::ReadRheologyParameters()
                            "No point in using SMD rheology with eta_0 = 0");
                 }
                 {
-                   amrex::ParmParse pp("incflo.vof.n_0");
+                   amrex::ParmParse pp("incflo.vof.n");
                    pp.query(name.c_str(),fluid.n_0);
                    AMREX_ALWAYS_ASSERT(fluid.n_0 > 0.0);
                    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.n_0 != 1.0,
@@ -382,7 +382,7 @@ void incflo::ReadRheologyParameters()
 
                 amrex::Print() << "de Souza Mendes-Dutra fluid with"
                                << " mu = " << fluid.mu
-                               << ", n_0 = " << fluid.n_0
+                               << ", n = " << fluid.n_0
                                << ", tau_0 = " << fluid.tau_0
                                << ", eta_0 = " << fluid.eta_0 << std::endl;
              }
@@ -411,9 +411,9 @@ void incflo::ReadRheologyParameters()
                             "can not use granular rheology with tau_0 < 0");
                  }
                  {
-                    amrex::ParmParse pp("incflo.vof.papa_reg_0");
-                    pp.query(name.c_str(),fluid.papa_reg_0);
-                    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.papa_reg_0 > 0.0,
+                    amrex::ParmParse pp("incflo.vof.papa_reg");
+                    pp.query(name.c_str(),fluid.papa_reg);
+                    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid.papa_reg > 0.0,
                             "Papanastasiou regularisation parameter must be positive");
                  }
                  {
@@ -459,7 +459,7 @@ void incflo::ReadRheologyParameters()
                                 << ", A_0 = " << fluid.A_0
                                 << " alpha_0 = " << fluid.alpha_0
                                 << " tau_0 = " << fluid.tau_0
-                                << ", papa_reg_0 = " << fluid.papa_reg_0
+                                << ", papa_reg = " << fluid.papa_reg
                                 << ", A_1 = " << fluid.A_1
                                 << " alpha_1 = " << fluid.alpha_1
                                 << " tau_1 = " << fluid.tau_1

@@ -65,13 +65,13 @@ amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const incflo
         }
     }
     else if (fluid.fluid_model == incflo::FluidModel::Bingham) {
-        visc = fluid.mu + fluid.tau_0 * expterm(sr/fluid.papa_reg_0) / fluid.papa_reg_0;
+        visc = fluid.mu + fluid.tau_0 * expterm(sr/fluid.papa_reg) / fluid.papa_reg;
     }
     else if (fluid.fluid_model == incflo::FluidModel::HerschelBulkley) {
         if (order == 0) {
-            //visc = (fluid.mu*std::pow(sr,fluid.n_0)+fluid.tau_0)*expterm(sr/fluid.papa_reg_0)/fluid.papa_reg_0;
+            //visc = (fluid.mu*std::pow(sr,fluid.n_0)+fluid.tau_0)*expterm(sr/fluid.papa_reg)/fluid.papa_reg;
             // return (mu*std::pow(sr,n_flow)+tau_0)*expterm(sr/papa_reg)/papa_reg;
-            visc = ( fluid.mu*std::pow(sr,fluid.n_0-1.0) + (fluid.tau_0/sr)*(1.0-expterm(-1.0*sr/fluid.papa_reg_0)));
+            visc = ( fluid.mu*std::pow(sr,fluid.n_0-1.0) + (fluid.tau_0/sr)*(1.0-expterm(-1.0*sr/fluid.papa_reg)));
         }
         else if (order == 1) {
             // visc =  (mu_1*std::pow(sr,n_flow_1)+tau_1)*expterm(sr/papa_reg_1)/papa_reg_1;
@@ -86,7 +86,7 @@ amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const incflo
         // For the strainrate, power is zero for an initial test. Make it "1" for a real simulation
         Real p_bg = 1.0;
         if (order == 0) {
-            visc = std::pow(2*(expterm(sr/fluid.papa_reg_0) / fluid.papa_reg_0),1)*(p_bg)*inertialNum(sr,p_bg, fluid.rho, fluid.diam, fluid.mu, fluid.A_0, fluid.alpha_0);
+            visc = std::pow(2*(expterm(sr/fluid.papa_reg) / fluid.papa_reg),1)*(p_bg)*inertialNum(sr,p_bg, fluid.rho, fluid.diam, fluid.mu, fluid.A_0, fluid.alpha_0);
         }
         //else if (order == 1) {
         //    visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(fluid.p_bg)*inertialNum(sr,fluid.p_bg, fluid.rho, fluid.diam, fluid.mu_2, fluid.A_2, 2*fluid.alpha_2);
