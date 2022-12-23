@@ -231,9 +231,9 @@ void incflo::init_bcs ()
             else if (bct == BC::slip_wall)
             {
                 if (side == Orientation::low) {
-                    m_bcrec_density[0].setLo(dir, BCType::hoextrap);
+                    m_bcrec_density[0].setLo(dir, BCType::foextrap);
                 } else {
-                    m_bcrec_density[0].setHi(dir, BCType::hoextrap);
+                    m_bcrec_density[0].setHi(dir, BCType::foextrap);
                 }
             }
             else if (bct == BC::mass_inflow)
