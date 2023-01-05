@@ -74,3 +74,5 @@ test*/*.cpp
 CMakeFiles
 CMakeCache.txt
 
+**/*.ex
+**/tmp_build_dir/

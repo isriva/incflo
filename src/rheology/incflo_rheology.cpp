@@ -108,9 +108,6 @@ amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const in
     return mixture_viscosity(conc,visc0,visc1);
 }
 
-}
-
-
 void incflo::compute_viscosity (Vector<MultiFab*> const& vel_eta,
                                 Vector<MultiFab*> const& rho,
                                 Vector<MultiFab*> const& vel,
@@ -134,7 +131,6 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                                          Real /*time*/, int nghost, int order)
 {
 
-    // Compute Viscosity
 #ifdef AMREX_USE_EB
     auto const& fact = EBFactory(lev);
     auto const& flags = fact.getMultiEBCellFlagFab();

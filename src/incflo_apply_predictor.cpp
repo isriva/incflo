@@ -6,7 +6,10 @@ using namespace amrex;
 //
 //  1. Use u = vel_old to compute
 //
-//      conv_u  = - u grad u
+//      if (!advect_momentum) then
+//          conv_u  = - u grad u
+//      else
+//          conv_u  = - del dot (rho u u)
 //      conv_r  = - div( u rho  )
 //      conv_t  = - div( u trac )
 //      eta_old     = visosity at m_cur_time
@@ -22,9 +25,6 @@ using namespace amrex;
 //  2. Add explicit forcing term i.e. gravity + lagged pressure gradient
 //
 //      rhs += dt * ( g - grad(p + p0) / rho^nph )
-//
-//      Note that in order to add the pressure gradient terms divided by rho,
-//      we convert the velocity to momentum before adding and then convert them back.
 //
 //  3. A. If (m_diff_type == DiffusionType::Implicit)
 //        solve implicit diffusion equation for u*
@@ -43,7 +43,10 @@ using namespace amrex;
 //
 //     Add pressure gradient term back to u*:
 //
-//      u** = u* + dt * grad p / rho^nph
+//      if (advect_momentum) then
+//          (rho^(n+1) u**) = (rho^(n+1) u*) + dt * grad p
+//      else
+//          u** = u* + dt * grad p / rho^nph
 //
 //     Solve Poisson equation for phi:
 //
@@ -64,14 +67,10 @@ void incflo::ApplyPredictor (bool incremental_projection)
 {
     BL_PROFILE("incflo::ApplyPredictor");
 
+    constexpr Real m_half = Real(0.5);
+
     // We use the new time value for things computed on the "*" state
     Real new_time = m_cur_time + m_dt;
-
-    //if (m_verbose > 2)
-    //{
-    //    amrex::Print() << "Before predictor step:" << std::endl;
-    //    //PrintMaxValues(new_time);
-    //}
 
     // *************************************************************************************
     // Allocate space for the MAC velocities
@@ -86,6 +85,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                           1, ngmac, MFInfo(), Factory(lev));,
                      w_mac[lev].define(amrex::convert(grids[lev],IntVect::TheDimensionVector(2)), dmap[lev],
                           1, ngmac, MFInfo(), Factory(lev)););
+        // do we still want to do this now that we always call a FillPatch (and all ghost cells get filled)?
         if (ngmac > 0) {
             AMREX_D_TERM(u_mac[lev].setBndry(0.0);,
                          v_mac[lev].setBndry(0.0);,
@@ -116,7 +116,6 @@ void incflo::ApplyPredictor (bool incremental_projection)
             tra_forces.emplace_back(grids[lev], dmap[lev], m_ntrac, nghost_force(),
                                     MFInfo(), Factory(lev));
         }
-
         vel_eta.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
         if (m_do_second_rheology_1) {
             vel_eta1.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
@@ -158,7 +157,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
     if (need_divtau() || use_tensor_correction)
     {
         compute_divtau(get_divtau_old(),get_velocity_old_const(),
-                        get_density_old_const(),GetVecOfConstPtrs(vel_eta));
+                       get_density_old_const(),GetVecOfConstPtrs(vel_eta));
     }
     if (m_do_second_rheology_1) {
         compute_divtau1(get_divtau_old1(),get_velocity_old_const(),
@@ -250,7 +249,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
 
                 amrex::ParallelFor(gbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                 {
-                    rho_nph(i,j,k) = Real(0.5) * (rho_old(i,j,k) + rho_new(i,j,k));
+                    rho_nph(i,j,k) = m_half * (rho_old(i,j,k) + rho_new(i,j,k));
                 });
             } // mfi
 
@@ -314,7 +313,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         for (int n = 0; n < l_ntrac; ++n)
                         {
                             Real tra_new = rho_o(i,j,k)*tra_o(i,j,k,n) + l_dt *
-                                ( dtdt_o(i,j,k,n) + tra_f(i,j,k,n) + Real(0.5) * laps_o(i,j,k,n) );
+                                ( dtdt_o(i,j,k,n) + tra_f(i,j,k,n) + m_half * laps_o(i,j,k,n) );
 
                             tra_new /= rho(i,j,k);
                             tra(i,j,k,n) = tra_new;
@@ -349,7 +348,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
         for (int lev = 0; lev <= finest_level; ++lev)
             fillphysbc_tracer(lev, new_time, m_leveldata[lev]->tracer, ng_diffusion);
 
-        Real dt_diff = (m_diff_type == DiffusionType::Implicit) ? m_dt : Real(0.5)*m_dt;
+        Real dt_diff = (m_diff_type == DiffusionType::Implicit) ? m_dt : m_half*m_dt;
         diffuse_scalar(get_tracer_new(), get_density_new(), GetVecOfConstPtrs(tra_eta), dt_diff);
 
     } // if (m_advect_tracer)
@@ -396,6 +395,9 @@ void incflo::ApplyPredictor (bool incremental_projection)
             Array4<Real> const& vel = ld.velocity.array(mfi);
             Array4<Real const> const& dvdt = ld.conv_velocity_o.const_array(mfi);
             Array4<Real const> const& vel_f = vel_forces[lev].const_array(mfi);
+            Array4<Real const> const& rho_old  = ld.density_o.const_array(mfi);
+            Array4<Real const> const& rho_new  = ld.density.const_array(mfi);
+            Array4<Real const> const& rho_nph  = density_nph[lev].array(mfi);
 
             if (m_diff_type == DiffusionType::Implicit) {
 
@@ -403,9 +405,152 @@ void incflo::ApplyPredictor (bool incremental_projection)
                 {
                     Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
                     Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
+                    // Here divtau_o is the difference of tensor and scalar divtau_o!
+                    if (m_advect_momentum) {
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                        {
+                            AMREX_D_TERM(vel(i,j,k,0) *= rho_old(i,j,k);,
+                                         vel(i,j,k,1) *= rho_old(i,j,k);,
+                                         vel(i,j,k,2) *= rho_old(i,j,k););
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+                            if (m_do_second_rheology_1) {
+                                AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
+                                             vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
+                                             vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                            }
+                            //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
+                            //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
+                            //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
+                            //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
+                            //}
+                            AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
+                                         vel(i,j,k,1) /= rho_new(i,j,k);,
+                                         vel(i,j,k,2) /= rho_new(i,j,k););
+                        });
+                    } else {
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                        {
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+                            if (m_do_second_rheology_1) {
+                                AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
+                                             vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
+                                             vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                            }
+                            //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
+                            //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
+                            //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
+                            //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
+                            //}
+                        });
+                    }
+                } else {
+                    if (m_advect_momentum) {
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                        {
+                            AMREX_D_TERM(vel(i,j,k,0) *= rho_old(i,j,k);,
+                                         vel(i,j,k,1) *= rho_old(i,j,k);,
+                                         vel(i,j,k,2) *= rho_old(i,j,k););
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)););
+                            AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
+                                         vel(i,j,k,1) /= rho_new(i,j,k);,
+                                         vel(i,j,k,2) /= rho_new(i,j,k););
+                        });
+                    } else {
+                        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                        {
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)););
+                        });
+                    }
+                }
+            }
+            else if (m_diff_type == DiffusionType::Crank_Nicolson)
+            {
+
+                Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+                Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
+                if (m_advect_momentum) {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
-                        // Here divtau_o is the difference of tensor and scalar divtau_o!
+                        AMREX_D_TERM(vel(i,j,k,0) *= rho_old(i,j,k);,
+                                     vel(i,j,k,1) *= rho_old(i,j,k);,
+                                     vel(i,j,k,2) *= rho_old(i,j,k););
+                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+m_half*divtau_o(i,j,k,0));,
+                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+m_half*divtau_o(i,j,k,1));,
+                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+m_half*divtau_o(i,j,k,2)););
+                        if (m_do_second_rheology_1) {
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                        }
+                        //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
+                        //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
+                        //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
+                        //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
+                        //}
+                        AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
+                                     vel(i,j,k,1) /= rho_new(i,j,k);,
+                                     vel(i,j,k,2) /= rho_new(i,j,k););
+                    });
+                } else {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                    {
+                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+m_half*divtau_o(i,j,k,0));,
+                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+m_half*divtau_o(i,j,k,1));,
+                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+m_half*divtau_o(i,j,k,2)););
+                        if (m_do_second_rheology_1) {
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                        }
+                        //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
+                        //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
+                        //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
+                        //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
+                        //}
+                    });
+                }
+            }
+                    });
+                }
+            }
+            else if (m_diff_type == DiffusionType::Explicit)
+            {
+                Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+                Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
+                if (m_advect_momentum) {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                    {
+                        AMREX_D_TERM(vel(i,j,k,0) *= rho_old(i,j,k);,
+                                     vel(i,j,k,1) *= rho_old(i,j,k);,
+                                     vel(i,j,k,2) *= rho_old(i,j,k););
+                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
+                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
+                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+                        if (m_do_second_rheology_1) {
+                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
+                                         vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
+                                         vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                        }
+                        //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
+                        //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
+                        //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
+                        //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
+                        //}
+                        AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
+                                     vel(i,j,k,1) /= rho_new(i,j,k);,
+                                     vel(i,j,k,2) /= rho_new(i,j,k););
+                    });
+                } else {
+                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                    {
                         AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
                                      vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
                                      vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
@@ -415,74 +560,12 @@ void incflo::ApplyPredictor (bool incremental_projection)
                                          vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
                         }
                         //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
-                        //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o3(i,j,k,0));,
-                        //                 vel(i,j,k,1) += l_dt*(divtau_o3(i,j,k,1));,
-                        //                 vel(i,j,k,2) += l_dt*(divtau_o3(i,j,k,2)););
-                        //}
-                    });
-                } else {
-                    Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
-                    amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                    {
-                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0));,
-                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1));,
-                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)););
-                        if (m_do_second_rheology_1) {
-                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
-                                         vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
-                                         vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
-                        }
-                        //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
-                        //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o3(i,j,k,0));,
-                        //                 vel(i,j,k,1) += l_dt*(divtau_o3(i,j,k,1));,
-                        //                 vel(i,j,k,2) += l_dt*(divtau_o3(i,j,k,2)););
+                        //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
+                        //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
+                        //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                         //}
                     });
                 }
-            }
-            else if (m_diff_type == DiffusionType::Crank_Nicolson)
-            {
-                Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
-                Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                {
-                    // HERE INCLUDE HALF OF DIVTAU1 and ALL OF DIVTAU2
-                    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+Real(0.5)*divtau_o(i,j,k,0));,
-                                 vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+Real(0.5)*divtau_o(i,j,k,1));,
-                                 vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+Real(0.5)*divtau_o(i,j,k,2)););
-                    if (m_do_second_rheology_1) {
-                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
-                                     vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
-                                     vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
-                    }
-                    //if (m_do_second_rheology_1) { // TODO: add the second RE tensor
-                    //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o3(i,j,k,0));,
-                    //                 vel(i,j,k,1) += l_dt*(divtau_o3(i,j,k,1));,
-                    //                 vel(i,j,k,2) += l_dt*(divtau_o3(i,j,k,2)););
-                    //}
-                });
-            }
-            else if (m_diff_type == DiffusionType::Explicit)
-            {
-                Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
-                Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
-                amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                {
-                    // HERE INCLUDE ALL DIVTAU1 and ALL OF DIVTAU2
-                    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
-                                 vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
-                                 vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
-                    if (m_do_second_rheology_1) {
-                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
-                                     vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
-                                     vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
-                    }
-                    //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
-                    //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o3(i,j,k,0));,
-                    //                 vel(i,j,k,1) += l_dt*(divtau_o3(i,j,k,1));,
-                    //                 vel(i,j,k,2) += l_dt*(divtau_o3(i,j,k,2)););
-                    //}
-                });
             }
         } // mfi
     } // lev
@@ -498,7 +581,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
             fillphysbc_density (lev, new_time, m_leveldata[lev]->density , ng_diffusion);
         }
 
-        Real dt_diff = (m_diff_type == DiffusionType::Implicit) ? m_dt : Real(0.5)*m_dt;
+        Real dt_diff = (m_diff_type == DiffusionType::Implicit) ? m_dt : m_half*m_dt;
         diffuse_velocity(get_velocity_new(), get_density_new(), GetVecOfConstPtrs(vel_eta), dt_diff);
     }
 

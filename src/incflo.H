@@ -473,6 +473,10 @@ private:
     bool m_advect_tracer    = false;
     bool m_test_tracer_conservation = false;
 
+    // If false then we update velocity using the convective   form, u dot grad u
+    // If  true then we update velocity using the conservative form, del dot (u u)
+    bool m_advect_momentum = false;
+
     std::string m_advection_type = "Godunov";
 
 #ifdef AMREX_USE_EB
@@ -541,6 +545,29 @@ private:
     amrex::Real m_vert_hi = 0.0;
     amrex::Real m_vert_lo = 0.0;
     amrex::Real m_vert_n = 0.0;
+
+    // Volume of Fluid flag
+    bool m_do_vof = false; // do VoF?
+    struct FluidVOF_t {
+        FluidModel fluid_model;
+        amrex::Real rho;
+        amrex::Real mu;
+        amrex::Real n_0;
+        amrex::Real tau_0;
+        amrex::Real papa_reg;
+        amrex::Real eta_0;
+
+        FluidVOF_t ()
+            : fluid_model(FluidModel::Newtonian)
+            , rho(1.0)
+            , mu(1.0)
+            , n_0(0.0)
+            , tau_0(0.0)
+            , papa_reg(0.0)
+            , eta_0(0.0)
+        {}
+    };
+    amrex::Vector<FluidVOF_t> m_fluid_vof;
 
     int m_plot_int = -1;
 
@@ -734,6 +761,10 @@ private:
 
     bool need_divtau () const {
         return ( m_godunov_include_diff_in_forcing || DiffusionType::Implicit != m_diff_type );
+    }
+
+    bool AdvectMomentum () const {
+        return m_advect_momentum;
     }
 
     bool useTensorSolve () const {
