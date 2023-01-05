@@ -225,11 +225,11 @@ void incflo::ReadIOParameters()
         m_plt_velx       = 1;
         m_plt_vely       = 1;
         m_plt_velz       = 1;
-        m_plt_gpx        = 0;
-        m_plt_gpy        = 0;
-        m_plt_gpz        = 0;
+        m_plt_gpx        = 1;
+        m_plt_gpy        = 1;
+        m_plt_gpz        = 1;
         m_plt_rho        = 1;
-        m_plt_tracer     = 0;
+        m_plt_tracer     = 1;
         m_plt_p_nd       = 0;
         m_plt_macphi     = 0;
         m_plt_eta        = 1;
@@ -276,7 +276,6 @@ void incflo::ReadIOParameters()
     pp.query("plt_error_w",    m_plt_error_w );
     pp.query("plt_error_p",    m_plt_error_p );
     pp.query("plt_error_mac_p",m_plt_error_mac_p );
-
 }
 
 //

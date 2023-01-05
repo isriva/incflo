@@ -164,7 +164,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         get_density_old_const(),GetVecOfConstPtrs(vel_eta1));
     }
     //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
-    //    compute_divtau3(get_divtau_old3(),get_velocity_old_const(),
+    //    compute_divtau2(get_divtau_old3(),get_velocity_old_const(),
     //                    get_density_old_const(),GetVecOfConstPtrs(vel_eta2));
     //}
 

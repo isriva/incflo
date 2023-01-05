@@ -203,8 +203,8 @@ void incflo::ReadRheologyParameters()
      if (m_do_vof) 
      {
      
-         FluidVOF_t fluid0;
-         FluidVOF_t fluid1;
+         FLUID_t fluid0;
+         FLUID_t fluid1;
      
          amrex::ParmParse ppVOF("incflo.vof");
 
