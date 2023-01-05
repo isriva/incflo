@@ -108,10 +108,12 @@ amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const in
     return mixture_viscosity(conc,visc0,visc1);
 }
 
-void incflo::compute_viscosity (Vector<MultiFab*> const& vel_eta,
-                                Vector<MultiFab*> const& rho,
-                                Vector<MultiFab*> const& vel,
-                                Real time, int nghost, int order)
+}
+
+void incflo::compute_viscosity (amrex::Vector<amrex::MultiFab*> const& vel_eta,
+                                amrex::Vector<amrex::MultiFab*> const& rho,
+                                amrex::Vector<amrex::MultiFab*> const& vel,
+                                amrex::Real time, int nghost, int order)
 {
     for (int lev = 0; lev <= finest_level; ++lev)
     {
@@ -124,11 +126,11 @@ void incflo::compute_viscosity_at_level (int lev,
 #else
 void incflo::compute_viscosity_at_level (int /*lev*/,
 #endif
-                                         MultiFab* vel_eta,
-                                         MultiFab* rho,
-                                         MultiFab* vel,
-                                         Geometry& lev_geom,
-                                         Real /*time*/, int nghost, int order)
+                                         amrex::MultiFab* vel_eta,
+                                         amrex::MultiFab* rho,
+                                         amrex::MultiFab* vel,
+                                         amrex::Geometry& lev_geom,
+                                         amrex::Real /*time*/, int nghost, int order)
 {
 
 #ifdef AMREX_USE_EB

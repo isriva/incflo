@@ -518,9 +518,6 @@ void incflo::ApplyPredictor (bool incremental_projection)
                     });
                 }
             }
-                    });
-                }
-            }
             else if (m_diff_type == DiffusionType::Explicit)
             {
                 Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);

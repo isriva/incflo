@@ -223,7 +223,6 @@ void incflo::ReadRheologyParameters()
             fluid1.rho = rho[1];
          }
          amrex::Vector<amrex::Real> mu;
-         mu[0] = 1.0; mu[1] = 1.0;
          ppVOF.queryarr("mu", mu);
          
          amrex::Vector<amrex::Real> diam;
