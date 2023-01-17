@@ -49,23 +49,26 @@ amrex::Real kappaterm (amrex::Real mu, amrex::Real p)
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const incflo::FLUID_t& fluid) 
+std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int order, const incflo::FLUID_t& fluid) 
 {
-    amrex::Real visc;
+    amrex::Real visc = 0.0;
+    bool include = false;
     
     if (fluid.fluid_model == incflo::FluidModel::Newtonian) {
-        visc = fluid.mu;
+        if (order == 0) {visc = fluid.mu; include = true;}
     }
     else if (fluid.fluid_model == incflo::FluidModel::Powerlaw) {
         if (order == 0) {
-            visc = (fluid.mu * std::pow(sr,fluid.n_0-1.0));
+            if (sr < 1.e-15) {visc = fluid.mu; include = true;}
+            else {visc = (fluid.mu * std::pow(sr,fluid.n_0-1.0)); include = true;}
         }
         else if (order == 1) {
-            visc = (fluid.mu_1 * std::pow(sr,fluid.n_1-1.0));
+            if (sr < 1.e-15) {visc = fluid.mu_1; include = true;}
+            else {visc = (fluid.mu_1 * std::pow(sr,fluid.n_1-1.0)); include = true;}
         }
     }
     else if (fluid.fluid_model == incflo::FluidModel::Bingham) {
-        visc = fluid.mu + fluid.tau_0 * expterm(sr/fluid.papa_reg) / fluid.papa_reg;
+        if (order == 0) {visc = fluid.mu + fluid.tau_0 * expterm(sr/fluid.papa_reg) / fluid.papa_reg; include = true;}
     }
     else if (fluid.fluid_model == incflo::FluidModel::HerschelBulkley) {
         if (order == 0) {
@@ -95,17 +98,23 @@ amrex::Real Viscosity_Single(const amrex::Real sr, const int order, const incflo
         //    visc = -1*std::pow(2*(expterm(sr/papa_reg) / papa_reg),2)*(p_bg)*inertialNum(sr, p_bg, ro_0, diam, mu_3, A_3, 2*alpha_3);
         //}
     }
-    return visc;
+    return {visc, include};
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const int order, const amrex::Vector<incflo::FLUID_t>& fluid_vof) 
 {
     amrex::Real conc = get_concentration(dens,fluid_vof[0].rho,fluid_vof[1].rho);
-    amrex::Real visc0 = Viscosity_Single(sr,order,fluid_vof[0]);
-    amrex::Real visc1 = Viscosity_Single(sr,order,fluid_vof[1]);
+    auto [visc0, include0] = Viscosity_Single(sr,order,fluid_vof[0]);
+    auto [visc1, include1] = Viscosity_Single(sr,order,fluid_vof[1]);
 
-    return mixture_viscosity(conc,visc0,visc1);
+    amrex::Real visc;
+    if (include0 and include1) visc = mixture_viscosity(conc,visc0,visc1);
+    if (!include0 and !include1) visc = 0.0;
+    if (!include0 and include1) visc = visc1;
+    if (include0 and !include1) visc = visc0;
+
+    return visc;
 }
 
 }
@@ -170,8 +179,14 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
             {
                 Real sr = incflo_strainrate_eb(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,flag_arr(i,j,k));
                 Real dens = rho_arr(i,j,k);
-                if (m_do_vof) eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
-                else eta_arr(i,j,k) = Viscosity_Single(sr,order,m_fluid);
+                if (m_do_vof) {
+                    eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
+                }
+                else {
+                    auto [visc, include] = Viscosity_Single(sr,order,m_fluid);    
+                    if (include) eta_arr(i,j,k) = visc;
+                    else eta_arr(i,j,k) = 0.0;
+                }
             });
         }
         else
@@ -181,8 +196,14 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
             {
                 Real sr = incflo_strainrate(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
                 Real dens = rho_arr(i,j,k);
-                if (m_do_vof) eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
-                else eta_arr(i,j,k) = Viscosity_Single(sr,order,m_fluid);
+                if (m_do_vof) {
+                    eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
+                }
+                else {
+                    auto [visc, include] = Viscosity_Single(sr,order,m_fluid);    
+                    if (include) eta_arr(i,j,k) = visc;
+                    else eta_arr(i,j,k) = 0.0;
+                }
             });
         }
     }

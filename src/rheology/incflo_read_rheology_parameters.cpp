@@ -6,6 +6,7 @@ void incflo::ReadRheologyParameters()
 {
      amrex::ParmParse pp0("incflo");
      pp0.query("do_vof", m_do_vof);
+     pp0.query("do_second_rheology_1", m_do_second_rheology_1);
      
      // Initialize Rheology Parameters for Single Fluid
      if (!m_do_vof) {
@@ -228,7 +229,7 @@ void incflo::ReadRheologyParameters()
          amrex::Vector<amrex::Real> diam;
          ppVOF.queryarr("diam", diam);
          amrex::Vector<amrex::Real> n_0;
-         ppVOF.queryarr("n_0", n_0);
+         ppVOF.queryarr("n", n_0);
          amrex::Vector<amrex::Real> tau_0;
          ppVOF.queryarr("tau_0", tau_0);
          amrex::Vector<amrex::Real> papa_reg;
@@ -281,18 +282,23 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[0] == "powerlaw")
          {
              fluid0.fluid_model = FluidModel::Powerlaw;
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(mu_1[0] >= 0.0,
+             
+             if (mu.size() == 2) fluid0.mu = mu[0];
+             if (n_0.size() == 2) fluid0.n_0 = n_0[0];
+             if (mu_1.size() == 2) fluid0.mu_1 = mu_1[0];
+             if (n_1.size() == 2) fluid0.n_1 = n_1[0];
+
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.mu > 0.0,
                     "viscosity mu_1 must be positive or zero");
-             AMREX_ALWAYS_ASSERT(n_0[0] > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_0[0] != 1.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.mu_1 > 0.0,
+                    "viscosity mu_1 must be positive or zero");
+             AMREX_ALWAYS_ASSERT(fluid0.n_0 > 0.0);
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.n_0 != 1.0,
                      "No point in using power-law rheology with n = 1");
-             AMREX_ALWAYS_ASSERT(n_1[0] > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_1[0] != 1.0,
+             AMREX_ALWAYS_ASSERT(fluid0.n_1 > 0.0);
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.n_1 != 1.0,
                      "No point in using power-law rheology with n = 1");
-             fluid0.mu = mu[0];
-             fluid0.n_0 = n_0[0];
-             fluid0.mu_1 = mu_1[0];
-             fluid0.n_1 = n_1[0];
+
              amrex::Print() << "Power-law fluid0 with"
                             << " mu = " << fluid0.mu
                             << " n_0 = " << fluid0.n_0
@@ -440,14 +446,28 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[1] == "powerlaw")
          {
              fluid1.fluid_model = FluidModel::Powerlaw;
-             AMREX_ALWAYS_ASSERT(n_0[1] > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_0[1] != 1.0,
+
+             if (mu.size() == 2) fluid1.mu = mu[1];
+             if (n_0.size() == 2) fluid1.n_0 = n_0[1];
+             if (mu_1.size() == 2) fluid1.mu_1 = mu_1[1];
+             if (n_1.size() == 2) fluid1.n_1 = n_1[1];
+             
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.mu > 0.0,
+                    "viscosity mu_1 must be positive or zero");
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.mu_1 > 0.0,
+                    "viscosity mu_1 must be positive or zero");
+             AMREX_ALWAYS_ASSERT(fluid1.n_0 > 0.0);
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.n_0 != 1.0,
                      "No point in using power-law rheology with n = 1");
-             fluid1.mu = mu[1];
-             fluid1.n_0 = n_0[1];
+             AMREX_ALWAYS_ASSERT(fluid1.n_1 > 0.0);
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.n_1 != 1.0,
+                     "No point in using power-law rheology with n = 1");
+
              amrex::Print() << "Power-law fluid1 with"
                             << " mu = " << fluid1.mu
-                            << ", n = " << fluid1.n_0 << " and rho = " << fluid1.rho <<  std::endl;
+                            << " n_0 = " << fluid1.n_0
+                            << " mu_1 = " << fluid1.mu_1
+                            << ", n_1 = " << fluid1.n_1 << " and rho = " << fluid1.rho << std::endl;
          }
          else if(fluid_model[1] == "bingham")
          {
@@ -469,22 +489,39 @@ void incflo::ReadRheologyParameters()
          {
              fluid1.fluid_model = FluidModel::HerschelBulkley;
              AMREX_ALWAYS_ASSERT(n_0[1] > 0.0);
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(mu_1[1] >= 0.0,
+                 "viscosities mu_1 must be positive or zero");
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_0[1] != 1.0,
                      "No point in using Herschel-Bulkley rheology with n = 1");
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[1] > 0.0,
                      "No point in using Herschel-Bulkley rheology with tau_0 = 0");
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[1] > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
+             AMREX_ALWAYS_ASSERT(n_1[1] > 0.0);
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_1[1] != 1.0,
+                     "No point in using Herschel-Bulkley rheology with n_1 = 1");
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_1[1] > 0.0,
+                     "No point in using Herschel-Bulkley rheology with tau_1 = 0");
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg_1[1] > 0.0,
+                     "Papanastasiou regularisation parameter must be positive");
 
-             fluid1.mu = mu[1];
-             fluid1.n_0 = n_0[1];
-             fluid1.tau_0 = tau_0[1];
-             fluid1.papa_reg = papa_reg[1];
+             fluid1.mu = mu[0];
+             fluid1.n_0 = n_0[0];
+             fluid1.tau_0 = tau_0[0];
+             fluid1.papa_reg = papa_reg[0];
+             fluid1.mu_1 = mu_1[0];
+             fluid1.n_1 = n_1[0];
+             fluid1.tau_1 = tau_1[0];
+             fluid1.papa_reg_1 = papa_reg_1[0];
              amrex::Print() << "Herschel-Bulkley fluid1 with"
                             << " mu = " << fluid1.mu
                             << ", n = " << fluid1.n_0
                             << ", tau_0 = " << fluid1.tau_0
-                            << ", papa_reg = " << fluid1.papa_reg << " and rho = " << fluid1.rho << std::endl;
+                            << "  papa_reg = " << fluid1.papa_reg
+                            << ", mu_1 = " << fluid1.mu_1
+                            << ", n_1 = " << fluid1.n_1
+                            << ", tau_1 = " << fluid1.tau_1
+                            << ", papa_reg_1 = " << fluid1.papa_reg_1 << " and rho = " << fluid1.rho << std::endl;
          }
          else if(fluid_model[1] == "smd")
          {
