@@ -51,6 +51,13 @@ void incflo::compute_strainrate_at_level (int /*lev*/,
                                           Real /*time*/, int nghost)
 {
 
+        // Create a nodal MultiFab for strainrate
+        const auto& ba = strainrate->boxArray();
+        const auto& dm = strainrate->DistributionMap();
+        const auto& fact = strainrate->Factory();
+        MultiFab strainrate_nodal(amrex::convert(ba,IntVect::TheNodeVector()), 
+                                  dm, 1, 0, MFInfo(), fact);
+
 #ifdef AMREX_USE_EB
         auto const& fact = EBFactory(lev);
         auto const& flags = fact.getMultiEBCellFlagFab();
@@ -63,10 +70,10 @@ void incflo::compute_strainrate_at_level (int /*lev*/,
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
-        for (MFIter mfi(*strainrate,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        for (MFIter mfi(strainrate_nodal,TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-                Box const& bx = mfi.growntilebox(nghost);
-                Array4<Real> const& sr_arr = strainrate->array(mfi);
+                Box const& bx = mfi.tilebox();
+                Array4<Real> const& sr_arr = strainrate_nodal.array(mfi);
                 Array4<Real const> const& vel_arr = vel->const_array(mfi);
 #ifdef AMREX_USE_EB
                 auto const& flag_fab = flags[mfi];
@@ -91,10 +98,12 @@ void incflo::compute_strainrate_at_level (int /*lev*/,
                 {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
-                        sr_arr(i,j,k) = incflo_strainrate(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
+                        sr_arr(i,j,k) = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
                     });
                 }
         }
+
+        amrex::average_node_to_cellcenter(*strainrate,0,strainrate_nodal,0,1,0);
 }
 
 Real incflo::ComputeKineticEnergy ()

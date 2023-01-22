@@ -563,12 +563,18 @@ void incflo::WritePlotFile()
     if (m_plt_eta) {
         for (int lev = 0; lev <= finest_level; ++lev) {
             MultiFab vel_eta(mf[lev], amrex::make_alias, icomp, 1);
+            const auto& ba = mf[lev].boxArray();
+            const auto& dm = mf[lev].DistributionMap();
+            const auto& fact = mf[lev].Factory();
+            MultiFab viscosity_nodal(amrex::convert(ba,IntVect::TheNodeVector()), 
+                                     dm, 1, 0, MFInfo(), fact);
             compute_viscosity_at_level(lev,
-                                       &vel_eta,
+                                       &viscosity_nodal,
                                        &m_leveldata[lev]->density,
                                        &m_leveldata[lev]->velocity,
                                        Geom(lev),
                                        m_cur_time, 0);
+            amrex::average_node_to_cellcenter(vel_eta,0,viscosity_nodal,0,1,0);
         }
         pltscaVarsName.push_back("eta");
         ++icomp;
