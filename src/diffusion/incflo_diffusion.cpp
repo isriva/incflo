@@ -272,6 +272,34 @@ incflo::average_velocity_eta_to_faces (int lev, MultiFab const& cc_eta) const
 }
 
 Array<MultiFab,AMREX_SPACEDIM>
+incflo::average_nodal_velocity_eta_to_faces (int lev, MultiFab const& nodal_eta) const
+{
+    const auto& ba = nodal_eta.boxArray();
+    const auto& dm = nodal_eta.DistributionMap();
+    const auto& fact = nodal_eta.Factory();
+    Array<MultiFab,AMREX_SPACEDIM> r{AMREX_D_DECL(MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(0)),
+                                              dm, 1, 0, MFInfo(), fact),
+                                     MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(1)),
+                                              dm, 1, 0, MFInfo(), fact),
+                                     MultiFab(amrex::convert(ba,IntVect::TheDimensionVector(2)),
+                                              dm, 1, 0, MFInfo(), fact))};
+
+#ifdef AMREX_USE_EB
+    // Note we use the scalar bc's here only to know when the bc is ext_dir
+    //      (this should be the same for scalar and eta)
+    EB_interp_CellCentroid_to_FaceCentroid (nodal_eta, GetArrOfPtrs(r), 0, 0, 1, geom[lev],
+                                            get_tracer_bcrec()); // IS -- need to fix for EB
+    // amrex::average_cellcenter_to_face(GetArrOfPtrs(r), cc_eta, Geom(lev));
+#else
+    average_nodal_to_face(r, nodal_eta, Geom(lev));
+#endif
+
+    //fixup_eta_on_domain_faces(lev, r, cc_eta);
+    return r;
+}
+
+
+Array<MultiFab,AMREX_SPACEDIM>
 incflo::average_scalar_eta_to_faces (int lev, int comp, MultiFab const& cc_eta) const
 {
     const auto& ba = cc_eta.boxArray();
@@ -369,3 +397,45 @@ incflo::fixup_eta_on_domain_faces (int lev, Array<MultiFab,AMREX_SPACEDIM>& fc,
 #endif
     }
 }
+
+void
+incflo::average_nodal_to_face (Array<MultiFab,AMREX_SPACEDIM>& fc, MultiFab const& nodal, const Geometry& geom) const
+{
+    
+    // create a dummy cell-centered dummy multifab for looping over MFIter
+    const auto& ba_nodal = nodal.boxArray();
+    const auto& dm = nodal.DistributionMap();
+    const auto& fact = nodal.Factory();
+    MultiFab dummy(amrex::convert(ba_nodal, IntVect{0,0,0}), dm, 1, 0, MFInfo(), fact);
+
+    MFItInfo mfi_info{};
+    if (Gpu::notInLaunchRegion()) mfi_info.SetDynamic(true);
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+    for (MFIter mfi(dummy,mfi_info); mfi.isValid(); ++mfi) {
+        
+        Array4<Real const> const& node = nodal.const_array(mfi);
+
+        AMREX_D_TERM(Array4<Real> const& facex = fc[0].array(mfi);,
+                     Array4<Real> const& facey = fc[1].array(mfi);,
+                     Array4<Real> const& facez = fc[2].array(mfi););
+
+        AMREX_D_TERM(const Box& xbx = mfi.nodaltilebox(0);,
+                     const Box& ybx = mfi.nodaltilebox(1);,
+                     const Box& zbx = mfi.nodaltilebox(2););
+
+        amrex::ParallelFor(xbx, ybx, zbx, 
+        [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+            facex(i,j,k) = amrex::Real(0.25)*(node(i,j,k) + node(i,j+1,k) + node(i,j,k+1) + node(i,j+1,k+1));
+        },
+        [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+            facey(i,j,k) = amrex::Real(0.25)*(node(i,j,k) + node(i+1,j,k) + node(i,j,k+1) + node(i+1,j,k+1));
+        },
+        [=] AMREX_GPU_DEVICE (int i, int j, int k) {
+            facez(i,j,k) = amrex::Real(0.25)*(node(i,j,k) + node(i+1,j,k) + node(i,j+1,k) + node(i+1,j+1,k));
+        });
+    }
+}
+
+

@@ -196,7 +196,8 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 #endif
         for (MFIter mfi(*vel_eta,TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
-                Box const& bx = mfi.growntilebox(nghost);
+                //Box const& bx = mfi.growntilebox(nghost);
+                Box const& bx = mfi.tilebox();
                 Array4<Real> const& eta_arr = vel_eta->array(mfi);
                 Array4<Real const> const& vel_arr = vel->const_array(mfi);
                 Array4<Real const> const& rho_arr = rho->const_array(mfi);
@@ -226,7 +227,8 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
-                        Real sr = incflo_strainrate(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
+                        // Real sr = incflo_strainrate(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
+                        Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
                         Real dens = rho_arr(i,j,k);
                         if (m_do_vof) eta_arr(i,j,k) = viscosity_vof(sr,dens);
                         else eta_arr(i,j,k) = non_newtonian_viscosity(sr);

@@ -181,6 +181,12 @@ public: // for cuda
     amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
     average_velocity_eta_to_faces (int lev, amrex::MultiFab const& cc_eta) const;
 
+    amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
+    average_nodal_velocity_eta_to_faces (int lev, amrex::MultiFab const& nodal_eta) const;
+
+    void average_nodal_to_face (amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>& fc, amrex::MultiFab const& nodal, const amrex::Geometry& geom) const;
+
+
     void compute_divtau  (amrex::Vector<amrex::MultiFab      *> const& divtau,
                           amrex::Vector<amrex::MultiFab const*> const& velocity,
                           amrex::Vector<amrex::MultiFab const*> const& density,
