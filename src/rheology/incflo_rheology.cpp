@@ -144,11 +144,11 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                                          MultiFab* rho,
                                          MultiFab* vel,
                                          Geometry& lev_geom,
-                                         Real /*time*/, int nghost)
+                                         Real /*time*/, int /*nghost*/)
 {
     if ((m_fluid_model == FluidModel::Newtonian) and (!m_do_vof))
     {
-        vel_eta->setVal(m_mu, 0, 1, nghost);
+        vel_eta->setVal(m_mu, 0, 1, 0);
     }
     else
     {
