@@ -97,7 +97,7 @@ void incflo::ComputeDt (int initialization, bool explicit_diffusion)
                               {
                                   if (!f(i,j,k).isCovered()) {
                                       Real rho_inv = Real(1.0)/r(i,j,k);
-                                      Real visc = eta_arr(i,j,k);
+                                      //Real visc = eta_arr(i,j,k);
                                       mx = amrex::max(rho_inv, mx);
                                   }
                               });
