@@ -129,9 +129,27 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     // Compute viscosity / diffusive coefficients
     // *************************************************************************************
+    //{
+    //std::string plotfilename = std::to_string(ParallelDescriptor::MyProc()) + "_" + "vel";
+    //std::ofstream ofs(plotfilename, std::ofstream::out);
+    ////MultiFab  velocity_print_0 = m_leveldata[0]->velocity_o ;
+    //for (MFIter mfi(m_leveldata[0]->velocity_o); mfi.isValid(); ++mfi) {
+    //    ofs<<std::setprecision(16)<< ((m_leveldata[0]->velocity_o)[mfi])<<std::endl;
+    //}
+    //ofs.close();
+    //}
     compute_viscosity(GetVecOfPtrs(vel_eta),
                       get_density_old(), get_velocity_old(),
                       m_cur_time, 1);
+    //{
+    //std::string plotfilename = std::to_string(ParallelDescriptor::MyProc()) + "_" + "eta";
+    //std::ofstream ofs(plotfilename, std::ofstream::out);
+    ////MultiFab  velocity_print_0 = m_leveldata[0]->velocity_o ;
+    //for (MFIter mfi(vel_eta[0]); mfi.isValid(); ++mfi) {
+    //    ofs<<std::setprecision(16)<< ((vel_eta[0])[mfi])<<std::endl;
+    //}
+    //ofs.close();
+    //}
     compute_tracer_diff_coeff(GetVecOfPtrs(tra_eta),1);
 
     // *************************************************************************************
