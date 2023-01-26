@@ -21,7 +21,8 @@ amrex::Real get_concentration (amrex::Real dens, amrex::Real rho0, amrex::Real r
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 amrex::Real mixture_viscosity (amrex::Real conc, amrex::Real visc0, amrex::Real visc1) noexcept
 {
-    return visc1/(1.0 + conc*((visc1/visc0) - 1.0));
+    return 1.0/((conc/visc0) + ((1.0-conc)/visc1));
+    //return visc1/(1.0 + conc*((visc1/visc0) - 1.0));
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -139,7 +140,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                                          amrex::MultiFab* rho,
                                          amrex::MultiFab* vel,
                                          amrex::Geometry& lev_geom,
-                                         amrex::Real /*time*/, int nghost, int order)
+                                         amrex::Real /*time*/, int /*nghost*/, int order)
 {
 
 #ifdef AMREX_USE_EB
@@ -158,7 +159,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 #endif
     for (MFIter mfi(*vel_eta,TilingIfNotGPU()); mfi.isValid(); ++mfi)
     {
-        Box const& bx = mfi.growntilebox(nghost);
+        Box const& bx = mfi.tilebox();
         Array4<Real> const& eta_arr = vel_eta->array(mfi);
         Array4<Real const> const& vel_arr = vel->const_array(mfi);
         Array4<Real const> const& rho_arr = rho->const_array(mfi);
@@ -194,7 +195,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
         {
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
-                Real sr = incflo_strainrate(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
+                Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
                 Real dens = rho_arr(i,j,k);
                 if (m_do_vof) {
                     eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);

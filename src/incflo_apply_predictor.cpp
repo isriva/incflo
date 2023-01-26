@@ -116,12 +116,13 @@ void incflo::ApplyPredictor (bool incremental_projection)
             tra_forces.emplace_back(grids[lev], dmap[lev], m_ntrac, nghost_force(),
                                     MFInfo(), Factory(lev));
         }
-        vel_eta.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
+
+        vel_eta.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
         if (m_do_second_rheology_1) {
-            vel_eta1.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
+            vel_eta1.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
         }
         //if (m_do_second_rheology_2) { // TODO: add the second RE tensor 
-        //    vel_eta2.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
+        //    vel_eta2.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
         //}
         
         if (m_advect_tracer) {
