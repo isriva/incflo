@@ -195,9 +195,10 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
         {
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
-                Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
-                Real dens = rho_arr(i,j,k);
+                Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr); //  get nodal strainrate
+                // nodal viscosity
                 if (m_do_vof) {
+                    Real dens = incflo_rho_nodal(i,j,k,rho_arr); // get nodal density
                     eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
                 }
                 else {
