@@ -57,6 +57,7 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
     
     if (fluid.fluid_model == incflo::FluidModel::Newtonian) {
         if (order == 0) {visc = fluid.mu; include = true;}
+        else {visc = 0.0; include = false;}
     }
     else if (fluid.fluid_model == incflo::FluidModel::Powerlaw) {
         if (order == 0) {
@@ -110,12 +111,25 @@ amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const in
     auto [visc1, include1] = Viscosity_Single(sr,order,fluid_vof[1]);
 
     amrex::Real visc;
-    if (include0 and include1) visc = mixture_viscosity(conc,visc0,visc1);
-    if (!include0 and !include1) visc = 0.0;
-    if (!include0 and include1) visc = visc1;
-    if (include0 and !include1) visc = visc0;
+    if (include0 and include1) { // both fluid0 and fluid1 have rheologies of this order
+        visc = mixture_viscosity(conc,visc0,visc1);
+    }
+    else if (include0 and !include1) { // only fluid0 rheology is  used for this order
+        if (conc < 1e-12) visc = 0.0;
+        else if (conc > 1.0-1e-12) visc = visc0;
+        else visc = visc0*conc;
+    }
+    else if (!include0 and include1) { // only fluid1 rheology is used for this order
+        if (conc < 1e-12) visc = visc1;
+        else if (conc > 1.0-1e-12) visc = 0.0;
+        else visc = visc1*(1.0 - conc);
+    }
+    else if (!include0 and !include1) { // neither fluid0 & fluid1 rheology are used for this order
+        visc = 0.0;
+    }
 
     return visc;
+
 }
 
 }

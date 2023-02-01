@@ -35,14 +35,14 @@ void incflo::ReadRheologyParameters()
             m_fluid.fluid_model = FluidModel::Powerlaw;
             
             pp.query("mu_1", m_fluid.mu_1);
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.mu_1 >= 0.0,
-                    "viscosity mu_1 must be positive or zero");
+            //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.mu_1 >= 0.0,
+            //        "viscosity mu_1 must be positive or zero");
             pp.query("n", m_fluid.n_0);
-            AMREX_ALWAYS_ASSERT(m_fluid.n_0 > 0.0);
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.n_0 != 1.0,
-                    "specify power-law rheology exponent n != 1.0");
+            //AMREX_ALWAYS_ASSERT(m_fluid.n_0 > 0.0);
+            //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.n_0 != 1.0,
+            //        "specify power-law rheology exponent n != 1.0");
             pp.query("n_1", m_fluid.n_1);
-            AMREX_ALWAYS_ASSERT(m_fluid.n_1 > 0.0);
+            //AMREX_ALWAYS_ASSERT(m_fluid.n_1 > 0.0);
 
             amrex::Print() << "Power-law fluid with"
                            << " mu = " << m_fluid.mu
@@ -290,14 +290,14 @@ void incflo::ReadRheologyParameters()
 
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.mu > 0.0,
                     "viscosity mu_1 must be positive or zero");
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.mu_1 > 0.0,
-                    "viscosity mu_1 must be positive or zero");
-             AMREX_ALWAYS_ASSERT(fluid0.n_0 > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.n_0 != 1.0,
-                     "No point in using power-law rheology with n = 1");
-             AMREX_ALWAYS_ASSERT(fluid0.n_1 > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.n_1 != 1.0,
-                     "No point in using power-law rheology with n = 1");
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.mu_1 > 0.0,
+             //       "viscosity mu_1 must be positive or zero");
+             //AMREX_ALWAYS_ASSERT(fluid0.n_0 > 0.0);
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.n_0 != 1.0,
+             //        "No point in using power-law rheology with n = 1");
+             //AMREX_ALWAYS_ASSERT(fluid0.n_1 > 0.0);
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.n_1 != 1.0,
+             //        "No point in using power-law rheology with n = 1");
 
              amrex::Print() << "Power-law fluid0 with"
                             << " mu = " << fluid0.mu
@@ -454,14 +454,14 @@ void incflo::ReadRheologyParameters()
              
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.mu > 0.0,
                     "viscosity mu_1 must be positive or zero");
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.mu_1 > 0.0,
-                    "viscosity mu_1 must be positive or zero");
-             AMREX_ALWAYS_ASSERT(fluid1.n_0 > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.n_0 != 1.0,
-                     "No point in using power-law rheology with n = 1");
-             AMREX_ALWAYS_ASSERT(fluid1.n_1 > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.n_1 != 1.0,
-                     "No point in using power-law rheology with n = 1");
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.mu_1 > 0.0,
+             //       "viscosity mu_1 must be positive or zero");
+             //AMREX_ALWAYS_ASSERT(fluid1.n_0 > 0.0);
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.n_0 != 1.0,
+             //        "No point in using power-law rheology with n = 1");
+             //AMREX_ALWAYS_ASSERT(fluid1.n_1 > 0.0);
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.n_1 != 1.0,
+             //        "No point in using power-law rheology with n = 1");
 
              amrex::Print() << "Power-law fluid1 with"
                             << " mu = " << fluid1.mu

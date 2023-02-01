@@ -1933,13 +1933,16 @@ void mltensor_cross_terms_fx_sq_notrace (Box const& box, Array4<Real> const& fx,
     for         (int k = lo.z; k <= hi.z; ++k) {
         for     (int j = lo.y; j <= hi.y; ++j) {
             for (int i = lo.x; i <= hi.x; ++i) {
-                Real dudx = mltensor_dx_on_xface(i,j,k,0,vel,dxi,bvxlo,bvxhi,bct,dlo,dhi);
+                //Real dudx = mltensor_dx_on_xface(i,j,k,0,vel,dxi,bvxlo,bvxhi,bct,dlo,dhi);
+                Real dudx = mltensor_dx_on_xface(i,j,k,0,vel,dxi);
                 Real dudy = mltensor_dy_on_xface(i,j,k,0,vel,dyi,bvxlo,bvxhi,bct,dlo,dhi);
                 Real dudz = mltensor_dz_on_xface(i,j,k,0,vel,dzi,bvxlo,bvxhi,bct,dlo,dhi);
-                Real dvdx = mltensor_dx_on_xface(i,j,k,1,vel,dxi,bvxlo,bvxhi,bct,dlo,dhi);
+                //Real dvdx = mltensor_dx_on_xface(i,j,k,1,vel,dxi,bvxlo,bvxhi,bct,dlo,dhi);
+                Real dvdx = mltensor_dx_on_xface(i,j,k,1,vel,dxi);
                 Real dvdy = mltensor_dy_on_xface(i,j,k,1,vel,dyi,bvxlo,bvxhi,bct,dlo,dhi);
                 Real dvdz = mltensor_dz_on_xface(i,j,k,1,vel,dzi,bvxlo,bvxhi,bct,dlo,dhi);
-                Real dwdx = mltensor_dx_on_xface(i,j,k,2,vel,dxi,bvxlo,bvxhi,bct,dlo,dhi);
+                //Real dwdx = mltensor_dx_on_xface(i,j,k,2,vel,dxi,bvxlo,bvxhi,bct,dlo,dhi);
+                Real dwdx = mltensor_dx_on_xface(i,j,k,2,vel,dxi);
                 Real dwdy = mltensor_dy_on_xface(i,j,k,2,vel,dyi,bvxlo,bvxhi,bct,dlo,dhi);
                 Real dwdz = mltensor_dz_on_xface(i,j,k,2,vel,dzi,bvxlo,bvxhi,bct,dlo,dhi);
 
@@ -1983,13 +1986,16 @@ void mltensor_cross_terms_fy_sq_notrace (Box const& box, Array4<Real> const& fy,
         for     (int j = lo.y; j <= hi.y; ++j) {
             for (int i = lo.x; i <= hi.x; ++i) {
                 Real dudx = mltensor_dx_on_yface(i,j,k,0,vel,dxi,bvylo,bvyhi,bct,dlo,dhi);
-                Real dudy = mltensor_dy_on_yface(i,j,k,0,vel,dyi,bvylo,bvyhi,bct,dlo,dhi);
+                //Real dudy = mltensor_dy_on_yface(i,j,k,0,vel,dyi,bvylo,bvyhi,bct,dlo,dhi);
+                Real dudy = mltensor_dy_on_yface(i,j,k,0,vel,dyi);
                 Real dudz = mltensor_dz_on_yface(i,j,k,0,vel,dzi,bvylo,bvyhi,bct,dlo,dhi);
                 Real dvdx = mltensor_dx_on_yface(i,j,k,1,vel,dxi,bvylo,bvyhi,bct,dlo,dhi);
-                Real dvdy = mltensor_dy_on_yface(i,j,k,1,vel,dyi,bvylo,bvyhi,bct,dlo,dhi);
+                //Real dvdy = mltensor_dy_on_yface(i,j,k,1,vel,dyi,bvylo,bvyhi,bct,dlo,dhi);
+                Real dvdy = mltensor_dy_on_yface(i,j,k,1,vel,dyi);
                 Real dvdz = mltensor_dz_on_yface(i,j,k,1,vel,dzi,bvylo,bvyhi,bct,dlo,dhi);
                 Real dwdx = mltensor_dx_on_yface(i,j,k,2,vel,dxi,bvylo,bvyhi,bct,dlo,dhi);
-                Real dwdy = mltensor_dy_on_yface(i,j,k,2,vel,dyi,bvylo,bvyhi,bct,dlo,dhi);
+                //Real dwdy = mltensor_dy_on_yface(i,j,k,2,vel,dyi,bvylo,bvyhi,bct,dlo,dhi);
+                Real dwdy = mltensor_dy_on_yface(i,j,k,2,vel,dyi);
                 Real dwdz = mltensor_dz_on_yface(i,j,k,2,vel,dzi,bvylo,bvyhi,bct,dlo,dhi);
 
                 Real mut  = Real(0.25)*etay(i,j,k,1);
@@ -2033,13 +2039,16 @@ void mltensor_cross_terms_fz_sq_notrace (Box const& box, Array4<Real> const& fz,
             for (int i = lo.x; i <= hi.x; ++i) {
                 Real dudx = mltensor_dx_on_zface(i,j,k,0,vel,dxi,bvzlo,bvzhi,bct,dlo,dhi);
                 Real dudy = mltensor_dy_on_zface(i,j,k,0,vel,dyi,bvzlo,bvzhi,bct,dlo,dhi);
-                Real dudz = mltensor_dz_on_zface(i,j,k,0,vel,dzi,bvzlo,bvzhi,bct,dlo,dhi);
+                //Real dudz = mltensor_dz_on_zface(i,j,k,0,vel,dzi,bvzlo,bvzhi,bct,dlo,dhi);
+                Real dudz = mltensor_dz_on_zface(i,j,k,0,vel,dzi);
                 Real dvdx = mltensor_dx_on_zface(i,j,k,1,vel,dxi,bvzlo,bvzhi,bct,dlo,dhi);
                 Real dvdy = mltensor_dy_on_zface(i,j,k,1,vel,dyi,bvzlo,bvzhi,bct,dlo,dhi);
-                Real dvdz = mltensor_dz_on_zface(i,j,k,1,vel,dzi,bvzlo,bvzhi,bct,dlo,dhi);
+                //Real dvdz = mltensor_dz_on_zface(i,j,k,1,vel,dzi,bvzlo,bvzhi,bct,dlo,dhi);
+                Real dvdz = mltensor_dz_on_zface(i,j,k,1,vel,dzi);
                 Real dwdx = mltensor_dx_on_zface(i,j,k,2,vel,dxi,bvzlo,bvzhi,bct,dlo,dhi);
                 Real dwdy = mltensor_dy_on_zface(i,j,k,2,vel,dyi,bvzlo,bvzhi,bct,dlo,dhi);
-                Real dwdz = mltensor_dz_on_zface(i,j,k,2,vel,dzi,bvzlo,bvzhi,bct,dlo,dhi);
+                //Real dwdz = mltensor_dz_on_zface(i,j,k,2,vel,dzi,bvzlo,bvzhi,bct,dlo,dhi);
+                Real dwdz = mltensor_dz_on_zface(i,j,k,2,vel,dzi);
 
                 Real mut  = Real(0.25)*etaz(i,j,k,2);
 
