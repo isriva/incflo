@@ -393,6 +393,9 @@ void incflo::WritePlotFile()
     // Divergence of velocity field
     if(m_plt_divu) ++ncomp;
 
+    // DivTau
+    if (m_plt_divtau) ncomp += 3;
+
 #ifdef AMREX_USE_EB
     // Cut cell volume fraction
     if(m_plt_vfrac) ++ncomp;
@@ -618,6 +621,25 @@ void incflo::WritePlotFile()
     if (m_plt_divu) {
         amrex::Abort("plt_divu: xxxxx TODO");
         pltscaVarsName.push_back("divu");
+        ++icomp;
+    }
+    if (m_plt_divtau) {
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o, 0, icomp, 1, 0);
+        }
+        pltscaVarsName.push_back("divtaux");
+        ++icomp;
+
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o, 1, icomp, 1, 0);
+        }
+        pltscaVarsName.push_back("divtauy");
+        ++icomp;
+
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o, 2, icomp, 1, 0);
+        }
+        pltscaVarsName.push_back("divtauz");
         ++icomp;
     }
 #ifdef AMREX_USE_EB
