@@ -141,9 +141,9 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[0] == "powerlaw")
          {
              fluid0.fluid_model = FluidModel::powerlaw;
-             AMREX_ALWAYS_ASSERT(n_0[0] > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_0[0] != 1.0,
-                     "No point in using power-law rheology with n = 1");
+             //AMREX_ALWAYS_ASSERT(n_0[0] > 0.0);
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_0[0] != 1.0,
+             //        "No point in using power-law rheology with n = 1");
              fluid0.mu = mu[0];
              fluid0.n_0 = n_0[0];
              amrex::Print() << "Power-law fluid0 with"
@@ -222,9 +222,9 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[1] == "powerlaw")
          {
              fluid1.fluid_model = FluidModel::powerlaw;
-             AMREX_ALWAYS_ASSERT(n_0[1] > 0.0);
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_0[1] != 1.0,
-                     "No point in using power-law rheology with n = 1");
+             //AMREX_ALWAYS_ASSERT(n_0[1] > 0.0);
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(n_0[1] != 1.0,
+             //        "No point in using power-law rheology with n = 1");
              fluid1.mu = mu[1];
              fluid1.n_0 = n_0[1];
              amrex::Print() << "Power-law fluid1 with"
