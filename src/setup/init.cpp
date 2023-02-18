@@ -125,6 +125,9 @@ void incflo::ReadParameters ()
         pp.query("ro_0", m_ro_0);
         AMREX_ALWAYS_ASSERT(m_ro_0 >= 0.0);
 
+        // Smoothing width (for inclined flows)
+        pp.query("smoothing_width",m_smoothing_width);
+
         pp.query("ntrac", m_ntrac);
 
         if (m_ntrac <= 0) m_advect_tracer = 0;
