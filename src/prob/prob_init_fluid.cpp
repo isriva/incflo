@@ -703,13 +703,21 @@ void incflo::inclined_channel_vof (Box const& vbx, Box const& /*gbx*/,
         Real y = problo[1] + (j+0.5)*dx[1];
         Real z = problo[2] + (k+0.5)*dx[2];
         
-        if (z > splitz) {
-            density(i,j,k) = rho_1;
-            tracer(i,j,k) = 0.0;
+        if (m_smoothing_width < 0.0) { // discontinuous transition
+            if (z > splitz) {
+                density(i,j,k) = rho_1;
+                tracer(i,j,k) = 0.0;
+            }
+            else {
+                density(i,j,k) = rho_2;
+                tracer(i,j,k) = 1.0;
+            }
         }
-        else {
-            density(i,j,k) = rho_2;
-            tracer(i,j,k) = 1.0;
+        else { // smoothed interface
+            Real y_rel = problo[2] + (k+0.5)*dx[2] - splitz;
+            Real smoother = 0.5*std::tanh(y_rel/(m_smoothing_width*dx[2]))+0.5; //goes from 0 to 1
+            tracer(i,j,k) = 1.0 - smoother;
+            density(i,j,k) = rho_1*smoother + rho_2*(1.0-smoother);
         }
     });
 }
