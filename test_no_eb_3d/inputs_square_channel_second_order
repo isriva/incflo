@@ -3,7 +3,7 @@ amrex.fpe_trap_invalid=1                # hav a trap to catch a bug
 #            SIMULATION STOP            #
 #.......................................#
 stop_time               =   25         # Max (simulated) time to evolve
-max_step                =   -10          # Max number of time steps
+max_step                =   10          # Max number of time steps
 steady_state            =   0           # Steady-state solver? 
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
@@ -32,7 +32,7 @@ incflo.mu_1             =   1.0            # Dynamic viscosity coefficient
 incflo.n                =   2.0
 incflo.n_1              =   1.5
 
-incflo.diffusion_type    =   2          # Defualt is 2 (Implicit); 1 is CN, 0 is Explicit 
+incflo.diffusion_type    =    0          # Defualt is 2 (Implicit); 1 is CN, 0 is Explicit 
 #incflo.convection_type       = "BDS"
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#

@@ -63,7 +63,8 @@ void incflo::Advance()
     //        }
     //    }
 
-    //    ApplyCorrector();
+    // for RK2 method (explicit)
+    // ApplyCorrector();
     //}
 
 #if 0

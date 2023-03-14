@@ -321,7 +321,7 @@ void incflo::InitialIterations ()
         copy_from_old_to_new_velocity();
         copy_from_old_to_new_density();
         copy_from_old_to_new_tracer();
-    }
+   }
 }
 
 // Project velocity field to make sure initial velocity is divergence-free

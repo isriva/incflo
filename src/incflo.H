@@ -107,7 +107,8 @@ public: // for cuda
     ///////////////////////////////////////////////////////////////////////////
 
     void ApplyPredictor(bool incremental_projection = false);
-//    void ApplyCorrector();
+    void ApplyCorrector();
+    
     void compute_convective_term (amrex::Vector<amrex::MultiFab*> const& conv_u,
                                   amrex::Vector<amrex::MultiFab*> const& conv_r,
                                   amrex::Vector<amrex::MultiFab*> const& conv_t,
