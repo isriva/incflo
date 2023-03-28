@@ -23,7 +23,8 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
       gp        (ba, dm, AMREX_SPACEDIM, 0       , MFInfo(), fact),
       conv_velocity_o(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact),
       conv_density_o (ba, dm, 1             , 0, MFInfo(), fact),
-      conv_tracer_o  (ba, dm, ntrac         , 0, MFInfo(), fact)
+      conv_tracer_o  (ba, dm, ntrac         , 0, MFInfo(), fact),
+      gp0       (ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact)
 {
     if (advection_type != "MOL") {
         divtau_o.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);

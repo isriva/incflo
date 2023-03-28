@@ -56,6 +56,9 @@ void incflo::ReadParameters ()
         // Are we advecting velocity or momentum (default is velocity)
         pp.query("advect_momentum"                  , m_advect_momentum);
 
+        // Are we setting the base pressure gradient based on initial variable density?
+        pp.query("base_pressure_gradient"    , m_base_pressure_gradient);
+
         // Are we using MOL or Godunov?
         pp.query("advection_type"                   , m_advection_type);
         pp.query("use_ppm"                          , m_godunov_ppm);

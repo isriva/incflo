@@ -164,6 +164,7 @@ void incflo::prob_init_fluid (int lev)
                                      ld.velocity.array(mfi),
                                      ld.density.array(mfi),
                                      ld.tracer.array(mfi),
+                                     ld.gp0.array(mfi),
                                      domain, dx, problo, probhi);
         }
 #if 0
@@ -679,6 +680,7 @@ void incflo::inclined_channel_vof (Box const& vbx, Box const& /*gbx*/,
                                    Array4<Real> const& vel,
                                    Array4<Real> const& density,
                                    Array4<Real> const& tracer,
+                                   Array4<Real> const& gp0,
                                    Box const& /*domain*/,
                                    GpuArray<Real, AMREX_SPACEDIM> const& dx,
                                    GpuArray<Real, AMREX_SPACEDIM> const& problo,
@@ -719,6 +721,12 @@ void incflo::inclined_channel_vof (Box const& vbx, Box const& /*gbx*/,
             tracer(i,j,k) = 1.0 - smoother;
             density(i,j,k) = rho_1*smoother + rho_2*(1.0-smoother);
         }
+
+//        gp0(i,j,k,0) = m_gravity[0] * density(i,j,k); 
+//        gp0(i,j,k,1) = m_gravity[1] * density(i,j,k); 
+        gp0(i,j,k,0) = 0.0;
+        gp0(i,j,k,1) = 0.0;
+        gp0(i,j,k,2) = m_gravity[2] * density(i,j,k); 
     });
 }
 
