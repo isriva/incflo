@@ -63,6 +63,7 @@ void incflo::compute_vel_forces_on_level (int lev,
             Array4<Real>       const& vel_f =  vel_forces.array(mfi);
             Array4<Real const> const&   rho =     density.const_array(mfi);
             Array4<Real const> const& gradp = m_leveldata[lev]->gp.const_array(mfi);
+            Array4<Real const> const& gp0   = m_leveldata[lev]->gp0.const_array(mfi);
 
             if (m_use_boussinesq) {
                 // This uses a Boussinesq approximation where the buoyancy depends on
@@ -93,15 +94,29 @@ void incflo::compute_vel_forces_on_level (int lev,
                 {
                     Real rhoinv = Real(1.0)/rho(i,j,k);
 
-                    if (include_pressure_gradient)
-                    {
-                        AMREX_D_TERM(vel_f(i,j,k,0) = -(gradp(i,j,k,0)+l_gp0[0])*rhoinv + l_gravity[0];,
-                                     vel_f(i,j,k,1) = -(gradp(i,j,k,1)+l_gp0[1])*rhoinv + l_gravity[1];,
-                                     vel_f(i,j,k,2) = -(gradp(i,j,k,2)+l_gp0[2])*rhoinv + l_gravity[2];);
-                    } else {
-                        AMREX_D_TERM(vel_f(i,j,k,0) = -(               l_gp0[0])*rhoinv + l_gravity[0];,
-                                     vel_f(i,j,k,1) = -(               l_gp0[1])*rhoinv + l_gravity[1];,
-                                     vel_f(i,j,k,2) = -(               l_gp0[2])*rhoinv + l_gravity[2];);
+                    if (!m_base_pressure_gradient) { 
+                        if (include_pressure_gradient)
+                        {
+                            AMREX_D_TERM(vel_f(i,j,k,0) = -(gradp(i,j,k,0)+l_gp0[0])*rhoinv + l_gravity[0];,
+                                         vel_f(i,j,k,1) = -(gradp(i,j,k,1)+l_gp0[1])*rhoinv + l_gravity[1];,
+                                         vel_f(i,j,k,2) = -(gradp(i,j,k,2)+l_gp0[2])*rhoinv + l_gravity[2];);
+                        } else {
+                            AMREX_D_TERM(vel_f(i,j,k,0) = -(               l_gp0[0])*rhoinv + l_gravity[0];,
+                                         vel_f(i,j,k,1) = -(               l_gp0[1])*rhoinv + l_gravity[1];,
+                                         vel_f(i,j,k,2) = -(               l_gp0[2])*rhoinv + l_gravity[2];);
+                        }
+                    }
+                    else { // use spatially-dependent base pressure gradient
+                        if (include_pressure_gradient)
+                        {
+                            AMREX_D_TERM(vel_f(i,j,k,0) = -(gradp(i,j,k,0)+gp0(i,j,k,0))*rhoinv + l_gravity[0];,
+                                         vel_f(i,j,k,1) = -(gradp(i,j,k,1)+gp0(i,j,k,1))*rhoinv + l_gravity[1];,
+                                         vel_f(i,j,k,2) = -(gradp(i,j,k,2)+gp0(i,j,k,2))*rhoinv + l_gravity[2];);
+                        } else {
+                            AMREX_D_TERM(vel_f(i,j,k,0) = -(               gp0(i,j,k,0))*rhoinv + l_gravity[0];,
+                                         vel_f(i,j,k,1) = -(               gp0(i,j,k,1))*rhoinv + l_gravity[1];,
+                                         vel_f(i,j,k,2) = -(               gp0(i,j,k,2))*rhoinv + l_gravity[2];);
+                        }
                     }
                 });
             }
