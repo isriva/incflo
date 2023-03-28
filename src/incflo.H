@@ -490,6 +490,9 @@ private:
 
     std::string m_advection_type = "Godunov";
 
+    // set the base pressure gradient based on variable initial density?
+    bool m_base_pressure_gradient = false;
+
 #ifdef AMREX_USE_EB
     std::string m_redistribution_type = "StateRedist";
 #endif
@@ -640,6 +643,9 @@ private:
         amrex::MultiFab divtau_o1;
         amrex::MultiFab laps;
         amrex::MultiFab laps_o;
+
+        // base state pressure gradient
+        amrex::MultiFab gp0;
     };
 
     amrex::Vector<std::unique_ptr<LevelData> > m_leveldata;
