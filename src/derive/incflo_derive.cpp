@@ -524,3 +524,104 @@ void incflo::ComputeDrag()
     }
 #endif
 }
+
+
+//void incflo::AverageSliceToMF  (const MultiFab& mf_in, MultiFab& mf_out,
+//                                const int& dir, const int& incomp)
+//{
+//    // number of points in the slice
+//    if ((dir < 0) or (dir > 2)) amrex::Abort("dir needs to be 0, 1, 2");
+//    
+//    int npts;
+//    if      (dir == 0) npts = domain.length(1) * domain.length(2);
+//    else if (dir == 1) npts = domain.length(0) * domain.length(2);
+//    else if (dir == 2) npts = domain.length(0) * domain.length(1);
+//
+//    Vector<Real> average(npts, 0.);
+//
+//    // dummy variables
+//    int r=0;
+//    int comp;
+//
+//    // no tiling or GPU to easily avoid race conditions
+//    for (MFIter mfi(mf_in, false); mfi.isValid(); ++mfi) {
+//
+//        // valid box and the lo/hi coordinates; no ghost cells needed
+//        const Box& bx = mfi.validbox();
+//        const auto lo = amrex::lbound(bx);
+//        const auto hi = amrex::ubound(bx);
+//
+//        const Array4<const Real> mf = mf_in.array(mfi);
+//
+//        int idx;
+//        for (auto k = lo.z; k <= hi.z; ++k) {
+//        for (auto j = lo.y; j <= hi.y; ++j) {
+//        for (auto i = lo.x; i <= hi.x; ++i) {
+//            if (dir == 0) {
+//                idx = ;
+//            } else if (dir == 1) {
+//                r=j;
+//            } else if (dir == 2) {
+//                r=k;
+//            }
+//            // sum up the data
+//            average[ r*(ncomp) + n] += mf(i,j,k,comp);
+//        }
+//        }
+//        }
+//
+//    } // end MFiter
+//
+//    // sum over all processors
+//    ParallelDescriptor::ReduceRealSum(average.dataPtr(),npts);
+//
+//    // divide by the number of cells
+//    int navg=0;
+//    if (dir == 0) {
+//        navg = n_cells[1]*n_cells[2];
+//    } else if (dir == 1) {
+//        navg = n_cells[0]*n_cells[2];
+//    } else if (dir == 2) {
+//        navg = n_cells[0]*n_cells[1];
+//    }
+//    for (r=0; r<npts; ++r) {
+//        for (auto n=0; n<ncomp; ++n) {
+//            average[r*(ncomp) + n] /= navg;
+//        }
+//    }
+//
+//    // no tiling or GPU to easily avoid race conditions
+//    for (MFIter mfi(mf_out, false); mfi.isValid(); ++mfi) {
+//
+//        // valid box and the lo/hi coordinates; no ghost cells needed
+//        const Box& bx = mfi.validbox();
+//        const auto lo = amrex::lbound(bx);
+//        const auto hi = amrex::ubound(bx);
+//
+//        const Array4<Real> mf = mf_out.array(mfi);
+//
+//        for (auto n=0; n<ncomp; ++n) {
+//            comp = incomp+n;
+//            for (auto k = lo.z; k <= hi.z; ++k) {
+//            for (auto j = lo.y; j <= hi.y; ++j) {
+//            for (auto i = lo.x; i <= hi.x; ++i) {
+//                if (dir == 0) {
+//                    r=i;
+//                } else if (dir == 1) {
+//                    r=j;
+//                } else if (dir == 2) {
+//                    r=k;
+//                }
+//                // sum up the data
+//                mf(i,j,k,comp) = average[ r*(ncomp) + n];
+//            }
+//            }
+//            }
+//        }
+//
+//    } // end MFiter
+//}
+
+
+
+
