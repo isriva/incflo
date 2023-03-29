@@ -160,12 +160,12 @@ void incflo::prob_init_fluid (int lev)
         }
         else if (52 == m_probtype)
         {
-            inclined_channel_vof(vbx, gbx,
-                                     ld.velocity.array(mfi),
-                                     ld.density.array(mfi),
-                                     ld.tracer.array(mfi),
-                                     ld.gp0.array(mfi),
-                                     domain, dx, problo, probhi);
+            inclined_channel(vbx, gbx,
+                            ld.velocity.array(mfi),
+                            ld.density.array(mfi),
+                            ld.tracer.array(mfi),
+                            ld.gp0.array(mfi),
+                            domain, dx, problo, probhi);
         }
 #if 0
         else if (500 == m_probtype)
@@ -676,24 +676,30 @@ void incflo::init_rayleigh_taylor_vof (Box const& vbx, Box const& /*gbx*/,
 #endif
 }
 
-void incflo::inclined_channel_vof (Box const& vbx, Box const& /*gbx*/,
-                                   Array4<Real> const& vel,
-                                   Array4<Real> const& density,
-                                   Array4<Real> const& tracer,
-                                   Array4<Real> const& gp0,
-                                   Box const& /*domain*/,
-                                   GpuArray<Real, AMREX_SPACEDIM> const& dx,
-                                   GpuArray<Real, AMREX_SPACEDIM> const& problo,
-                                   GpuArray<Real, AMREX_SPACEDIM> const& probhi)
+void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
+                               Array4<Real> const& vel,
+                               Array4<Real> const& density,
+                               Array4<Real> const& tracer,
+                               Array4<Real> const& gp0,
+                               Box const& /*domain*/,
+                               GpuArray<Real, AMREX_SPACEDIM> const& dx,
+                               GpuArray<Real, AMREX_SPACEDIM> const& problo,
+                               GpuArray<Real, AMREX_SPACEDIM> const& probhi)
 {
-    Real rho_1 = m_fluid_vof[0].rho;
-    Real rho_2 = m_fluid_vof[1].rho;
-    amrex::Print() << "rho1 and rho2 during incline channel setup: " << rho_1 << " " << rho_2 << std::endl;
-    static constexpr Real tra_1 = 1.0;
-    static constexpr Real tra_2 = 0.0;
+    Real rho_1, rho_2, rho;
 
     const Real splitz = 0.5*(problo[2] + probhi[2]);
     const Real L_z    = probhi[2] - problo[2];
+
+    if (m_do_vof) {
+        rho_1 = m_fluid_vof[0].rho;
+        rho_2 = m_fluid_vof[1].rho;
+        amrex::Print() << "rho1 and rho2 during incline channel setup: " << rho_1 << " " << rho_2 << std::endl;
+    }
+    else {
+        rho = m_ro_0;
+        amrex::Print() << "rho during single_fluid incline channel setup: " << rho << std::endl;
+    }
 
     amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
@@ -701,32 +707,39 @@ void incflo::inclined_channel_vof (Box const& vbx, Box const& /*gbx*/,
         vel(i,j,k,1) = 0.0;
         vel(i,j,k,2) = 0.0;
 
-        Real x = problo[0] + (i+0.5)*dx[0];
-        Real y = problo[1] + (j+0.5)*dx[1];
-        Real z = problo[2] + (k+0.5)*dx[2];
-        
-        if (m_smoothing_width < 0.0) { // discontinuous transition
-            if (z > splitz) {
-                density(i,j,k) = rho_1;
-                tracer(i,j,k) = 0.0;
+        if (m_do_vof) {
+            Real x = problo[0] + (i+0.5)*dx[0];
+            Real y = problo[1] + (j+0.5)*dx[1];
+            Real z = problo[2] + (k+0.5)*dx[2];
+            
+            if (m_smoothing_width < 0.0) { // discontinuous transition
+                if (z > splitz) {
+                    density(i,j,k) = rho_1;
+                    tracer(i,j,k) = 0.0;
+                }
+                else {
+                    density(i,j,k) = rho_2;
+                    tracer(i,j,k) = 1.0;
+                }
             }
-            else {
-                density(i,j,k) = rho_2;
-                tracer(i,j,k) = 1.0;
+            else { // smoothed interface
+                Real y_rel = problo[2] + (k+0.5)*dx[2] - splitz;
+                Real smoother = 0.5*std::tanh(y_rel/(m_smoothing_width*dx[2]))+0.5; //goes from 0 to 1
+                tracer(i,j,k) = 1.0 - smoother;
+                density(i,j,k) = rho_1*smoother + rho_2*(1.0-smoother);
             }
-        }
-        else { // smoothed interface
-            Real y_rel = problo[2] + (k+0.5)*dx[2] - splitz;
-            Real smoother = 0.5*std::tanh(y_rel/(m_smoothing_width*dx[2]))+0.5; //goes from 0 to 1
-            tracer(i,j,k) = 1.0 - smoother;
-            density(i,j,k) = rho_1*smoother + rho_2*(1.0-smoother);
-        }
 
-//        gp0(i,j,k,0) = m_gravity[0] * density(i,j,k); 
-//        gp0(i,j,k,1) = m_gravity[1] * density(i,j,k); 
-        gp0(i,j,k,0) = 0.0;
-        gp0(i,j,k,1) = 0.0;
-        gp0(i,j,k,2) = m_gravity[2] * density(i,j,k); 
+            gp0(i,j,k,0) = 0.0;
+            gp0(i,j,k,1) = 0.0;
+            gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
+        }
+        else {
+            density(i,j,k) = rho;
+            gp0(i,j,k,0) = 0.0;
+            gp0(i,j,k,1) = 0.0;
+            gp0(i,j,k,2) = m_gravity[2] * rho;
+            tracer(i,j,k) = 1.0;
+        }
     });
 }
 
