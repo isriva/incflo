@@ -586,6 +586,7 @@ void incflo::WritePlotFile()
                                        &viscosity_nodal,
                                        &m_leveldata[lev]->density,
                                        &m_leveldata[lev]->velocity,
+                                       &m_leveldata[lev]->p_nd,
                                        Geom(lev),
                                        m_cur_time, 0, 0);
             amrex::average_node_to_cellcenter(vel_eta,0,viscosity_nodal,0,1,0);
@@ -602,6 +603,7 @@ void incflo::WritePlotFile()
                                            &vel_eta1,
                                            &m_leveldata[lev]->density,
                                            &m_leveldata[lev]->velocity,
+                                           &m_leveldata[lev]->p_nd,
                                            Geom(lev),
                                            m_cur_time, 0, 1);
             }
@@ -621,6 +623,7 @@ void incflo::WritePlotFile()
                                            &vel_eta2,
                                            &m_leveldata[lev]->density,
                                            &m_leveldata[lev]->velocity,
+                                           &m_leveldata[lev]->p_nd,
                                            Geom(lev),
                                            m_cur_time, 0, 2);
             }

@@ -260,11 +260,13 @@ public: // for cuda
     virtual void compute_viscosity (amrex::Vector<amrex::MultiFab*> const& eta,
                                     amrex::Vector<amrex::MultiFab*> const& rho,
                                     amrex::Vector<amrex::MultiFab*> const& vel,
+                                    amrex::Vector<amrex::MultiFab const*> const& p_nodal,
                                     amrex::Real time, int nghost, int type=1);
     virtual void compute_viscosity_at_level (int lev,
                                              amrex::MultiFab* eta,
                                              amrex::MultiFab* rho,
                                              amrex::MultiFab* vel,
+                                             amrex::MultiFab const* p_nodal,
                                              amrex::Geometry& lev_geom,
                                              amrex::Real time, int nghost, int type);
     virtual void compute_tracer_diff_coeff (amrex::Vector<amrex::MultiFab*> const& tra_eta,
@@ -280,6 +282,7 @@ public: // for cuda
         amrex::Real n_0;
         amrex::Real tau_0;
         amrex::Real papa_reg;
+        amrex::Real papa_reg_press;
         amrex::Real eta_0;
         amrex::Real alpha_0;
         amrex::Real A_0;
@@ -311,6 +314,7 @@ public: // for cuda
             , n_0(1.5)
             , tau_0(0.0)
             , papa_reg(0.0)
+            , papa_reg_press(0.0)
             , eta_0(0.0)
             , alpha_0(0.0)
             , A_0(0.0)
@@ -337,6 +341,8 @@ public: // for cuda
     bool m_do_second_rheology_1 = false; // first Rivlin-Ericksen (RE) tensor
     bool m_do_second_rheology_2 = false; // second Rivlin-Ericksen (RE) tensor
     bool m_do_vof = false; // do VoF?
+    bool m_include_perturb_pressure = false; // include perturbational pressure when computing granular rheology
+    amrex::Real m_p_amb_surface = amrex::Real(0.0); // set pressure at the free surface
     amrex::Vector<FLUID_t> m_fluid_vof;
 
     ///////////////////////////////////////////////////////////////////////////
@@ -805,6 +811,7 @@ private:
     amrex::Vector<amrex::MultiFab const*> get_density_new_const () const noexcept;
     amrex::Vector<amrex::MultiFab const*> get_tracer_old_const () const noexcept;
     amrex::Vector<amrex::MultiFab const*> get_tracer_new_const () const noexcept;
+    amrex::Vector<amrex::MultiFab const*> get_pressure_const () const noexcept;
     amrex::Vector<amrex::MultiFab const*> get_vel_forces_const () const noexcept;
     amrex::Vector<amrex::MultiFab const*> get_tra_forces_const () const noexcept;
 

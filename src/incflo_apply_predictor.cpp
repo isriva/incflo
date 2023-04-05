@@ -138,16 +138,16 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // Compute viscosity / diffusive coefficients
     // *************************************************************************************
     compute_viscosity(GetVecOfPtrs(vel_eta),get_density_old(), 
-            get_velocity_old(),m_cur_time, 1, 0);
+            get_velocity_old(), get_pressure_const(), m_cur_time, 1, 0);
     if (m_do_second_rheology_1) 
     {
         compute_viscosity(GetVecOfPtrs(vel_eta1),get_density_old(), 
-                get_velocity_old(),m_cur_time, 1, 1);
+                get_velocity_old(),get_pressure_const(),m_cur_time, 1, 1);
     }
     if (m_do_second_rheology_2) // TODO: add the second RE tensor
     {
         compute_viscosity(GetVecOfPtrs(vel_eta2),get_density_old(), 
-                get_velocity_old(),m_cur_time, 1, 2);
+                get_velocity_old(), get_pressure_const(), m_cur_time, 1, 2);
     }
 
     compute_tracer_diff_coeff(GetVecOfPtrs(tra_eta),1);
@@ -367,12 +367,12 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *********************************************************************************************
     if (m_do_vof) {
         compute_viscosity(GetVecOfPtrs(vel_eta),
-                          get_density_new(), get_velocity_old(),
+                          get_density_new(), get_velocity_old(), get_pressure_const(),
                           m_cur_time, 1, 0);
         if (m_do_second_rheology_1) 
         {
             compute_viscosity(GetVecOfPtrs(vel_eta1),get_density_new(), 
-                    get_velocity_old(),m_cur_time, 1, 1);
+                    get_velocity_old(), get_pressure_const(), m_cur_time, 1, 1);
         }
         //if (m_do_second_rheology_2) //TODO: add the second RE tensor 
         //{
