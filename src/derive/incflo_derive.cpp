@@ -66,6 +66,28 @@ void incflo::compute_strainrate_at_level (int /*lev*/,
         AMREX_D_TERM(Real idx = Real(1.0) / lev_geom.CellSize(0);,
                      Real idy = Real(1.0) / lev_geom.CellSize(1);,
                      Real idz = Real(1.0) / lev_geom.CellSize(2););
+        const Box& domain = lev_geom.Domain();
+        const Dim3 domlo = amrex::lbound(domain);
+        const Dim3 domhi = amrex::ubound(domain);
+        Vector<Array<int,2>> bc_type(AMREX_SPACEDIM);
+        for (OrientationIter oit; oit; ++oit) {
+            Orientation ori = oit();
+            int dir = ori.coordDir();
+            Orientation::Side side = ori.faceDir();
+            auto const bct = m_bc_type[ori];
+            if (bct == BC::no_slip_wall) {
+                if (side == Orientation::low)  bc_type[dir][0] = 2;
+                if (side == Orientation::high) bc_type[dir][1] = 2;
+            }
+            else if (bct == BC::slip_wall) {
+                if (side == Orientation::low)  bc_type[dir][0] = 1;
+                if (side == Orientation::high) bc_type[dir][1] = 1;
+            }
+            else {
+                if (side == Orientation::low)  bc_type[dir][0] = 0;
+                if (side == Orientation::high) bc_type[dir][1] = 0;
+            }
+        }
 
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -98,7 +120,7 @@ void incflo::compute_strainrate_at_level (int /*lev*/,
                 {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
-                        sr_arr(i,j,k) = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr);
+                        sr_arr(i,j,k) = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,domlo,domhi,bc_type);
                     });
                 }
         }
@@ -106,7 +128,7 @@ void incflo::compute_strainrate_at_level (int /*lev*/,
         amrex::average_node_to_cellcenter(*strainrate,0,strainrate_nodal,0,1,0);
 }
 
-Real incflo::ComputeKineticEnergy () const
+Real incflo::ComputeKineticEnergy ()
 {
 #if 0
     BL_PROFILE("incflo::ComputeKineticEnergy");
