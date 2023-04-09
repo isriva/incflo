@@ -35,11 +35,13 @@ struct NonNewtonianViscosity
         {
         case incflo::FluidModel::powerlaw:
         {
-            return mu * std::pow(sr,n_flow-Real(1.0));
+            if (sr < Real(10.0)*std::numeric_limits<Real>::epsilon()) return mu;
+            else return mu * std::pow(sr,n_flow-Real(1.0));
         }
         case incflo::FluidModel::Bingham:
         {
-            return mu + tau_0 * expterm(sr/papa_reg) / papa_reg;
+            if (sr < Real(10.0)*std::numeric_limits<Real>::epsilon()) return mu;
+            else return mu + tau_0 * expterm(sr/papa_reg) / papa_reg;
         }
         case incflo::FluidModel::HerschelBulkley:
         {
@@ -190,6 +192,28 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 #if (AMREX_SPACEDIM == 3)
         Real idz = Real(1.0) / lev_geom.CellSize(2);
 #endif
+        const Box& domain = lev_geom.Domain();
+        const Dim3 domlo = amrex::lbound(domain);
+        const Dim3 domhi = amrex::ubound(domain);
+        Vector<Array<int,2>> bc_type(AMREX_SPACEDIM);
+        for (OrientationIter oit; oit; ++oit) {
+            Orientation ori = oit();
+            int dir = ori.coordDir();
+            Orientation::Side side = ori.faceDir();
+            auto const bct = m_bc_type[ori];
+            if (bct == BC::no_slip_wall) {
+                if (side == Orientation::low)  bc_type[dir][0] = 2; 
+                if (side == Orientation::high) bc_type[dir][1] = 2; 
+            }
+            else if (bct == BC::slip_wall) {
+                if (side == Orientation::low)  bc_type[dir][0] = 1; 
+                if (side == Orientation::high) bc_type[dir][1] = 1; 
+            }
+            else {
+                if (side == Orientation::low)  bc_type[dir][0] = 0; 
+                if (side == Orientation::high) bc_type[dir][1] = 0; 
+            }
+        }
 
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -227,7 +251,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
-                        Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr); //  get nodal strainrate
+                        Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,domlo,domhi,bc_type); //  get nodal strainrate
                         // nodal viscosity
                         if (m_do_vof) {
                             Real dens = incflo_rho_nodal(i,j,k,rho_arr); // get nodal density
@@ -240,6 +264,21 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 }
         }
     }
+    //{
+    //    std::string plotfilename = "eta";
+    //    std::ofstream ofs(plotfilename, std::ofstream::out);
+    //    for (MFIter mfi(*vel_eta); mfi.isValid(); ++mfi) {
+    //        ofs<<std::setprecision(16)<< (*vel_eta)[mfi]<<std::endl;
+    //    }
+    //}
+    //{
+    //    std::string plotfilename = "vel";
+    //    std::ofstream ofs(plotfilename, std::ofstream::out);
+    //    for (MFIter mfi(*vel); mfi.isValid(); ++mfi) {
+    //        ofs<<std::setprecision(16)<< (*vel)[mfi]<<std::endl;
+    //    }
+    //}
+    //amrex::Abort("end here");
 }
 
 void incflo::compute_tracer_diff_coeff (Vector<MultiFab*> const& tra_eta, int nghost)

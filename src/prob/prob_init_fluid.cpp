@@ -703,9 +703,6 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
 
     amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        vel(i,j,k,0) = 0.0;
-        vel(i,j,k,1) = 0.0;
-        vel(i,j,k,2) = 0.0;
 
         if (m_do_vof) {
             Real x = problo[0] + (i+0.5)*dx[0];
@@ -732,13 +729,36 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
             gp0(i,j,k,0) = 0.0;
             gp0(i,j,k,1) = 0.0;
             gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
+
+            vel(i,j,k,0) = 0.0;
+            vel(i,j,k,1) = 0.0;
+            vel(i,j,k,2) = 0.0;
         }
         else {
+            Real x = problo[0] + (i+0.5)*dx[0];
+            Real y = problo[1] + (j+0.5)*dx[1];
+            Real z = problo[2] + (k+0.5)*dx[2];
+
             density(i,j,k) = rho;
+
             gp0(i,j,k,0) = 0.0;
             gp0(i,j,k,1) = 0.0;
             gp0(i,j,k,2) = m_gravity[2] * rho;
+
             tracer(i,j,k) = 1.0;
+
+            // set a velocity profile based on constant viscosity
+            Real H = probhi[2]-problo[2];
+            Real sin_angle = std::sin(std::atan(std::abs(m_gravity[0])/std::abs(m_gravity[2])));
+            Real scale = rho*std::abs(m_gravity[2])*H*H*0.5*sin_angle/m_mu;
+            //vel(i,j,k,0) = scale*(1.0 - (1.0 - z/H)*(1.0 - z/H));
+            //vel(i,j,k,0) = scale*z/H;
+            //if (m_fluid_model == incflo::FluidModel::Bingham) {
+            //    vel(i,j,k,0) = scale*(1.0 - (1.0 - z/H)*(1.0 - z/H)) - z*m_tau_0/m_mu;
+            //}
+            vel(i,j,k,0) = 0.0;
+            vel(i,j,k,1) = 0.0;
+            vel(i,j,k,2) = 0.0;
         }
     });
 }
