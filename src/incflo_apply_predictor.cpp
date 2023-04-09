@@ -116,7 +116,6 @@ void incflo::ApplyPredictor (bool incremental_projection)
             tra_forces.emplace_back(grids[lev], dmap[lev], m_ntrac, nghost_force(),
                                     MFInfo(), Factory(lev));
         }
-
         vel_eta.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
         if (m_do_second_rheology_1) {
             vel_eta1.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
@@ -137,8 +136,9 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     // Compute viscosity / diffusive coefficients
     // *************************************************************************************
-    compute_viscosity(GetVecOfPtrs(vel_eta),get_density_old(), 
-            get_velocity_old(), get_pressure_const(), m_cur_time, 1, 0);
+    compute_viscosity(GetVecOfPtrs(vel_eta),
+                      get_density_old(), get_velocity_old(), get_pressure_const(),
+                      m_cur_time, 1, 0);
     if (m_do_second_rheology_1) 
     {
         compute_viscosity(GetVecOfPtrs(vel_eta1),get_density_old(), 
@@ -149,7 +149,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
         compute_viscosity(GetVecOfPtrs(vel_eta2),get_density_old(), 
                 get_velocity_old(), get_pressure_const(), m_cur_time, 1, 2);
     }
-
+    
     compute_tracer_diff_coeff(GetVecOfPtrs(tra_eta),1);
 
     // *************************************************************************************
@@ -255,7 +255,19 @@ void incflo::ApplyPredictor (bool incremental_projection)
             } // mfi
 
         } // lev
+
+        // Average down solution
+        for (int lev = finest_level-1; lev >= 0; --lev) {
+#ifdef AMREX_USE_EB
+            amrex::EB_average_down(m_leveldata[lev+1]->density, m_leveldata[lev]->density,
+                                   0, 1, refRatio(lev));
+#else
+            amrex::average_down(m_leveldata[lev+1]->density, m_leveldata[lev]->density,
+                                0, 1, refRatio(lev));
+#endif
+        }
     } // not constant density
+
 
     // *************************************************************************************
     // Compute (or if Godunov, re-compute) the tracer forcing terms (forcing for (rho s), not for s)
@@ -342,17 +354,32 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     // Solve diffusion equation for tracer
     // *************************************************************************************
-    if ( m_advect_tracer &&
-        (m_diff_type == DiffusionType::Crank_Nicolson || m_diff_type == DiffusionType::Implicit) )
+    if ( m_advect_tracer )
     {
-        const int ng_diffusion = 1;
-        for (int lev = 0; lev <= finest_level; ++lev)
-            fillphysbc_tracer(lev, new_time, m_leveldata[lev]->tracer, ng_diffusion);
+        if (m_diff_type == DiffusionType::Crank_Nicolson || m_diff_type == DiffusionType::Implicit)
+        {
+            const int ng_diffusion = 1;
+            for (int lev = 0; lev <= finest_level; ++lev)
+                fillphysbc_tracer(lev, new_time, m_leveldata[lev]->tracer, ng_diffusion);
 
-        Real dt_diff = (m_diff_type == DiffusionType::Implicit) ? m_dt : m_half*m_dt;
-        diffuse_scalar(get_tracer_new(), get_density_new(), GetVecOfConstPtrs(tra_eta), dt_diff);
-
+            Real dt_diff = (m_diff_type == DiffusionType::Implicit) ? m_dt : m_half*m_dt;
+            diffuse_scalar(get_tracer_new(), get_density_new(), GetVecOfConstPtrs(tra_eta), dt_diff);
+        }
+        else
+        {
+            // Need to average down tracer since the diffusion solver didn't do it for us.
+            for (int lev = finest_level-1; lev >= 0; --lev) {
+#ifdef AMREX_USE_EB
+                amrex::EB_average_down(m_leveldata[lev+1]->tracer, m_leveldata[lev]->tracer,
+                                       0, m_ntrac, refRatio(lev));
+#else
+                amrex::average_down(m_leveldata[lev+1]->tracer, m_leveldata[lev]->tracer,
+                                    0, m_ntrac, refRatio(lev));
+#endif
+            }
+        }
     } // if (m_advect_tracer)
+
 
     // *************************************************************************************
     // Define (or if advection_type != "MOL", re-define) the forcing terms, without the viscous terms

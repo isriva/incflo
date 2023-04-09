@@ -130,6 +130,71 @@ amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const in
 
     return visc;
 
+struct ViscosityVOF
+{
+    amrex::Vector<incflo::FluidModel> fluid_model{{incflo::FluidModel::Newtonian, incflo::FluidModel::Newtonian}};
+    amrex::Vector<amrex::Real> rho{{1.0, 1.0}};
+    amrex::Vector<amrex::Real> mu{{1.0, 1.0}}; 
+    amrex::Vector<amrex::Real> n_flow{{0.0, 0.0}}; 
+    amrex::Vector<amrex::Real> tau_0{{0.0, 0.0}}; 
+    amrex::Vector<amrex::Real> eta_0{{0.0, 0.0}}; 
+    amrex::Vector<amrex::Real> papa_reg{{0.0, 0.0}}; 
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    amrex::Real operator() (amrex::Real sr, amrex::Real density) const noexcept {
+        amrex::Real visc0;
+        if (fluid_model[0] ==  incflo::FluidModel::Powerlaw)
+        {
+            visc0 =  mu[0] * std::pow(sr,n_flow[0]-1.0);
+        }
+        else if (fluid_model[0] == incflo::FluidModel::Bingham)
+        {
+            visc0 =  mu[0] + tau_0[0] * expterm(sr/papa_reg[0]) / papa_reg[0];
+        }
+        else if (fluid_model[0] == incflo::FluidModel::HerschelBulkley)
+        {
+            visc0 =  (mu[0]*std::pow(sr,n_flow[0])+tau_0[0])*expterm(sr/papa_reg[0])/papa_reg[0];
+        }
+        else if (fluid_model[0] == incflo::FluidModel::deSouzaMendesDutra)
+        {
+            visc0 =  (mu[0]*std::pow(sr,n_flow[0])+tau_0[0])*
+                      expterm(sr*(eta_0[0]/tau_0[0]))*(eta_0[0]/tau_0[0]);
+        }
+        else
+        {
+            visc0 =  mu[0];
+        }
+
+        amrex::Real visc1;
+        if (fluid_model[1] == incflo::FluidModel::Powerlaw)
+        {
+            visc1 =  mu[1] * std::pow(sr,n_flow[1]-1.0);
+        }
+        else if (fluid_model[1] == incflo::FluidModel::Bingham)
+        {
+            visc1 =  mu[1] + tau_0[1] * expterm(sr/papa_reg[1]) / papa_reg[1];
+        }
+        else if (fluid_model[1] == incflo::FluidModel::HerschelBulkley)
+        {
+            visc1 =  (mu[1]*std::pow(sr,n_flow[1])+tau_0[1])*expterm(sr/papa_reg[1])/papa_reg[1];
+        }
+        else if (fluid_model[1] == incflo::FluidModel::deSouzaMendesDutra)
+        {
+            visc1 =  (mu[1]*std::pow(sr,n_flow[1])+tau_0[1])*
+                      expterm(sr*(eta_0[1]/tau_0[1]))*(eta_0[1]/tau_0[1]);
+        }
+        else
+        {
+            visc1 =  mu[1];
+        }
+
+        amrex::Real conc = get_concentration(density,rho[0],rho[1]);
+        return mixture_viscosity(conc,visc0,visc1);
+
+    }
+};
+
+
 }
 
 }
@@ -172,6 +237,28 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 #if (AMREX_SPACEDIM == 3)
     Real idz           = Real(1.0) / lev_geom.CellSize(2);
 #endif
+        const Box& domain = lev_geom.Domain();
+        const Dim3 domlo = amrex::lbound(domain);
+        const Dim3 domhi = amrex::ubound(domain);
+        Vector<Array<int,2>> bc_type(AMREX_SPACEDIM);
+        for (OrientationIter oit; oit; ++oit) {
+            Orientation ori = oit();
+            int dir = ori.coordDir();
+            Orientation::Side side = ori.faceDir();
+            auto const bct = m_bc_type[ori];
+            if (bct == BC::no_slip_wall) {
+                if (side == Orientation::low)  bc_type[dir][0] = 2; 
+                if (side == Orientation::high) bc_type[dir][1] = 2; 
+            }
+            else if (bct == BC::slip_wall) {
+                if (side == Orientation::low)  bc_type[dir][0] = 1; 
+                if (side == Orientation::high) bc_type[dir][1] = 1; 
+            }
+            else {
+                if (side == Orientation::low)  bc_type[dir][0] = 0; 
+                if (side == Orientation::high) bc_type[dir][1] = 0; 
+            }
+        }
 
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -215,7 +302,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
         {
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
-                Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr); //  get nodal strainrate
+                Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,domlo,domhi,bc_type); //  get nodal strainrate
                 Real dens = incflo_rho_nodal(i,j,k,rho_arr); // get nodal density
                 Real depth_from_surface = probhi[2] - Real(k)*dx[2]; // get depth from the surface 
                 Real hyd_press = m_p_amb_surface - m_gravity[2]*dens*depth_from_surface; // get hydrostatic pressure
@@ -238,7 +325,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 
 void incflo::compute_tracer_diff_coeff (Vector<MultiFab*> const& tra_eta, int nghost)
 {
-    for (auto mf : tra_eta) {
+    for (auto *mf : tra_eta) {
         for (int n = 0; n < m_ntrac; ++n) {
             mf->setVal(m_mu_s[n], n, 1, nghost);
         }
