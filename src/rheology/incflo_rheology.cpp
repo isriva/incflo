@@ -88,7 +88,8 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
     else if (fluid.fluid_model == incflo::FluidModel::Granular) {
         if (order == 0) {
             amrex::Real hyd_press_reg = 0.5*(hyd_press + sqrt(hyd_press*hyd_press + fluid.papa_reg_press*fluid.papa_reg_press)); // regularized pressure (always positive)
-            amrex::Real min_visc = fluid.rho*sqrt(std::abs(gravity)*(fluid.diam*fluid.diam*fluid.diam));
+            //amrex::Real min_visc = fluid.rho*sqrt(std::abs(gravity)*(fluid.diam*fluid.diam*fluid.diam));
+            amrex::Real min_visc = Real(0.0);
             amrex::Real compute_visc = (fluid.tau_0*hyd_press_reg + fluid.A_0*std::pow(fluid.diam,fluid.alpha_0)*std::pow(fluid.rho,0.5*fluid.alpha_0)*std::pow(hyd_press_reg,1.0-0.5*fluid.alpha_0)*std::pow(sr,fluid.alpha_0))*expterm(sr/fluid.papa_reg)/fluid.papa_reg;
             visc = std::max(min_visc, compute_visc);
             include = true;
