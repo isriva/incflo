@@ -26,30 +26,6 @@ amrex::Real mixture_viscosity (amrex::Real conc, amrex::Real visc0, amrex::Real 
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real inertialNum (amrex::Real sr, amrex::Real prs, amrex::Real ro, amrex::Real diam, amrex::Real mu, amrex::Real A, amrex::Real alpha) noexcept
-{
-    return mu + A*std::pow((sr/2)*diam/(std::pow(prs/ro, 0.5)), alpha);
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real eta1 (amrex::Real A, amrex::Real d, amrex::Real ro, amrex::Real alpha, amrex::Real sr, amrex::Real papa_reg, amrex::Real p)
-{
-    return (A*std::pow(d * std::pow(ro,1/2), alpha)) * std::pow(2*(expterm(sr/papa_reg)/papa_reg),-alpha+1) * std::pow(p, 1-alpha/2);
-} 
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real eta2 (amrex::Real A, amrex::Real d, amrex::Real ro, amrex::Real alpha, amrex::Real sr, amrex::Real papa_reg, amrex::Real p)
-{
-    return (A*std::pow(d * std::pow(ro,1/2), alpha)) * std::pow(2*(expterm(sr/papa_reg)/papa_reg),-alpha+2) * std::pow(p, 1-alpha/2);
-} 
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real kappaterm (amrex::Real mu, amrex::Real p)
-{
-    return mu * p;
-}
-
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int order, const incflo::FLUID_t& fluid, const amrex::Real hyd_press, const amrex::Real gravity) 
 {
     amrex::Real visc = 0.0;
@@ -60,35 +36,36 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
         else {visc = 0.0; include = false;}
     }
     else if (fluid.fluid_model == incflo::FluidModel::Powerlaw) {
-        if (order == 0) {
-            visc = (fluid.mu * std::pow(sr,fluid.n_0-1.0)); include = true;
-        }
-        else if (order == 1) {
-            if (sr < 1.e-15) {visc = fluid.mu_1; include = true;}
-            else {visc = (fluid.mu_1 * std::pow(sr,fluid.n_1-1.0)); include = true;}
-        }
+        if (order == 0) {visc = (fluid.mu * std::pow(sr,fluid.n_0-1.0)); include = true;}
+        else if (order == 1) {visc = (fluid.mu_1 * std::pow(sr,fluid.n_1-1.0)); include = true;}
     }
     else if (fluid.fluid_model == incflo::FluidModel::Bingham) {
         if (order == 0) {visc = fluid.mu + fluid.tau_0 * expterm(sr/fluid.papa_reg) / fluid.papa_reg; include = true;}
+        else if (order == 1) {visc = fluid.mu_1 + fluid.tau_1 * expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1; include = true;}
     }
     else if (fluid.fluid_model == incflo::FluidModel::HerschelBulkley) {
         if (order == 0) {
-            //visc = (fluid.mu*std::pow(sr,fluid.n_0)+fluid.tau_0)*expterm(sr/fluid.papa_reg)/fluid.papa_reg;
-            // return (mu*std::pow(sr,n_flow)+tau_0)*expterm(sr/papa_reg)/papa_reg;
-            visc = ( fluid.mu*std::pow(sr,fluid.n_0-1.0) + (fluid.tau_0/sr)*(1.0-expterm(-1.0*sr/fluid.papa_reg)));
+            visc = (fluid.mu*std::pow(sr,fluid.n_0)+fluid.tau_0)*expterm(sr/fluid.papa_reg)/fluid.papa_reg;
+            include = true;
         }
         else if (order == 1) {
-            // visc =  (mu_1*std::pow(sr,n_flow_1)+tau_1)*expterm(sr/papa_reg_1)/papa_reg_1;
-            visc = ( fluid.mu_1*std::pow(sr,fluid.n_1-1.0) + (fluid.tau_1/sr)*(1.0-expterm(-1.0*sr/fluid.papa_reg_1)));
+            visc = (fluid.mu_1*std::pow(sr,fluid.n_1)+fluid.tau_1)*expterm(sr/fluid.papa_reg_1)/fluid.papa_reg_1;
+            include = true;
         }
     }
     else if (fluid.fluid_model == incflo::FluidModel::deSouzaMendesDutra) {
-        visc = (fluid.mu*std::pow(sr,fluid.n_0)+fluid.tau_0)*expterm(sr*(fluid.eta_0/fluid.tau_0))*(fluid.eta_0/fluid.tau_0);
+        if (order == 0) {
+            visc = (fluid.mu*std::pow(sr,fluid.n_0)+fluid.tau_0)*expterm(sr*(fluid.eta_0/fluid.tau_0))*(fluid.eta_0/fluid.tau_0);
+            include = true;
+        }
+        else if (order == 1) {
+            visc = (fluid.mu_1*std::pow(sr,fluid.n_1)+fluid.tau_1)*expterm(sr*(fluid.eta_1/fluid.tau_1))*(fluid.eta_1/fluid.tau_1);
+            include = true;
+        }
     }
     else if (fluid.fluid_model == incflo::FluidModel::Granular) {
         if (order == 0) {
             amrex::Real hyd_press_reg = 0.5*(hyd_press + sqrt(hyd_press*hyd_press + fluid.papa_reg_press*fluid.papa_reg_press)); // regularized pressure (always positive)
-            //amrex::Real min_visc = fluid.rho*sqrt(std::abs(gravity)*(fluid.diam*fluid.diam*fluid.diam));
             amrex::Real min_visc = Real(0.0);
             amrex::Real compute_visc = (fluid.tau_0*hyd_press_reg + fluid.A_0*std::pow(fluid.diam,fluid.alpha_0)*std::pow(fluid.rho,0.5*fluid.alpha_0)*std::pow(hyd_press_reg,1.0-0.5*fluid.alpha_0)*std::pow(sr,fluid.alpha_0))*expterm(sr/fluid.papa_reg)/fluid.papa_reg;
             visc = std::max(min_visc, compute_visc);
