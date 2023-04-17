@@ -7,6 +7,8 @@ void incflo::ReadRheologyParameters()
      amrex::ParmParse pp0("incflo");
      pp0.query("do_vof", m_do_vof);
      pp0.query("do_second_rheology_1", m_do_second_rheology_1);
+     pp0.query("include_perturb_pressure", m_include_perturb_pressure);
+     pp0.query("p_amb_surface", m_p_amb_surface);
      
      // Initialize Rheology Parameters for Single Fluid
      if (!m_do_vof) {

@@ -47,7 +47,8 @@ MyTensorOp::define (const Vector<Geometry>& a_geom,
 {
     BL_PROFILE("MyTensorOp::define()");
 
-    MLABecLaplacian::define(a_geom, a_grids, a_dmap, a_info, a_factory);
+    MLABecLaplacian::define(a_geom, a_grids, a_dmap, a_info, a_factory,
+                            AMREX_SPACEDIM);
 
     m_kappa.clear();
     m_kappa.resize(NAMRLevels());
@@ -75,7 +76,8 @@ MyTensorOp::define (const Vector<Geometry>& a_geom,
 {
     BL_PROFILE("MyTensorOp::define(oveset)");
 
-    MLABecLaplacian::define(a_geom, a_grids, a_dmap, a_overset_mask, a_info, a_factory);
+    MLABecLaplacian::define(a_geom, a_grids, a_dmap, a_overset_mask, a_info,
+                            a_factory, AMREX_SPACEDIM);
 
     m_kappa.clear();
     m_kappa.resize(NAMRLevels());
@@ -234,7 +236,7 @@ MyTensorOp::apply (int amrlev, int mglev, MultiFab& out, MultiFab& in, BCMode bc
 
     if (mglev >= m_kappa[amrlev].size()) return;
 
-    applyBCTensor(amrlev, mglev, in, bc_mode, s_mode, bndry );
+    applyBCTensor(amrlev, mglev, in, bc_mode, s_mode, bndry);
 //    {
 //        std::string plotfilename = "vel2_after_BC";
 //        std::ofstream ofs(plotfilename, std::ofstream::out);

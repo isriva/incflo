@@ -56,6 +56,9 @@ void incflo::ReadParameters ()
         // Are we advecting velocity or momentum (default is velocity)
         pp.query("advect_momentum"                  , m_advect_momentum);
 
+        // Are we setting the base pressure gradient based on initial variable density?
+        pp.query("base_pressure_gradient"    , m_base_pressure_gradient);
+
         // Are we using MOL or Godunov?
         pp.query("advection_type"                   , m_advection_type);
         pp.query("use_ppm"                          , m_godunov_ppm);
@@ -125,9 +128,12 @@ void incflo::ReadParameters ()
         pp.query("ro_0", m_ro_0);
         AMREX_ALWAYS_ASSERT(m_ro_0 >= 0.0);
 
+        // Smoothing width (for inclined flows)
+        pp.query("smoothing_width",m_smoothing_width);
+
         pp.query("ntrac", m_ntrac);
 
-        if (m_ntrac <= 0) m_advect_tracer = 0;
+        if (m_ntrac <= 0) m_advect_tracer = false;
 
         if (m_ntrac < 1) {
             amrex::Abort("We currently require at least one tracer");

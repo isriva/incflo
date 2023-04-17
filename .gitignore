@@ -67,12 +67,15 @@ test/tmp_build_dir/
 test/Backtrace.*
 test/*plt*/
 test/chk*/
+<<<<<<< HEAD
 test*/tmp_build_dir/
 test*/*.ex
 test*/*.cpp
 
 CMakeFiles
 CMakeCache.txt
+=======
+>>>>>>> origin/development
 
 **/*.ex
 **/tmp_build_dir/
