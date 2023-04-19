@@ -93,6 +93,8 @@ void incflo::ReadParameters ()
             m_diff_type = DiffusionType::Crank_Nicolson;
         } else if (diffusion_type == 2) {
             m_diff_type = DiffusionType::Implicit;
+        } else if (diffusion_type == 3) {
+            m_diff_type = DiffusionType::Exp_RK2;
         } else {
             amrex::Abort("We currently require diffusion_type = 0 for explicit, 1 for Crank-Nicolson or 2 for implicit");
         }
@@ -296,7 +298,7 @@ void incflo::InitialIterations ()
     copy_from_new_to_old_tracer();
 
     int initialisation = 1;
-    bool explicit_diffusion = (m_diff_type == DiffusionType::Explicit);
+    bool explicit_diffusion = ((m_diff_type == DiffusionType::Explicit) || (m_diff_type == DiffusionType::Exp_RK2));
     ComputeDt(initialisation, explicit_diffusion);
 
     if (m_verbose && m_initial_iterations > 0)

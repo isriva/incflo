@@ -11,7 +11,7 @@ void incflo::Advance()
 
     // Compute time step size
     int initialisation = 0;
-    bool explicit_diffusion = (m_diff_type == DiffusionType::Explicit);
+    bool explicit_diffusion = ((m_diff_type == DiffusionType::Explicit) || (m_diff_type == DiffusionType::Exp_RK2));
     ComputeDt(initialisation, explicit_diffusion);
 
     // Set new and old time to correctly use in fillpatching
@@ -63,8 +63,13 @@ void incflo::Advance()
     //        }
     //    }
 
-    // for RK2 method (explicit)
-    // ApplyCorrector();
+    // EY: for RK2 method (explicit)
+    if (m_diff_type == DiffusionType::Exp_RK2)
+    {
+        // But dt should be doubled this time. -- TODO
+        ApplyPredictor();
+    }
+    //ApplyPredictor();
     //}
 
 #if 0

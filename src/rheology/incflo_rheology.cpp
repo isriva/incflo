@@ -13,6 +13,12 @@ amrex::Real expterm (amrex::Real nu) noexcept
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+amrex::Real inertialNum (amrex::Real sr, amrex::Real p_ext, amrex::Real ro_0, amrex::Real diam, amrex::Real mu_1, amrex::Real A_1, amrex::Real alpha_1) noexcept
+{
+    return mu_1 + A_1*std::pow((sr/2)*diam/(std::pow(p_ext/ro_0, 0.5)), alpha_1);
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 amrex::Real get_concentration (amrex::Real dens, amrex::Real rho0, amrex::Real rho1) noexcept
 {
     return ((rho1/dens) - 1.0)/((rho1/rho0) - 1.0);
@@ -71,9 +77,14 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
             visc = std::max(min_visc, compute_visc);
             include = true;
         }
-        //else if (order == 1) {
-        //    visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(fluid.p_bg)*inertialNum(sr,fluid.p_bg, fluid.rho, fluid.diam, fluid.mu_2, fluid.A_2, 2*fluid.alpha_2);
-        //}
+        else if (order == 1) {
+            visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(fluid.papa_reg_press)*inertialNum(sr,fluid.papa_reg_press, fluid.rho, fluid.diam, fluid.mu_1, fluid.A_1, 2*fluid.alpha_1);
+
+            {
+            amrex::Print() << "viscosity order 1:  " << visc << ", "  << std::endl;
+            }
+        
+        }
         //else if (order == 2) {
         //    visc = -1*std::pow(2*(expterm(sr/papa_reg) / papa_reg),2)*(p_bg)*inertialNum(sr, p_bg, ro_0, diam, mu_3, A_3, 2*alpha_3);
         //}
