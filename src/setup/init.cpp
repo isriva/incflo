@@ -48,6 +48,7 @@ void incflo::ReadParameters ()
         // Physics
         pp.queryarr("delp", m_delp, 0, AMREX_SPACEDIM);
         pp.queryarr("gravity", m_gravity, 0, AMREX_SPACEDIM);
+        pp.queryarr("gran_lim", m_gran_lim, 0, 2);
 
         pp.query("constant_density"         , m_constant_density);
         pp.query("advect_tracer"            , m_advect_tracer);
@@ -311,8 +312,9 @@ void incflo::InitialIterations ()
 
     int ng = nghost_state();
     for (int lev = 0; lev <= finest_level; ++lev) {
-            fillpatch_velocity(lev, m_t_old[lev], m_leveldata[lev]->velocity_o, ng);
+        fillpatch_velocity(lev, m_t_old[lev], m_leveldata[lev]->velocity_o, ng);
         fillpatch_density(lev, m_t_old[lev], m_leveldata[lev]->density_o, ng);
+        fillpatch_gradp(lev, m_t_old[lev], m_leveldata[lev]->gp, 1);
         if (m_advect_tracer) {
             fillpatch_tracer(lev, m_t_old[lev], m_leveldata[lev]->tracer_o, ng);
         }

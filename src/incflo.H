@@ -15,14 +15,18 @@
 
 #include <DiffusionScalarOp.H>
 #include <DiffusionTensorOp.H>
+#if (AMREX_SPACEDIM == 3)
 #include <DiffusionTensorOp1.H>
+#endif
 
 class incflo : public amrex::AmrCore
 {
 public:
 
     friend DiffusionTensorOp;
+#if (AMREX_SPACEDIM == 3)
     friend DiffusionTensorOp1;
+#endif
     friend DiffusionScalarOp;
 
     enum struct FluidModel {
@@ -182,7 +186,7 @@ public:
                           amrex::Vector<amrex::MultiFab const*> const& velocity,
                           amrex::Vector<amrex::MultiFab const*> const& density,
                           amrex::Vector<amrex::MultiFab const*> const& eta);
-
+#if (AMREX_SPACEDIM == 3)
     void compute_divtau1 (amrex::Vector<amrex::MultiFab      *> const& divtau,
                           amrex::Vector<amrex::MultiFab const*> const& velocity,
                           amrex::Vector<amrex::MultiFab const*> const& density,
@@ -193,11 +197,11 @@ public:
     //                      amrex::Vector<amrex::MultiFab const*> const& velocity,
     //                      amrex::Vector<amrex::MultiFab const*> const& density,
     //                      amrex::Vector<amrex::MultiFab const*> const& eta);
-
+#endif
     amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
     average_nodal_velocity_eta_to_faces (int lev, amrex::MultiFab const& nodal_eta) const;
 
-    void average_nodal_to_face (amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>& fc, amrex::MultiFab const& nodal, const amrex::Geometry& geom) const;
+    void average_nodal_to_face (amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>& fc, amrex::MultiFab const& nodal) const;
 
 
     void diffuse_velocity (amrex::Vector<amrex::MultiFab      *> const&  velocity,
@@ -262,6 +266,7 @@ public:
         amrex::Real mu;
         amrex::Real n_0;
         amrex::Real tau_0;
+        amrex::Real max_visc;
         amrex::Real papa_reg;
         amrex::Real papa_reg_press;
         amrex::Real eta_0;
@@ -294,6 +299,7 @@ public:
             , mu(1.0)
             , n_0(1.5)
             , tau_0(0.0)
+            , max_visc(-1.0)
             , papa_reg(0.0)
             , papa_reg_press(0.0)
             , eta_0(0.0)
@@ -329,13 +335,13 @@ public:
     virtual void compute_viscosity (amrex::Vector<amrex::MultiFab*> const& eta,
                                     amrex::Vector<amrex::MultiFab*> const& rho,
                                     amrex::Vector<amrex::MultiFab*> const& vel,
-                                    amrex::Vector<amrex::MultiFab const*> const& p_nodal,
+                                    amrex::Vector<amrex::MultiFab const*> const& gradp,
                                     amrex::Real time, int nghost, int type=1);
     virtual void compute_viscosity_at_level (int lev,
                                              amrex::MultiFab* eta,
                                              amrex::MultiFab* rho,
                                              amrex::MultiFab* vel,
-                                             amrex::MultiFab const* p_nodal,
+                                             amrex::MultiFab const* gradp,
                                              amrex::Geometry& lev_geom,
                                              amrex::Real time, int nghost, int type);
     virtual void compute_tracer_diff_coeff (amrex::Vector<amrex::MultiFab*> const& tra_eta,
@@ -495,6 +501,8 @@ private:
     amrex::Vector<amrex::Real> m_gp0{{0.0, 0.0, 0.0}};
     amrex::Vector<amrex::Real> m_gravity{{0.0, 0.0, 0.0}};
     amrex::Vector<amrex::Real> m_delp{{0.0, 0.0, 0.0}};
+
+    amrex::Vector<amrex::Real> m_gran_lim{{-1.0, -1.0}};
 
     // Scalar diffusive coefficient
     amrex::Vector<amrex::Real> m_mu_s;
@@ -658,7 +666,9 @@ private:
 
         amrex::MultiFab divtau;
         amrex::MultiFab divtau_o;
+#if (AMREX_SPACEDIM == 3)
         amrex::MultiFab divtau_o1;
+#endif
         amrex::MultiFab laps;
         amrex::MultiFab laps_o;
 
@@ -706,7 +716,9 @@ private:
     int m_ntrac = 1;
 
     std::unique_ptr<DiffusionTensorOp> m_diffusion_tensor_op;
+#if (AMREX_SPACEDIM == 3)
     std::unique_ptr<DiffusionTensorOp1> m_diffusion_tensor_op1;
+#endif
     std::unique_ptr<DiffusionScalarOp> m_diffusion_scalar_op;
 
     //
@@ -787,7 +799,9 @@ private:
 #endif
 
     DiffusionTensorOp* get_diffusion_tensor_op ();
+#if (AMREX_SPACEDIM == 3)
     DiffusionTensorOp1* get_diffusion_tensor_op1 ();
+#endif
     DiffusionScalarOp* get_diffusion_scalar_op ();
 
     amrex::Vector<amrex::MultiFab*> get_velocity_old () noexcept;
@@ -823,7 +837,7 @@ private:
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_density_new_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tracer_old_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tracer_new_const () const noexcept;
-    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_pressure_const () const noexcept;
+    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_gradp_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_vel_forces_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tra_forces_const () const noexcept;
 

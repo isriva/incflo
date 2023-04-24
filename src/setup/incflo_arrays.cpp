@@ -20,7 +20,7 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
       mac_phi   (ba, dm, 1             , 1       , MFInfo(), fact),
       p_nd      (amrex::convert(ba,IntVect::TheNodeVector()),
                      dm, 1             , 0 , MFInfo(), fact),
-      gp        (ba, dm, AMREX_SPACEDIM, 0       , MFInfo(), fact),
+      gp        (ba, dm, AMREX_SPACEDIM, 1       , MFInfo(), fact),
       conv_velocity_o(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact),
       conv_density_o (ba, dm, 1             , 0, MFInfo(), fact),
       conv_tracer_o  (ba, dm, ntrac         , 0, MFInfo(), fact),
@@ -28,7 +28,9 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
 {
     if (advection_type != "MOL") {
         divtau_o.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+#if (AMREX_SPACEDIM == 3)
         divtau_o1.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+#endif
         if (advect_tracer) {
             laps_o.define(ba, dm, ntrac, 0, MFInfo(), fact);
         }
@@ -41,7 +43,9 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
         {
             divtau.define  (ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
             divtau_o.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+#if (AMREX_SPACEDIM == 3)
             divtau_o1.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+#endif
         }
         if (!implicit_diffusion && advect_tracer)
         {

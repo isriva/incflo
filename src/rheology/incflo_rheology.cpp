@@ -21,12 +21,16 @@ amrex::Real get_concentration (amrex::Real dens, amrex::Real rho0, amrex::Real r
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 amrex::Real mixture_viscosity (amrex::Real conc, amrex::Real visc0, amrex::Real visc1) noexcept
 {
-    return 1.0/((conc/visc0) + ((1.0-conc)/visc1));
-    //return visc1/(1.0 + conc*((visc1/visc0) - 1.0));
+    amrex::Real visc;
+    if (conc < 1.0e-12) visc = visc1;
+    else if (conc > amrex::Real(1.0) - 1.0e-12) visc = visc0;
+    else visc = 1.0/((conc/visc0) + ((1.0-conc)/visc1));
+//    visc = 1.0/((conc/visc0) + ((1.0-conc)/visc1));
+    return visc;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int order, const incflo::FLUID_t& fluid, const amrex::Real hyd_press, const amrex::Real gravity) 
+std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int order, const incflo::FLUID_t& fluid, const amrex::Real hyd_press) 
 {
     amrex::Real visc = 0.0;
     bool include = false;
@@ -65,9 +69,31 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
     }
     else if (fluid.fluid_model == incflo::FluidModel::Granular) {
         if (order == 0) {
-            amrex::Real hyd_press_reg = 0.5*(hyd_press + sqrt(hyd_press*hyd_press + fluid.papa_reg_press*fluid.papa_reg_press)); // regularized pressure (always positive)
+            //amrex::Real hyd_press_reg = 0.5*(hyd_press + sqrt(hyd_press*hyd_press + fluid.papa_reg_press*fluid.papa_reg_press)); // regularized pressure (always positive)
+            amrex::Real hyd_press_reg = hyd_press;
+            
             amrex::Real min_visc = Real(0.0);
-            amrex::Real compute_visc = (fluid.tau_0*hyd_press_reg + fluid.A_0*std::pow(fluid.diam,fluid.alpha_0)*std::pow(fluid.rho,0.5*fluid.alpha_0)*std::pow(hyd_press_reg,1.0-0.5*fluid.alpha_0)*std::pow(sr,fluid.alpha_0))*expterm(sr/fluid.papa_reg)/fluid.papa_reg;
+            
+            amrex::Real compute_visc;
+            
+            if ((fluid.papa_reg > Real(0.0)) and (fluid.max_visc > Real(0.0))) amrex::Abort("can not prescribe both regularization parameter and maximum viscosity");
+            
+            if (fluid.papa_reg > Real(0.0)) {
+                compute_visc = (fluid.tau_0*hyd_press_reg + fluid.A_0*std::pow(fluid.diam,fluid.alpha_0)*std::pow(fluid.rho,0.5*fluid.alpha_0)*
+                                std::pow(hyd_press_reg,1.0-0.5*fluid.alpha_0)*std::pow(sr,fluid.alpha_0))*expterm(sr/fluid.papa_reg)/fluid.papa_reg; // regularized viscosity
+            }
+
+            if (fluid.max_visc > Real(0.0)) {
+                if (sr > Real(1.0e-13)) {
+                    amrex::Real compute_visc_org = (fluid.tau_0*hyd_press_reg + fluid.A_0*std::pow(fluid.diam,fluid.alpha_0)*std::pow(fluid.rho,0.5*fluid.alpha_0)*
+                                                    std::pow(hyd_press_reg,1.0-0.5*fluid.alpha_0)*std::pow(sr,fluid.alpha_0))/sr; // unregularized viscosity
+                    compute_visc = std::min(compute_visc_org, fluid.max_visc);
+                }
+                else {
+                    compute_visc = fluid.max_visc;
+                }
+            }
+           
             visc = std::max(min_visc, compute_visc);
             include = true;
         }
@@ -82,11 +108,12 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const int order, const amrex::Vector<incflo::FLUID_t>& fluid_vof, const amrex::Real hyd_press, const amrex::Real gravity) 
+amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const int order, const amrex::Vector<incflo::FLUID_t>& fluid_vof, const amrex::Real hyd_press) 
 {
     amrex::Real conc = get_concentration(dens,fluid_vof[0].rho,fluid_vof[1].rho);
-    auto [visc0, include0] = Viscosity_Single(sr,order,fluid_vof[0],hyd_press,gravity);
-    auto [visc1, include1] = Viscosity_Single(sr,order,fluid_vof[1],hyd_press,gravity);
+    auto [visc0, include0] = Viscosity_Single(sr,order,fluid_vof[0],hyd_press);
+    auto [visc1, include1] = Viscosity_Single(sr,order,fluid_vof[1],hyd_press);
+    //amrex::Print() << conc << " " << visc0 << " " << visc1 << std::endl;
 
     amrex::Real visc;
     if (include0 and include1) { // both fluid0 and fluid1 have rheologies of this order
@@ -115,12 +142,12 @@ amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const in
 void incflo::compute_viscosity (amrex::Vector<amrex::MultiFab*> const& vel_eta,
                                 amrex::Vector<amrex::MultiFab*> const& rho,
                                 amrex::Vector<amrex::MultiFab*> const& vel,
-                                amrex::Vector<amrex::MultiFab const*> const& p_nodal,
+                                amrex::Vector<amrex::MultiFab const*> const& gradp,
                                 amrex::Real time, int nghost, int order)
 {
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        compute_viscosity_at_level(lev, vel_eta[lev], rho[lev], vel[lev], p_nodal[lev], geom[lev], time, nghost, order);
+        compute_viscosity_at_level(lev, vel_eta[lev], rho[lev], vel[lev], gradp[lev], geom[lev], time, nghost, order);
     }
 }
 
@@ -132,7 +159,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                                          amrex::MultiFab* vel_eta,
                                          amrex::MultiFab* rho,
                                          amrex::MultiFab* vel,
-                                         amrex::MultiFab const* p_nodal,
+                                         amrex::MultiFab const* gradp,
                                          amrex::Geometry& lev_geom,
                                          amrex::Real /*time*/, int /*nghost*/, int order)
 {
@@ -143,7 +170,6 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 #endif
 
     auto const& dx     = lev_geom.CellSizeArray();
-    auto const& problo = lev_geom.ProbLoArray();
     auto const& probhi = lev_geom.ProbHiArray();
     Real idx           = Real(1.0) / lev_geom.CellSize(0);
     Real idy           = Real(1.0) / lev_geom.CellSize(1);
@@ -182,7 +208,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
         Array4<Real> const& eta_arr = vel_eta->array(mfi);
         Array4<Real const> const& vel_arr = vel->const_array(mfi);
         Array4<Real const> const& rho_arr = rho->const_array(mfi);
-        Array4<Real const> const& p_nodal_arr = p_nodal->const_array(mfi);
+        Array4<Real const> const& gradp_arr = gradp->const_array(mfi);
 #ifdef AMREX_USE_EB
         auto const& flag_fab = flags[mfi];
         auto typ = flag_fab.getType(bx);
@@ -216,18 +242,32 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
                 Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,domlo,domhi,bc_type); //  get nodal strainrate
-                Real dens = incflo_rho_nodal(i,j,k,rho_arr); // get nodal density
+                Real dens = incflo_cc_to_nodal(i,j,k,rho_arr); // get nodal density
+                Real gp = incflo_cc_to_nodal(i,j,k,gradp_arr); // get nodal pressure gradient
+#if (AMREX_SPACEDIM == 3)
                 Real depth_from_surface = probhi[2] - Real(k)*dx[2]; // get depth from the surface 
-                Real hyd_press = m_p_amb_surface - m_gravity[2]*dens*depth_from_surface; // get hydrostatic pressure
-                if (m_include_perturb_pressure) {
-                   hyd_press += p_nodal_arr(i,j,k);                    
-                }
+                Real hyd_press = m_p_amb_surface - gp*depth_from_surface; // get hydrostatic pressure
+#elif (AMREX_SPACEDIM == 2)
+                Real depth_from_surface = probhi[1] - Real(j)*dx[1]; // get depth from the surface 
+                Real hyd_press = m_p_amb_surface - gp*depth_from_surface; // get hydrostatic pressure
+#endif
+//                if (m_include_perturb_pressure) {
+//                   hyd_press += p_nodal_arr(i,j,k);                    
+//                }
                 // nodal viscosity
                 if (m_do_vof) {
-                    eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof,hyd_press,m_gravity[2]);
+#if (AMREX_SPACEDIM == 3)
+                    eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof,hyd_press);
+#elif (AMREX_SPACEDIM == 2)
+                    eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof,hyd_press);
+#endif
                 }
                 else {
-                    auto [visc, include] = Viscosity_Single(sr,order,m_fluid,hyd_press,m_gravity[2]);
+#if (AMREX_SPACEDIM == 3)
+                    auto [visc, include] = Viscosity_Single(sr,order,m_fluid,hyd_press);
+#elif (AMREX_SPACEDIM == 2)
+                    auto [visc, include] = Viscosity_Single(sr,order,m_fluid,hyd_press);
+#endif
                     if (include) eta_arr(i,j,k) = visc;
                     else eta_arr(i,j,k) = 0.0;
                 }

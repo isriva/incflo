@@ -445,7 +445,7 @@ Vector<MultiFab*> incflo::get_divtau_old () noexcept
     }
     return r;
 }
-
+#if (AMREX_SPACEDIM == 3)
 Vector<MultiFab*> incflo::get_divtau_old1 () noexcept
 {
     Vector<MultiFab*> r;
@@ -455,6 +455,7 @@ Vector<MultiFab*> incflo::get_divtau_old1 () noexcept
     }
     return r;
 }
+#endif
 
 Vector<MultiFab*> incflo::get_divtau_new () noexcept
 {
@@ -546,12 +547,12 @@ Vector<MultiFab const*> incflo::get_tracer_new_const () const noexcept
     return r;
 }
 
-Vector<MultiFab const*> incflo::get_pressure_const () const noexcept
+Vector<MultiFab const*> incflo::get_gradp_const () const noexcept
 {
     Vector<MultiFab const*> r;
     r.reserve(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev) {
-        r.push_back(&(m_leveldata[lev]->p_nd));
+        r.push_back(&(m_leveldata[lev]->gp));
     }
     return r;
 }
