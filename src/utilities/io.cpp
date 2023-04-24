@@ -325,6 +325,7 @@ void incflo::WritePlotFile()
             fillpatch_velocity(lev, m_cur_time, m_leveldata[lev]->velocity, ng);
             fillpatch_density(lev, m_cur_time, m_leveldata[lev]->density, ng);
             fillpatch_tracer(lev, m_cur_time, m_leveldata[lev]->tracer, ng);
+            fillpatch_gradp(lev, m_cur_time, m_leveldata[lev]->gp, 1);
         }
     }
 
@@ -380,17 +381,19 @@ void incflo::WritePlotFile()
     // Apparent viscosity
     if(m_plt_eta) ++ncomp;
 
+#if (AMREX_SPACEDIM == 3)
     // Non-newtonian 2nd order viscosity
     if(m_plt_eta_1) ++ncomp;
 
     // Non-newtonian 2nd order viscosity
     if(m_plt_eta_2) ++ncomp;
+#endif
 
     // Vorticity
     if(m_plt_vort) ++ncomp;
 
     // Forcing terms in velocity update
-    if(m_plt_forcing) ncomp += 3;
+    if(m_plt_forcing) ncomp += AMREX_SPACEDIM;
 
     // Magnitude of the rate-of-strain tensor
     if(m_plt_strainrate) ++ncomp;
@@ -398,14 +401,20 @@ void incflo::WritePlotFile()
     // Divergence of velocity field
     if(m_plt_divu) ++ncomp;
 
+#if (AMREX_SPACEDIM == 3)
     // DivTau
     if (m_plt_divtau) ncomp += 3;
+#elif (AMREX_SPACEDIM == 2)
+    if (m_plt_divtau) ncomp += 2;
+#endif
 
+#if (AMREX_SPACEDIM == 3)
     // DivTau1: non-Newtonian
     if (m_plt_divtau_1) ncomp += 3;
 
     // DivTau1: non-Newtonian
     // if (m_plt_divtau_2) ncomp += 3;
+#endif
 
 #ifdef AMREX_USE_EB
     // Cut cell volume fraction
@@ -580,13 +589,13 @@ void incflo::WritePlotFile()
             const auto& ba = mf[lev].boxArray();
             const auto& dm = mf[lev].DistributionMap();
             const auto& fact = mf[lev].Factory();
-            MultiFab viscosity_nodal(amrex::convert(ba,IntVect::TheNodeVector()), 
+            MultiFab viscosity_nodal(amrex::convert(ba,IntVect(AMREX_D_DECL(1,1,1))), 
                                      dm, 1, 0, MFInfo(), fact);
             compute_viscosity_at_level(lev,
                                        &viscosity_nodal,
                                        &m_leveldata[lev]->density,
                                        &m_leveldata[lev]->velocity,
-                                       &m_leveldata[lev]->p_nd,
+                                       &m_leveldata[lev]->gp,
                                        Geom(lev),
                                        m_cur_time, 0, 0);
             amrex::average_node_to_cellcenter(vel_eta,0,viscosity_nodal,0,1,0);
@@ -595,6 +604,7 @@ void incflo::WritePlotFile()
         ++icomp;
     }
 
+#if (AMREX_SPACEDIM == 3)
     if (m_plt_eta_1) {
         if (m_do_second_rheology_1) {
             for (int lev = 0; lev <= finest_level; ++lev) {
@@ -603,7 +613,7 @@ void incflo::WritePlotFile()
                                            &vel_eta1,
                                            &m_leveldata[lev]->density,
                                            &m_leveldata[lev]->velocity,
-                                           &m_leveldata[lev]->p_nd,
+                                           &m_leveldata[lev]->gp,
                                            Geom(lev),
                                            m_cur_time, 0, 1);
             }
@@ -623,7 +633,7 @@ void incflo::WritePlotFile()
                                            &vel_eta2,
                                            &m_leveldata[lev]->density,
                                            &m_leveldata[lev]->velocity,
-                                           &m_leveldata[lev]->p_nd,
+                                           &m_leveldata[lev]->gp,
                                            Geom(lev),
                                            m_cur_time, 0, 2);
             }
@@ -634,6 +644,7 @@ void incflo::WritePlotFile()
             amrex::Error("3rd viscosity output only for m_do_second_rheology_2 = 1");
         }
     }
+#endif
 
     if (m_plt_vort) {
         for (int lev = 0; lev <= finest_level; ++lev) {
@@ -646,17 +657,18 @@ void incflo::WritePlotFile()
     }
     if (m_plt_forcing) {
         for (int lev = 0; lev <= finest_level; ++lev) {
-            MultiFab forcing(mf[lev], amrex::make_alias, icomp, 3);
+            MultiFab forcing(mf[lev], amrex::make_alias, icomp, AMREX_SPACEDIM);
             compute_vel_forces_on_level(lev, forcing,
                                         m_leveldata[lev]->velocity,
                                         m_leveldata[lev]->density,
                                         m_leveldata[lev]->tracer,
                                         m_leveldata[lev]->tracer);
         }
-        pltscaVarsName.push_back("forcing_x");
-        pltscaVarsName.push_back("forcing_y");
-        pltscaVarsName.push_back("forcing_z");
-        icomp += 3;
+        pltscaVarsName.push_back("forcing_x"); ++icomp;
+        pltscaVarsName.push_back("forcing_y"); ++icomp;
+#if (AMREX_SPACEDIM == 3)
+        pltscaVarsName.push_back("forcing_z"); ++icomp;
+#endif
     }
     if (m_plt_strainrate) {
 
@@ -690,13 +702,16 @@ void incflo::WritePlotFile()
         pltscaVarsName.push_back("divtauy");
         ++icomp;
 
+#if (AMREX_SPACEDIM == 3)
         for (int lev = 0; lev <= finest_level; ++lev) {
             MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o, 2, icomp, 1, 0);
         }
         pltscaVarsName.push_back("divtauz");
         ++icomp;
+#endif
     }
 
+#if (AMREX_SPACEDIM == 3)
     if (m_plt_divtau_1) {
         for (int lev = 0; lev <= finest_level; ++lev) {
             MultiFab::Copy(mf[lev], m_leveldata[lev]->divtau_o1, 0, icomp, 1, 0);
@@ -736,6 +751,7 @@ void incflo::WritePlotFile()
     //    pltscaVarsName.push_back("divtau2z");
     //    ++icomp;
     //}
+#endif
 
 #ifdef AMREX_USE_EB
     if (m_plt_vfrac) {

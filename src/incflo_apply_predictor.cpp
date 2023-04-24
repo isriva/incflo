@@ -103,7 +103,10 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // Forcing terms
     Vector<MultiFab> vel_forces, tra_forces;
 
-    Vector<MultiFab> vel_eta, vel_eta1, vel_eta2, tra_eta;
+    Vector<MultiFab> vel_eta, tra_eta;
+#if (AMREX_SPACEDIM == 3)
+    Vector<MultiFab> vel_eta1, vel_eta2;
+#endif
 
     // *************************************************************************************
     // Allocate space for the forcing terms
@@ -116,14 +119,15 @@ void incflo::ApplyPredictor (bool incremental_projection)
             tra_forces.emplace_back(grids[lev], dmap[lev], m_ntrac, nghost_force(),
                                     MFInfo(), Factory(lev));
         }
-        vel_eta.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
+        vel_eta.emplace_back(amrex::convert(grids[lev],IntVect(AMREX_D_DECL(1,1,1))), dmap[lev], 1, 0, MFInfo(), Factory(lev));
+#if (AMREX_SPACEDIM == 3)
         if (m_do_second_rheology_1) {
-            vel_eta1.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
+            vel_eta1.emplace_back(amrex::convert(grids[lev],IntVect(AMREX_D_DECL(1,1,1))), dmap[lev], 1, 0, MFInfo(), Factory(lev));
         }
         //if (m_do_second_rheology_2) { // TODO: add the second RE tensor 
-        //    vel_eta2.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
+        //    vel_eta2.emplace_back(amrex::convert(grids[lev],IntVect(AMREX_D_DECL(1,1,1))), dmap[lev], 1, 0, MFInfo(), Factory(lev));
         //}
-        
+#endif        
         if (m_advect_tracer) {
             tra_eta.emplace_back(grids[lev], dmap[lev], m_ntrac, 1, MFInfo(), Factory(lev));
         }
@@ -137,19 +141,20 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // Compute viscosity / diffusive coefficients
     // *************************************************************************************
     compute_viscosity(GetVecOfPtrs(vel_eta),
-                      get_density_old(), get_velocity_old(), get_pressure_const(),
+                      get_density_old(), get_velocity_old(), get_gradp_const(),
                       m_cur_time, 1, 0);
+#if (AMREX_SPACEDIM == 3)
     if (m_do_second_rheology_1) 
     {
         compute_viscosity(GetVecOfPtrs(vel_eta1),get_density_old(), 
-                get_velocity_old(),get_pressure_const(),m_cur_time, 1, 1);
+                get_velocity_old(),get_gradp_const(),m_cur_time, 1, 1);
     }
     if (m_do_second_rheology_2) // TODO: add the second RE tensor
     {
         compute_viscosity(GetVecOfPtrs(vel_eta2),get_density_old(), 
-                get_velocity_old(), get_pressure_const(), m_cur_time, 1, 2);
+                get_velocity_old(), get_gradp_const(), m_cur_time, 1, 2);
     }
-    
+#endif    
     compute_tracer_diff_coeff(GetVecOfPtrs(tra_eta),1);
 
     // *************************************************************************************
@@ -160,6 +165,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
         compute_divtau(get_divtau_old(),get_velocity_old_const(),
                        get_density_old_const(),GetVecOfConstPtrs(vel_eta));
     }
+#if (AMREX_SPACEDIM == 3)
     if (m_do_second_rheology_1) {
         compute_divtau1(get_divtau_old1(),get_velocity_old_const(),
                         get_density_old_const(),GetVecOfConstPtrs(vel_eta1));
@@ -168,7 +174,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
     //    compute_divtau2(get_divtau_old3(),get_velocity_old_const(),
     //                    get_density_old_const(),GetVecOfConstPtrs(vel_eta2));
     //}
-
+#endif
     // *************************************************************************************
     // Compute explicit diffusive terms
     // *************************************************************************************
@@ -394,18 +400,20 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *********************************************************************************************
     if (m_do_vof) {
         compute_viscosity(GetVecOfPtrs(vel_eta),
-                          get_density_new(), get_velocity_old(), get_pressure_const(),
+                          get_density_new(), get_velocity_old(), get_gradp_const(),
                           m_cur_time, 1, 0);
+#if (AMREX_SPACEDIM == 3)
         if (m_do_second_rheology_1) 
         {
             compute_viscosity(GetVecOfPtrs(vel_eta1),get_density_new(), 
-                    get_velocity_old(), get_pressure_const(), m_cur_time, 1, 1);
+                    get_velocity_old(), get_gradp_const(), m_cur_time, 1, 1);
         }
         //if (m_do_second_rheology_2) //TODO: add the second RE tensor 
         //{
         //    compute_viscosity(GetVecOfPtrs(vel_eta2),get_density_new(), 
         //            get_velocity_old(),m_cur_time, 1, 2);
         //}
+#endif
     }
 
     // *************************************************************************************
@@ -430,7 +438,9 @@ void incflo::ApplyPredictor (bool incremental_projection)
             if (m_diff_type == DiffusionType::Implicit) {
 
                 Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+#if (AMREX_SPACEDIM == 3)
                 Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
+#endif
 
                 if (use_tensor_correction)
                 {
@@ -444,6 +454,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                             AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
                                          vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
                                          vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+#if (AMREX_SPACEDIM == 3)
                             if (m_do_second_rheology_1) {
                                 AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
                                              vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
@@ -454,6 +465,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                             //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                             //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                             //}
+#endif
                             AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
                                          vel(i,j,k,1) /= rho_new(i,j,k);,
                                          vel(i,j,k,2) /= rho_new(i,j,k););
@@ -464,6 +476,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                             AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
                                          vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
                                          vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+#if (AMREX_SPACEDIM == 3)
                             if (m_do_second_rheology_1) {
                                 AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
                                              vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
@@ -474,6 +487,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                             //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                             //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                             //}
+#endif
                         });
                     }
                 } else {
@@ -486,6 +500,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                             AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0));,
                                          vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1));,
                                          vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)););
+#if (AMREX_SPACEDIM == 3)
                             if (m_do_second_rheology_1) {
                                 AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
                                              vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
@@ -496,6 +511,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                             //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                             //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                             //}
+#endif
                             AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
                                          vel(i,j,k,1) /= rho_new(i,j,k);,
                                          vel(i,j,k,2) /= rho_new(i,j,k););
@@ -506,6 +522,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                             AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0));,
                                          vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1));,
                                          vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)););
+#if (AMREX_SPACEDIM == 3)
                             if (m_do_second_rheology_1) {
                                 AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
                                              vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
@@ -516,6 +533,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                             //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                             //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                             //}
+#endif
                         });
                     }
                 }
@@ -524,8 +542,9 @@ void incflo::ApplyPredictor (bool incremental_projection)
             {
 
                 Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+#if (AMREX_SPACEDIM == 3)
                 Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
-
+#endif
                 if (m_advect_momentum) {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
@@ -535,6 +554,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+m_half*divtau_o(i,j,k,0));,
                                      vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+m_half*divtau_o(i,j,k,1));,
                                      vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+m_half*divtau_o(i,j,k,2)););
+#if (AMREX_SPACEDIM == 3)
                         if (m_do_second_rheology_1) {
                             AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
                                          vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
@@ -545,6 +565,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                         //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                         //}
+#endif
                         AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
                                      vel(i,j,k,1) /= rho_new(i,j,k);,
                                      vel(i,j,k,2) /= rho_new(i,j,k););
@@ -555,6 +576,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+m_half*divtau_o(i,j,k,0));,
                                      vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+m_half*divtau_o(i,j,k,1));,
                                      vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+m_half*divtau_o(i,j,k,2)););
+#if (AMREX_SPACEDIM == 3)
                         if (m_do_second_rheology_1) {
                             AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
                                          vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
@@ -565,6 +587,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                         //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                         //}
+#endif
                     });
                 }
             }
@@ -572,7 +595,9 @@ void incflo::ApplyPredictor (bool incremental_projection)
             {
 
                 Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+#if (AMREX_SPACEDIM == 3)
                 Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
+#endif
 
                 if (m_advect_momentum) {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
@@ -583,6 +608,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
                                      vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
                                      vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+#if (AMREX_SPACEDIM == 3)
                         if (m_do_second_rheology_1) {
                             AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
                                          vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
@@ -593,6 +619,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                         //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                         //}
+#endif
                         AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
                                      vel(i,j,k,1) /= rho_new(i,j,k);,
                                      vel(i,j,k,2) /= rho_new(i,j,k););
@@ -603,6 +630,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
                                      vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
                                      vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+#if (AMREX_SPACEDIM == 3)
                         if (m_do_second_rheology_1) {
                             AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
                                          vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
@@ -613,6 +641,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
                         //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                         //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                         //}
+#endif
                     });
                 }
             }

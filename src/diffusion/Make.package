@@ -1,12 +1,13 @@
 CEXE_sources += incflo_diffusion.cpp
 CEXE_sources += DiffusionTensorOp.cpp DiffusionScalarOp.cpp
 CEXE_headers += DiffusionTensorOp.H   DiffusionScalarOp.H
-CEXE_sources += DiffusionTensorOp1.cpp
-CEXE_headers += DiffusionTensorOp1.H
-
-CEXE_sources += MyTensorOp.cpp
-CEXE_sources += MyTensorOp_grad.cpp
-CEXE_headers += MyTensorOp.H
-CEXE_headers += MyTensor_K.H
-CEXE_headers += MyTensor_3D_K.H
+ifeq ($(DIM),3)
+  CEXE_sources += DiffusionTensorOp1.cpp
+  CEXE_headers += DiffusionTensorOp1.H
+  CEXE_sources += MyTensorOp.cpp
+  CEXE_sources += MyTensorOp_grad.cpp
+  CEXE_headers += MyTensorOp.H
+  CEXE_headers += MyTensor_K.H
+  CEXE_headers += MyTensor_3D_K.H
+endif
 

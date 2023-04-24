@@ -201,7 +201,7 @@ Real mltensor_dx_on_yface (int i, int j, int k, int n, Array4<Real const> const&
 #if (AMREX_SPACEDIM == 1)
 #include <MyTensor_3D_K.H>
 #elif (AMREX_SPACEDIM == 2)
-#include <MyTensor_2D_K.H>
+#include <MyTensor_3D_K.H>
 #else
 #include <MyTensor_3D_K.H>
 #endif

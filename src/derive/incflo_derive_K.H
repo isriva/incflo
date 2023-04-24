@@ -403,27 +403,96 @@ amrex::Real incflo_strainrate_nodal (int i, int j, int k,
     Real wy = amrex::Real(0.25)*(wypp + wypm + wymp + wymm);
     Real wz = amrex::Real(0.25)*(wzpp + wzpm + wzmp + wzmm);
 
-    //if ((i==16) and (j==16) and (k==29)) amrex::Print() << uzpp << " " << uzpm << " " << uzmp << " " << uzmm << " " << uz << std::endl;
-    //if ((i==16) and (j==16) and (k==30)) amrex::Print() << uzpp << " " << uzpm << " " << uzmp << " " << uzmm << " " << uz << std::endl;
-    if ((i==16) and (j==16) and (k==31)) amrex::Print() << uzpp << " " << uzpm << " " << uzmp << " " << uzmm << " " << uz << std::endl;
-    if ((i==16) and (j==16) and (k==32)) amrex::Print() << uzpp << " " << uzpm << " " << uzmp << " " << uzmm << " " << uz << std::endl;
-
     return std::sqrt(amrex::Real(2.0) * ux*ux + amrex::Real(2.0) * vy*vy + amrex::Real(2.0) * wz*wz
                      + (uy+vx)*(uy+vx) + (vz+wy)*(vz+wy) + (wx+uz)*(wx+uz));
-#else
-    Real ux = amrex::Real(0.5) * (vel(i+1,j,k,0) - vel(i-1,j,k,0)) * idx;
-    Real vx = amrex::Real(0.5) * (vel(i+1,j,k,1) - vel(i-1,j,k,1)) * idx;
 
-    Real uy = amrex::Real(0.5) * (vel(i,j+1,k,0) - vel(i,j-1,k,0)) * idy;
-    Real vy = amrex::Real(0.5) * (vel(i,j+1,k,1) - vel(i,j-1,k,1)) * idy;
+#elif (AMREX_SPACEDIM == 2)
+    
+    Real uxp = (vel(i,j,k,0) - vel(i-1,j,k,0)) * idx;
+    Real uxm = (vel(i,j-1,k,0) - vel(i-1,j-1,k,0)) * idx;
+    Real vxp = (vel(i,j,k,1) - vel(i-1,j,k,1)) * idx;
+    Real vxm = (vel(i,j-1,k,1) - vel(i-1,j-1,k,1)) * idx;
+
+    // x-wall (lo)
+    if (i==domlo.x) {
+        if (bc_type[0][0] == 2) { // no-slip
+            uxp = amrex::Real(2.0) * (vel(i,j,k,0)) * idx;
+            uxm = amrex::Real(2.0) * (vel(i,j-1,k,0)) * idx;
+            vxp = amrex::Real(2.0) * (vel(i,j,k,1)) * idx;
+            vxm = amrex::Real(2.0) * (vel(i,j-1,k,1)) * idx;
+        }
+        else if (bc_type[0][0] == 1) { // slip
+            uxp = amrex::Real(2.0) * (vel(i,j,k,0)) * idx;
+            uxm = amrex::Real(2.0) * (vel(i,j-1,k,0)) * idx;
+            vxp = amrex::Real(0.0);
+            vxm = amrex::Real(0.0);
+        }
+    }
+    // x-wall (hi)
+    if (i==domhi.x + 1) {
+        if (bc_type[0][1] == 2) { // no-slip
+            uxp = amrex::Real(-2.0) * (vel(i-1,j,k,0)) * idx;
+            uxm = amrex::Real(-2.0) * (vel(i-1,j-1,k,0)) * idx;
+            vxp = amrex::Real(-2.0) * (vel(i-1,j,k,1)) * idx;
+            vxm = amrex::Real(-2.0) * (vel(i-1,j-1,k,1)) * idx;
+        }
+        else if (bc_type[0][1] == 1) { // slip
+            uxp = amrex::Real(-2.0) * (vel(i-1,j,k,0)) * idx;
+            uxm = amrex::Real(-2.0) * (vel(i-1,j-1,k,0)) * idx;
+            vxp = amrex::Real(0.0);
+            vxm = amrex::Real(0.0);
+        }
+    }
+
+    Real uyp = (vel(i,j,k,0) - vel(i,j-1,k,0)) * idy;
+    Real uym = (vel(i-1,j,k,0) - vel(i-1,j-1,k,0)) * idy;
+    Real vyp = (vel(i,j,k,1) - vel(i,j-1,k,1)) * idy;
+    Real vym = (vel(i-1,j,k,1) - vel(i-1,j-1,k,1)) * idy;
+
+    // y-wall (lo)
+    if (j==domlo.y) {
+        if (bc_type[1][0] == 2) { // no-slip
+            uyp = amrex::Real(2.0) * (vel(i,j,k,0)) * idy;
+            uym = amrex::Real(2.0) * (vel(i-1,j,k,0)) * idy;
+            vyp = amrex::Real(2.0) * (vel(i,j,k,1)) * idy;
+            vym = amrex::Real(2.0) * (vel(i-1,j,k,1)) * idy;
+        }
+        else if (bc_type[1][0] == 1) { // slip
+            uyp = amrex::Real(0.0);
+            uym = amrex::Real(0.0);
+            vyp = amrex::Real(2.0) * (vel(i,j,k,1)) * idy;
+            vym = amrex::Real(2.0) * (vel(i-1,j,k,1)) * idy;
+        }
+    }
+    // y-wall (hi)
+    if (j==domhi.y + 1) {
+        if (bc_type[1][1] == 2) { // no-slip
+            uyp = amrex::Real(-2.0) * (vel(i,j-1,k,0)) * idy;
+            uym = amrex::Real(-2.0) * (vel(i-1,j-1,k,0)) * idy;
+            vyp = amrex::Real(-2.0) * (vel(i,j-1,k,1)) * idy;
+            vym = amrex::Real(-2.0) * (vel(i-1,j-1,k,1)) * idy;
+        }
+        else if (bc_type[1][1] == 1) { // slip
+            uyp = amrex::Real(0.0);
+            uym = amrex::Real(0.0);
+            vyp = amrex::Real(-2.0) * (vel(i,j-1,k,1)) * idy;
+            vym = amrex::Real(-2.0) * (vel(i-1,j-1,k,1)) * idy;
+        }
+    }
+    
+    Real ux = amrex::Real(0.5)*(uxp + uxm);
+    Real uy = amrex::Real(0.5)*(uyp + uym);
+    Real vx = amrex::Real(0.5)*(vxp + vxm);
+    Real vy = amrex::Real(0.5)*(vyp + vym);
 
     return std::sqrt(amrex::Real(2.0) * ux*ux + amrex::Real(2.0) * vy*vy
                      + (uy+vx)*(uy+vx));
 #endif
+
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real incflo_rho_nodal (int i, int j, int k, amrex::Array4<amrex::Real const> const& rho) noexcept
+amrex::Real incflo_cc_to_nodal (int i, int j, int k, amrex::Array4<amrex::Real const> const& rho) noexcept
 {
     using namespace amrex;
 
@@ -432,6 +501,10 @@ amrex::Real incflo_rho_nodal (int i, int j, int k, amrex::Array4<amrex::Real con
     return Real(0.125)*(  rho(i-1,j-1,k-1) + rho(i,j-1,k-1)  + 
                           rho(i-1,j,k-1)   + rho(i,j,k-1)    +
                           rho(i-1,j-1,k)   + rho(i,j-1,k)    +
+                          rho(i-1,j,k)     + rho(i,j,k) );
+#elif (AMREX_SPACEDIM == 2)
+    
+    return Real(0.25)*(   rho(i-1,j-1,k)   + rho(i,j-1,k)    +
                           rho(i-1,j,k)     + rho(i,j,k) );
 
 #endif

@@ -48,14 +48,14 @@ void incflo::compute_strainrate_at_level (int /*lev*/,
                                           MultiFab* strainrate,
                                           MultiFab* vel,
                                           Geometry& lev_geom,
-                                          Real /*time*/, int nghost)
+                                          Real /*time*/, int /*nghost*/)
 {
 
         // Create a nodal MultiFab for strainrate
         const auto& ba = strainrate->boxArray();
         const auto& dm = strainrate->DistributionMap();
         const auto& fact = strainrate->Factory();
-        MultiFab strainrate_nodal(amrex::convert(ba,IntVect::TheNodeVector()), 
+        MultiFab strainrate_nodal(amrex::convert(ba,IntVect(AMREX_D_DECL(1,1,1))), 
                                   dm, 1, 0, MFInfo(), fact);
 
 #ifdef AMREX_USE_EB
