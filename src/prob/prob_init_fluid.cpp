@@ -167,6 +167,15 @@ void incflo::prob_init_fluid (int lev)
                             ld.gp0.array(mfi),
                             domain, dx, problo, probhi);
         }
+        else if (53 == m_probtype)
+        {
+            column_collapse (vbx, gbx,
+                            ld.velocity.array(mfi),
+                            ld.density.array(mfi),
+                            ld.tracer.array(mfi),
+                            ld.gp0.array(mfi),
+                            domain, dx, problo, probhi);
+        }
 #if 0
         else if (500 == m_probtype)
         {
@@ -676,6 +685,67 @@ void incflo::init_rayleigh_taylor_vof (Box const& vbx, Box const& /*gbx*/,
 #endif
 }
 
+void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/,
+                               Array4<Real> const& vel,
+                               Array4<Real> const& density,
+                               Array4<Real> const& tracer,
+                               Array4<Real> const& gp0,
+                               Box const& /*domain*/,
+                               GpuArray<Real, AMREX_SPACEDIM> const& dx,
+                               GpuArray<Real, AMREX_SPACEDIM> const& problo,
+                               GpuArray<Real, AMREX_SPACEDIM> const& probhi)
+{
+    Real rho_1, rho_2, rho;
+    if (m_do_vof) {
+        rho_1 = m_fluid_vof[0].rho;
+        rho_2 = m_fluid_vof[1].rho;
+        amrex::Print() << "rho1 and rho2 during incline channel setup: " << rho_1 << " " << rho_2 << std::endl;
+    }
+    else {
+        amrex::Abort("need vof for this setup");
+    }
+    if ((m_gran_lim[0] < Real(0.0)) or (m_gran_lim[0] < Real(0.0))) amrex::Abort("provide m_gran_lim for this problem");
+
+    amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        Real x = problo[0] + (i+0.5)*dx[0];
+        Real y = problo[1] + (j+0.5)*dx[1];
+#if (AMREX_SPACEDIM == 3)
+        Real z = problo[2] + (k+0.5)*dx[2];
+
+        if ((x < m_gran_lim[0]) and (z < m_gran_lim[1])) {
+            density(i,j,k) = rho_2;
+            tracer(i,j,k) = 1.0;
+        }
+        else {
+            density(i,j,k) = rho_1;
+            tracer(i,j,k) = 0.0;
+        }
+        gp0(i,j,k,0) = 0.0;
+        gp0(i,j,k,1) = 0.0; 
+        gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
+
+        vel(i,j,k,0) = 0.0;
+        vel(i,j,k,1) = 0.0;
+        vel(i,j,k,2) = 0.0;
+#elif (AMREX_SPACEDIM == 2)
+        if ((x < m_gran_lim[0]) and (y < m_gran_lim[1])) {
+            density(i,j,k) = rho_2;
+            tracer(i,j,k) = 1.0;
+        }
+        else {
+            density(i,j,k) = rho_1;
+            tracer(i,j,k) = 0.0;
+        }
+        gp0(i,j,k,0) = 0.0;
+        gp0(i,j,k,1) = m_gravity[1] * density(i,j,k);
+
+        vel(i,j,k,0) = 0.0;
+        vel(i,j,k,1) = 0.0;
+#endif
+
+    });
+}
 void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
                                Array4<Real> const& vel,
                                Array4<Real> const& density,
@@ -732,6 +802,23 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
             vel(i,j,k,0) = 0.0;
             vel(i,j,k,1) = 0.0;
             vel(i,j,k,2) = 0.0;
+            Real rho_bar = rho_1/rho_2;
+            if ((m_fluid_vof[0].fluid_model == incflo::FluidModel::Newtonian) and (m_fluid_vof[1].fluid_model == incflo::FluidModel::Granular)) { // Newtonian on Granular
+                Real angle = std::atan(std::abs(m_gravity[0])/std::abs(m_gravity[2]));
+                Real H = 0.5*(probhi[2]-problo[2]);
+                Real sin_angle = std::sin(angle);
+                Real X = (2.0/3.0/m_fluid_vof[1].diam)*sqrt(std::cos(angle))*(std::tan(angle) - m_fluid_vof[1].tau_0)/m_fluid_vof[1].A_0;
+                Real Y = std::pow(1.0 + (rho_1/rho_2), 1.5) - std::pow((rho_1/rho_2), 1.5);
+                Real tau_0 = rho_1*std::abs(m_gravity[2])*sin_angle*H - m_fluid_vof[0].mu*X*Y;
+
+                if (z > splitz) {
+                    vel(i,j,k,0) = (1.0/m_fluid_vof[0].mu) * (2*H - z) * (rho_1*std::abs(m_gravity[2])*sin_angle*H - tau_0);
+                }
+                else {
+                    vel(i,j,k,0) = (2.0/3.0/m_fluid_vof[1].diam)*sqrt(std::cos(angle)*std::abs(m_gravity[2])*H*H*H)*((std::tan(angle) - m_fluid_vof[1].tau_0)/m_fluid_vof[1].A_0)*(std::pow(1.0 + (rho_1/rho_2), 1.5) - std::pow(1.0 + (rho_1/rho_2) - (z/H), 1.5));
+                }
+            }
+            //vel(i,j,k,0) = 0.0;
         }
         else {
             Real x = problo[0] + (i+0.5)*dx[0];

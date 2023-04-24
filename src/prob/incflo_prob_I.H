@@ -66,6 +66,16 @@
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi);
 
+    void column_collapse       (amrex::Box const& vbx, amrex::Box const& gbx,
+                               amrex::Array4<amrex::Real> const& vel,
+                               amrex::Array4<amrex::Real> const& density,
+                               amrex::Array4<amrex::Real> const& tracer,
+                               amrex::Array4<amrex::Real> const& gp0,
+                               amrex::Box const& domain,
+                               amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
+                               amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
+                               amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi);
+
     void inclined_channel      (amrex::Box const& vbx, amrex::Box const& gbx,
                                amrex::Array4<amrex::Real> const& vel,
                                amrex::Array4<amrex::Real> const& density,
