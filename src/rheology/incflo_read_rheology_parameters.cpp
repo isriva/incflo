@@ -6,7 +6,9 @@ void incflo::ReadRheologyParameters()
 {
      amrex::ParmParse pp0("incflo");
      pp0.query("do_vof", m_do_vof);
+#if (AMREX_SPACEDIM == 3)
      pp0.query("do_second_rheology_1", m_do_second_rheology_1);
+#endif
      pp0.query("include_perturb_pressure", m_include_perturb_pressure);
      pp0.query("p_amb_surface", m_p_amb_surface);
      
@@ -154,9 +156,13 @@ void incflo::ReadRheologyParameters()
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.tau_0 > 0.0,
                         "Papanastasiou regularisation parameter must be positive");
 
+             pp.query("max_visc", m_fluid.max_visc);
+             //   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.max_visc > 0.0,
+             //           "Max viscsoity parameter must be positive");
+
              pp.query("papa_reg", m_fluid.papa_reg);
-                AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg > 0.0,
-                        "Papanastasiou regularisation parameter must be positive");
+             //   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg > 0.0,
+             //           "Papanastasiou regularisation parameter must be positive");
 
              pp.query("A_0", m_fluid.A_0);
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.A_0 > 0.0,
@@ -188,6 +194,7 @@ void incflo::ReadRheologyParameters()
                             << ", A_0 = " << m_fluid.A_0
                             << " alpha_0 = " << m_fluid.alpha_0
                             << " tau_0 = " << m_fluid.tau_0
+                            << ", max_visc = " << m_fluid.max_visc
                             << ", papa_reg = " << m_fluid.papa_reg
                             << ", A_1 = " << m_fluid.A_1
                             << " alpha_1 = " << m_fluid.alpha_1
@@ -234,6 +241,8 @@ void incflo::ReadRheologyParameters()
          ppVOF.queryarr("n", n_0);
          amrex::Vector<amrex::Real> tau_0;
          ppVOF.queryarr("tau_0", tau_0);
+         amrex::Vector<amrex::Real> max_visc;
+         ppVOF.queryarr("max_visc", max_visc);
          amrex::Vector<amrex::Real> papa_reg;
          ppVOF.queryarr("papa_reg", papa_reg);
          amrex::Vector<amrex::Real> eta_0;
@@ -382,49 +391,54 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[0] == "granular")
          {
              fluid0.fluid_model = FluidModel::Granular;
+
+             if (diam.size() == 2) fluid0.diam = diam[0];
+             if (A_0.size() == 2) fluid0.A_0 = A_0[0];
+             if (alpha_0.size() == 2) fluid0.alpha_0 = alpha_0[0];
+             if (tau_0.size() == 2) fluid0.tau_0 = tau_0[0];
+             if (max_visc.size() == 2) fluid0.max_visc = max_visc[0];
+             if (papa_reg.size() == 2) fluid0.papa_reg = papa_reg[0];
+             if (A_1.size() == 2) fluid0.A_1 = A_1[0];
+             if (alpha_1.size() == 2) fluid0.alpha_1 = alpha_1[0];
+             if (tau_1.size() == 2) fluid0.tau_1 = tau_1[0];
+             if (papa_reg_1.size() == 2) fluid0.papa_reg_1 = papa_reg_1[0];
             
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(diam[0] > 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.diam > 0.0,
                         "Particle diameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[0] > 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.tau_0 > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[0] > 0.0,
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.max_visc > 0.0,
+             //        "Maximum Viscosity must be positive");
+
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.papa_reg > 0.0,
+             //        "Papanastasiou regularisation parameter must be positive");
+
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.A_0 > 0.0,
+                         "Fitting parameter must be positive");
+
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.alpha_0 >= 0.0,
+                         "Fitting parameter must be positive");
+
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.tau_1 > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(A_0[0] > 0.0,
-                         "Fitting parameter must be positive");
-
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(alpha_0[0] >= 0.0,
-                         "Fitting parameter must be positive");
-
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_1[0] > 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.papa_reg_1 > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg_1[0] > 0.0,
-                     "Papanastasiou regularisation parameter must be positive");
-
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(A_1[0] > 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.A_1 > 0.0,
                          "Fitting parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(alpha_1[0] >= 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.alpha_1 >= 0.0,
                          "Fitting parameter must be positive");
 
-             fluid0.diam = diam[0];
-             fluid0.A_0 = A_0[0];
-             fluid0.alpha_0 = alpha_0[0];
-             fluid0.tau_0 = tau_0[0];
-             fluid0.papa_reg = papa_reg[0];
-             fluid0.A_1 = A_1[0];
-             fluid0.alpha_1 = alpha_1[0];
-             fluid0.tau_1 = tau_1[0];
-             fluid0.papa_reg_1 = papa_reg_1[0];
-            
              amrex::Print() << "Second-order Granular rheology with"
                             << " diameter diam = " << fluid0.diam
                             << ", A_0 = " << fluid0.A_0
                             << " alpha_0 = " << fluid0.alpha_0
                             << " tau_0 = " << fluid0.tau_0
+                            << ", max_visc = " << fluid0.max_visc
                             << ", papa_reg = " << fluid0.papa_reg
                             << ", A_1 = " << fluid0.A_1
                             << " alpha_1 = " << fluid0.alpha_1
@@ -546,49 +560,55 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[1] == "granular")
          {
              fluid1.fluid_model = FluidModel::Granular;
+
+             if (diam.size() == 2) fluid1.diam = diam[1];
+             if (A_0.size() == 2) fluid1.A_0 = A_0[1];
+             if (alpha_0.size() == 2) fluid1.alpha_0 = alpha_0[1];
+             if (tau_0.size() == 2) fluid1.tau_0 = tau_0[1];
+             if (max_visc.size() == 2) fluid1.max_visc = max_visc[1];
+             if (papa_reg.size() == 2) fluid1.papa_reg = papa_reg[1];
+             if (A_1.size() == 2) fluid1.A_1 = A_1[1];
+             if (alpha_1.size() == 2) fluid1.alpha_1 = alpha_1[1];
+             if (tau_1.size() == 2) fluid1.tau_1 = tau_1[1];
+             if (papa_reg_1.size() == 2) fluid1.papa_reg_1 = papa_reg_1[1];
             
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(diam[1] > 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.diam > 0.0,
                         "Particle diameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[1] > 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.tau_0 > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[1] > 0.0,
+             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.max_visc > 0.0,
+             //        "Maximum Viscosity must be positive");
+
+            //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.papa_reg > 0.0,
+            //         "Papanastasiou regularisation parameter must be positive");
+
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.A_0 > 0.0,
+                         "Fitting parameter must be positive");
+
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.alpha_0 >= 0.0,
+                         "Fitting parameter must be positive");
+
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.tau_1 > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(A_0[1] > 0.0,
-                         "Fitting parameter must be positive");
-
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(alpha_0[1] >= 0.0,
-                         "Fitting parameter must be positive");
-
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_1[1] > 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.papa_reg_1 > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg_1[1] > 0.0,
-                     "Papanastasiou regularisation parameter must be positive");
-
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(A_1[1] > 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.A_1 > 0.0,
                          "Fitting parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(alpha_1[1] >= 0.0,
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.alpha_1 >= 0.0,
                          "Fitting parameter must be positive");
 
-             fluid1.diam = diam[1];
-             fluid1.A_0 = A_0[1];
-             fluid1.alpha_0 = alpha_0[1];
-             fluid1.tau_0 = tau_0[1];
-             fluid1.papa_reg = papa_reg[1];
-             fluid1.A_1 = A_1[1];
-             fluid1.alpha_1 = alpha_1[1];
-             fluid1.tau_1 = tau_1[1];
-             fluid1.papa_reg_1 = papa_reg_1[1];
             
              amrex::Print() << "Second-order Granular rheology with"
                             << " diameter diam = " << fluid1.diam
                             << ", A_0 = " << fluid1.A_0
                             << " alpha_0 = " << fluid1.alpha_0
                             << " tau_0 = " << fluid1.tau_0
+                            << ", max_visc = " << fluid1.max_visc
                             << ", papa_reg = " << fluid1.papa_reg
                             << ", A_1 = " << fluid1.A_1
                             << " alpha_1 = " << fluid1.alpha_1
