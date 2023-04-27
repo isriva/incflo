@@ -24,6 +24,7 @@ void incflo::ReadParameters ()
         pp.query("refine_cutcells", m_refine_cutcells);
 #endif
         pp.query("KE_int", m_KE_int);
+        pp.query("GranVel_int", m_GranVel_int);
 
     } // end prefix amr
 

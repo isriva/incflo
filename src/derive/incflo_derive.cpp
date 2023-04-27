@@ -547,6 +547,62 @@ void incflo::ComputeDrag()
 #endif
 }
 
+Vector<Real> incflo::ComputeGranVel () const 
+{
+
+    auto& ld = *m_leveldata[0];
+    Vector<Real> gran_vel;
+    gran_vel.push_back(0.0); gran_vel.push_back(0.0);
+    double rhoux = 0.0;
+    double rhouy = 0.0;
+#if (AMREX_SPACEDIM == 3)
+    gran_vel.push_back(0.0);
+    double rhouz = 0.0;
+#endif
+    Real rho_lim = 0.95*m_fluid_vof[1].rho;
+
+    for (MFIter mfi(ld.velocity_o); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+
+        const auto lo = amrex::lbound(bx);
+        const auto hi = amrex::ubound(bx);
+
+        Array4<Real const> const& vel = ld.velocity_o.const_array(mfi);
+        Array4<Real const> const& rho = ld.density_o.const_array(mfi);
+
+        for (auto k = lo.z; k <= hi.z; ++k) {
+        for (auto j = lo.y; j <= hi.y; ++j) {
+        for (auto i = lo.x; i <= hi.x; ++i) {
+            
+            if (rho(i,j,k) > rho_lim) {
+                rhoux += double(rho(i,j,k)*vel(i,j,k,0));
+                rhouy += double(rho(i,j,k)*vel(i,j,k,1));
+#if (AMREX_SPACEDIM == 3)
+                rhouz += double(rho(i,j,k)*vel(i,j,k,2));
+#endif
+            }
+        
+        }
+        }
+        }
+    }
+
+    ParallelDescriptor::ReduceRealSum(rhoux);
+    ParallelDescriptor::ReduceRealSum(rhouy);
+#if (AMREX_SPACEDIM == 3)
+    ParallelDescriptor::ReduceRealSum(rhouz);
+#endif
+
+    gran_vel[0] = Real(rhoux); 
+    gran_vel[1] = Real(rhouy); 
+#if (AMREX_SPACEDIM == 3)
+    gran_vel[2] = Real(rhouz);
+#endif
+    return gran_vel;
+
+}
+
 
 //void incflo::AverageSliceToMF  (const MultiFab& mf_in, MultiFab& mf_out,
 //                                const int& dir, const int& incomp)

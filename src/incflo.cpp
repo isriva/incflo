@@ -117,6 +117,19 @@ void incflo::Evolve()
     bool do_not_evolve = ((m_max_step == 0) || ((m_stop_time >= 0.) && (m_cur_time > m_stop_time)) ||
                             ((m_stop_time <= 0.) && (m_max_step <= 0))) && !m_steady_state;
 
+    std::string granfilename = "gran_stats";
+    std::ofstream granoutfile;
+    if (m_GranVel_int > 0) {
+        if (ParallelDescriptor::IOProcessor()) {
+            granoutfile.open(granfilename);
+#if (AMREX_SPACEDIM == 3)
+            granoutfile << "time " << "<rho ux> <rho uy> <rho uz>" << std::endl;
+#elif (AMREX_SPACEDIM == 2)
+            granoutfile << "time " << "<rho ux> <rho uy>" << std::endl;
+#endif
+        }
+    }
+
     while(!do_not_evolve)
     {
         if (m_verbose > 0)
@@ -154,6 +167,16 @@ void incflo::Evolve()
         {
             amrex::Print() << "Time, Kinetic Energy: " << m_cur_time << ", " << ComputeKineticEnergy() << std::endl;
         }
+    
+        // Get average velocity in granular column for collapse problem
+        if ((m_GranVel_int > 0) and (m_nstep % m_GranVel_int == 0)) {
+                Vector<Real> gran_vel = ComputeGranVel();
+#if (AMREX_SPACEDIM == 3)
+                granoutfile << "Time, <rho ux>, <rho uy>, <rho uz> " <<  m_cur_time << " " << gran_vel[0] << " " << gran_vel[1] << " " << gran_vel[2] << std::endl;
+#elif (AMREX_SPACEDIM == 2)
+                granoutfile << "Time, <rho ux>, <rho uy> " <<  m_cur_time << " " << gran_vel[0] << " " << gran_vel[1] << std::endl;
+#endif
+        }
 
         // Mechanism to terminate incflo normally.
         do_not_evolve = (m_steady_state && SteadyStateReached()) ||
@@ -169,6 +192,10 @@ void incflo::Evolve()
         && m_nstep != m_last_plt)
     {
         WritePlotFile();
+    }
+
+    if (m_GranVel_int > 0 ) {
+        if (ParallelDescriptor::IOProcessor()) granoutfile.close();
     }
 }
 

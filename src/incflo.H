@@ -160,6 +160,7 @@ public:
 
     void ComputeVorticity (int lev, amrex::Real time, amrex::MultiFab& vort,
                            amrex::MultiFab const& vel);
+    [[nodiscard]] amrex::Vector<amrex::Real> ComputeGranVel () const;
     void ComputeDivU (amrex::Real time);
     void ComputeDrag ();
     [[nodiscard]] static amrex::Real ComputeKineticEnergy () ;
@@ -593,6 +594,7 @@ private:
     int m_check_int = -1;
     int m_last_chk = -1;
     int m_KE_int = -1;
+    int m_GranVel_int = -1;
     std::string m_check_file{"chk"};
     std::string m_restart_file{""};
     std::string m_tag_file{""};

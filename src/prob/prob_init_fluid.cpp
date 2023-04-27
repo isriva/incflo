@@ -699,7 +699,7 @@ void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/,
     if (m_do_vof) {
         rho_1 = m_fluid_vof[0].rho;
         rho_2 = m_fluid_vof[1].rho;
-        amrex::Print() << "rho1 and rho2 during incline channel setup: " << rho_1 << " " << rho_2 << std::endl;
+        amrex::Print() << "rho1 and rho2 during column collapse setup: " << rho_1 << " " << rho_2 << std::endl;
     }
     else {
         amrex::Abort("need vof for this setup");
@@ -758,8 +758,11 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
 {
     Real rho_1, rho_2, rho;
 
-    const Real splitz = 0.5*(problo[2] + probhi[2]);
-    const Real L_z    = probhi[2] - problo[2];
+#if (AMREX_SPACEDIM == 3)
+    const Real split = 0.5*(problo[2] + probhi[2]);
+#elif (AMREX_SPACEDIM == 2)
+    const Real split = 0.5*(problo[1] + probhi[1]);
+#endif
 
     if (m_do_vof) {
         rho_1 = m_fluid_vof[0].rho;
@@ -776,10 +779,15 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
         if (m_do_vof) {
             Real x = problo[0] + (i+0.5)*dx[0];
             Real y = problo[1] + (j+0.5)*dx[1];
+#if (AMREX_SPACEDIM == 3)
             Real z = problo[2] + (k+0.5)*dx[2];
-            
+#endif
             if (m_smoothing_width < 0.0) { // discontinuous transition
-                if (z > splitz) {
+#if (AMREX_SPACEDIM == 3)
+                if (z > split) {
+#elif (AMREX_SPACEDIM == 2)
+                if (y > split) {
+#endif
                     density(i,j,k) = rho_1;
                     tracer(i,j,k) = 0.0;
                 }
@@ -789,34 +797,59 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
                 }
             }
             else { // smoothed interface
-                Real y_rel = problo[2] + (k+0.5)*dx[2] - splitz;
-                Real smoother = 0.5*std::tanh(y_rel/(m_smoothing_width*dx[2]))+0.5; //goes from 0 to 1
+#if (AMREX_SPACEDIM == 3)
+                Real z_rel = problo[2] + (k+0.5)*dx[2] - split;
+                Real smoother = 0.5*std::tanh(z_rel/(m_smoothing_width*dx[2]))+0.5; //goes from 0 to 1
+#elif (AMREX_SPACEDIM == 2)
+                Real y_rel = problo[1] + (j+0.5)*dx[1] - split;
+                Real smoother = 0.5*std::tanh(y_rel/(m_smoothing_width*dx[1]))+0.5; //goes from 0 to 1
+#endif
                 tracer(i,j,k) = 1.0 - smoother;
                 density(i,j,k) = rho_1*smoother + rho_2*(1.0-smoother);
             }
 
             gp0(i,j,k,0) = 0.0;
+#if (AMREX_SPACEDIM == 3)
             gp0(i,j,k,1) = 0.0;
             gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
+#elif (AMREX_SPACEDIM == 2)
+            gp0(i,j,k,1) = m_gravity[1] * density(i,j,k);
+#endif
 
             vel(i,j,k,0) = 0.0;
             vel(i,j,k,1) = 0.0;
+#if (AMREX_SPACEDIM == 3)
             vel(i,j,k,2) = 0.0;
+#endif
             Real rho_bar = rho_1/rho_2;
             if ((m_fluid_vof[0].fluid_model == incflo::FluidModel::Newtonian) and (m_fluid_vof[1].fluid_model == incflo::FluidModel::Granular)) { // Newtonian on Granular
+#if (AMREX_SPACEDIM == 3)
                 Real angle = std::atan(std::abs(m_gravity[0])/std::abs(m_gravity[2]));
                 Real H = 0.5*(probhi[2]-problo[2]);
+#elif (AMREX_SPACEDIM == 2)
+                Real angle = std::atan(std::abs(m_gravity[0])/std::abs(m_gravity[1]));
+                Real H = 0.5*(probhi[1]-problo[1]);
+#endif
                 Real sin_angle = std::sin(angle);
                 Real X = (2.0/3.0/m_fluid_vof[1].diam)*sqrt(std::cos(angle))*(std::tan(angle) - m_fluid_vof[1].tau_0)/m_fluid_vof[1].A_0;
                 Real Y = std::pow(1.0 + (rho_1/rho_2), 1.5) - std::pow((rho_1/rho_2), 1.5);
                 Real tau_0 = rho_1*std::abs(m_gravity[2])*sin_angle*H - m_fluid_vof[0].mu*X*Y;
 
-                if (z > splitz) {
+#if (AMREX_SPACEDIM == 3)
+                if (z > split) {
                     vel(i,j,k,0) = (1.0/m_fluid_vof[0].mu) * (2*H - z) * (rho_1*std::abs(m_gravity[2])*sin_angle*H - tau_0);
                 }
                 else {
                     vel(i,j,k,0) = (2.0/3.0/m_fluid_vof[1].diam)*sqrt(std::cos(angle)*std::abs(m_gravity[2])*H*H*H)*((std::tan(angle) - m_fluid_vof[1].tau_0)/m_fluid_vof[1].A_0)*(std::pow(1.0 + (rho_1/rho_2), 1.5) - std::pow(1.0 + (rho_1/rho_2) - (z/H), 1.5));
                 }
+#elif (AMREX_SPACEDIM == 2)
+                if (y > split) {
+                    vel(i,j,k,0) = (1.0/m_fluid_vof[0].mu) * (2*H - y) * (rho_1*std::abs(m_gravity[1])*sin_angle*H - tau_0);
+                }
+                else {
+                    vel(i,j,k,0) = (2.0/3.0/m_fluid_vof[1].diam)*sqrt(std::cos(angle)*std::abs(m_gravity[1])*H*H*H)*((std::tan(angle) - m_fluid_vof[1].tau_0)/m_fluid_vof[1].A_0)*(std::pow(1.0 + (rho_1/rho_2), 1.5) - std::pow(1.0 + (rho_1/rho_2) - (y/H), 1.5));
+                }
+#endif
             }
             //vel(i,j,k,0) = 0.0;
         }
