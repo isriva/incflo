@@ -252,6 +252,7 @@ void DiffusionTensorOp1::compute_divtau (Vector<MultiFab*> const& a_divtau,
         MLMG mlmg(*m_reg_apply_op1);
         // This goes to MyTensor.Op
         mlmg.apply(a_divtau, GetVecOfPtrs(velocity));
+        
     }
 
     bool advect_momentum = m_incflo->AdvectMomentum();

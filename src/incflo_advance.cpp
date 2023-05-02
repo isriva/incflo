@@ -69,7 +69,6 @@ void incflo::Advance()
         // But dt should be doubled this time. -- TODO
         ApplyPredictor();
     }
-    //ApplyPredictor();
     //}
 
 #if 0

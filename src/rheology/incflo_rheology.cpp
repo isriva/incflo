@@ -78,7 +78,9 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
             include = true;
         }
         else if (order == 1) {
-            visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(fluid.papa_reg_press)*inertialNum(sr,fluid.papa_reg_press, fluid.rho, fluid.diam, fluid.mu_1, fluid.A_1, 2*fluid.alpha_1);
+            amrex::Real hyd_press_reg = 0.5*(hyd_press + sqrt(hyd_press*hyd_press + fluid.papa_reg_press*fluid.papa_reg_press)); // regularized pressure (always positive)
+            
+            visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(hyd_press_reg)*inertialNum(sr,hyd_press_reg, fluid.rho, fluid.diam, fluid.tau_0, fluid.A_1, 2*fluid.alpha_1);
 
             {
             amrex::Print() << "viscosity order 1:  " << visc << ", "  << std::endl;

@@ -644,9 +644,9 @@ void incflo::ApplyPredictor (bool incremental_projection)
 		       
 
                         if (m_do_second_rheology_1) {
-                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
-                                         vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
-                                         vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                            AMREX_D_TERM(vel(i,j,k,0) += m_half*l_dt*(divtau_o1(i,j,k,0));,
+                                         vel(i,j,k,1) += m_half*l_dt*(divtau_o1(i,j,k,1));,
+                                         vel(i,j,k,2) += m_half*l_dt*(divtau_o1(i,j,k,2)););
                         }
                         //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
                         //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
