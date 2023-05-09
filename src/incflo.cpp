@@ -316,6 +316,17 @@ Vector<MultiFab*> incflo::get_velocity_old () noexcept
     return r;
 }
 
+// EY: for RK2 
+Vector<MultiFab*> incflo::get_velocity_temp () noexcept
+{
+    Vector<MultiFab*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->velocity_temp));
+    }
+    return r;
+}
+
 Vector<MultiFab*> incflo::get_velocity_new () noexcept
 {
     Vector<MultiFab*> r;
@@ -382,6 +393,17 @@ Vector<MultiFab*> incflo::get_conv_velocity_old () noexcept
     r.reserve(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev) {
         r.push_back(&(m_leveldata[lev]->conv_velocity_o));
+    }
+    return r;
+}
+
+//EY
+Vector<MultiFab*> incflo::get_conv_velocity_temp () noexcept
+{
+    Vector<MultiFab*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->conv_velocity_temp));
     }
     return r;
 }
@@ -496,6 +518,17 @@ Vector<MultiFab const*> incflo::get_velocity_old_const () const noexcept
     return r;
 }
 
+//EY
+Vector<MultiFab const*> incflo::get_velocity_temp_const () const noexcept
+{
+    Vector<MultiFab const*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->velocity_temp));
+    }
+    return r;
+}
+
 Vector<MultiFab const*> incflo::get_velocity_new_const () const noexcept
 {
     Vector<MultiFab const*> r;
@@ -566,6 +599,19 @@ void incflo::copy_from_new_to_old_velocity (IntVect const& ng)
 void incflo::copy_from_new_to_old_velocity (int lev, IntVect const& ng)
 {
     MultiFab::Copy(m_leveldata[lev]->velocity_o,
+                   m_leveldata[lev]->velocity, 0, 0, AMREX_SPACEDIM, ng);
+}
+
+void incflo::copy_from_new_to_temp_velocity (IntVect const& ng)
+{
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        copy_from_new_to_temp_velocity(lev, ng);
+    }
+}
+
+void incflo::copy_from_new_to_temp_velocity (int lev, IntVect const& ng)
+{
+    MultiFab::Copy(m_leveldata[lev]->velocity_temp,
                    m_leveldata[lev]->velocity, 0, 0, AMREX_SPACEDIM, ng);
 }
 

@@ -10,6 +10,7 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
                               bool use_tensor_correction, bool advect_tracer)
     : velocity  (ba, dm, AMREX_SPACEDIM, ng_state, MFInfo(), fact),
       velocity_o(ba, dm, AMREX_SPACEDIM, ng_state, MFInfo(), fact),
+      velocity_temp(ba, dm, AMREX_SPACEDIM, ng_state, MFInfo(), fact), //EY
       velocity_eb(ba, dm, AMREX_SPACEDIM, ng_state, MFInfo(), fact),
       density   (ba, dm, 1             , ng_state, MFInfo(), fact),
       density_eb(ba, dm, 1             , ng_state, MFInfo(), fact),
@@ -22,6 +23,7 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
                      dm, 1             , 0 , MFInfo(), fact),
       gp        (ba, dm, AMREX_SPACEDIM, 0       , MFInfo(), fact),
       conv_velocity_o(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact),
+      conv_velocity_temp(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact), //EY
       conv_density_o (ba, dm, 1             , 0, MFInfo(), fact),
       conv_tracer_o  (ba, dm, ntrac         , 0, MFInfo(), fact),
       gp0       (ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact)

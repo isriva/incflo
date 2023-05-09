@@ -208,14 +208,14 @@ MyTensorOp::apply (int amrlev, int mglev, MultiFab& out, MultiFab& in, BCMode bc
 #else
     BL_PROFILE("MyTensorOp::apply()");
 
-   {
-       std::string plotfilename = "vel2_before_Lap";
-       std::ofstream ofs(plotfilename, std::ofstream::out);
-       for (MFIter mfi(in); mfi.isValid(); ++mfi) {
-           ofs<<std::setprecision(16)<< (in[mfi])<<std::endl;
-       }
-       ofs.close();
-   }
+//    {
+//        std::string plotfilename = "vel2_before_Lap";
+//        std::ofstream ofs(plotfilename, std::ofstream::out);
+//        for (MFIter mfi(in); mfi.isValid(); ++mfi) {
+//            ofs<<std::setprecision(16)<< (in[mfi])<<std::endl;
+//        }
+//        ofs.close();
+//    }
     MLABecLaplacian::apply(amrlev, mglev, out, in, bc_mode, s_mode, bndry);
 //    {
 //        std::string plotfilename = "divtau_Lap";

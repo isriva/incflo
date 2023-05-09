@@ -125,7 +125,9 @@ public:
     ///////////////////////////////////////////////////////////////////////////
 
     void ApplyPredictor(bool incremental_projection = false);
-    void ApplyCorrector();
+    // EY 
+    // void ApplyCorrector();
+    void ApplyCorrector(bool incremental_projection = false);
     
     void compute_convective_term (amrex::Vector<amrex::MultiFab*> const& conv_u,
                                   amrex::Vector<amrex::MultiFab*> const& conv_r,
@@ -634,6 +636,9 @@ private:
         // cell-centered multifabs
         amrex::MultiFab velocity;
         amrex::MultiFab velocity_o;
+        // EY
+        amrex::MultiFab velocity_temp;
+        
         amrex::MultiFab velocity_eb;
         amrex::MultiFab density;
         amrex::MultiFab density_eb;
@@ -652,6 +657,9 @@ private:
 
         amrex::MultiFab conv_velocity;
         amrex::MultiFab conv_velocity_o;
+        //EY
+        amrex::MultiFab conv_velocity_temp;
+
         amrex::MultiFab conv_density;
         amrex::MultiFab conv_density_o;
         amrex::MultiFab conv_tracer;
@@ -814,8 +822,18 @@ private:
     amrex::Vector<amrex::MultiFab*> get_divtau_new () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_old () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_new () noexcept;
+
+    //EY 
+    amrex::Vector<amrex::MultiFab*> get_velocity_temp () noexcept;
+    amrex::Vector<amrex::MultiFab*> get_conv_velocity_temp () noexcept;
+
+
     //
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_old_const () const noexcept;
+
+    //EY 
+    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_temp_const () const noexcept;
+
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_new_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_eb () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_density_eb () const noexcept;
@@ -884,6 +902,11 @@ private:
 
     void copy_from_new_to_old_velocity (         amrex::IntVect const& ng = amrex::IntVect{0});
     void copy_from_new_to_old_velocity (int lev, amrex::IntVect const& ng = amrex::IntVect{0});
+
+    // EY 
+    void copy_from_new_to_temp_velocity (         amrex::IntVect const& ng = amrex::IntVect{0});
+    void copy_from_new_to_temp_velocity (int lev, amrex::IntVect const& ng = amrex::IntVect{0});
+
     void copy_from_new_to_old_density  (         amrex::IntVect const& ng = amrex::IntVect{0});
     void copy_from_new_to_old_density  (int lev, amrex::IntVect const& ng = amrex::IntVect{0});
     void copy_from_new_to_old_tracer   (         amrex::IntVect const& ng = amrex::IntVect{0});

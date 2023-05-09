@@ -133,7 +133,7 @@ void incflo::compute_viscosity (amrex::Vector<amrex::MultiFab*> const& vel_eta,
 {
     for (int lev = 0; lev <= finest_level; ++lev)
     {
-        compute_viscosity_at_level(lev, vel_eta[lev], rho[lev], vel[lev], p_nodal[lev], geom[lev], time, nghost, order);
+        compute_viscosity_at_level(lev, vel_eta[lev], rho[lev], vel[lev], p_nodal[lev], geom[lev], time, nghost, order);  
     }
 }
 
@@ -149,7 +149,6 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                                          amrex::Geometry& lev_geom,
                                          amrex::Real /*time*/, int /*nghost*/, int order)
 {
-
 #ifdef AMREX_USE_EB
     auto const& fact = EBFactory(lev);
     auto const& flags = fact.getMultiEBCellFlagFab();
@@ -196,6 +195,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
         Array4<Real const> const& vel_arr = vel->const_array(mfi);
         Array4<Real const> const& rho_arr = rho->const_array(mfi);
         Array4<Real const> const& p_nodal_arr = p_nodal->const_array(mfi);
+        
 #ifdef AMREX_USE_EB
         auto const& flag_fab = flags[mfi];
         auto typ = flag_fab.getType(bx);
@@ -232,8 +232,9 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 Real dens = incflo_rho_nodal(i,j,k,rho_arr); // get nodal density
                 Real depth_from_surface = probhi[2] - Real(k)*dx[2]; // get depth from the surface 
                 Real hyd_press = m_p_amb_surface - m_gravity[2]*dens*depth_from_surface; // get hydrostatic pressure
+    
                 if (m_include_perturb_pressure) {
-                   hyd_press += p_nodal_arr(i,j,k);                    
+                   hyd_press += p_nodal_arr(i,j,k);                
                 }
                 // nodal viscosity
                 if (m_do_vof) {
@@ -242,8 +243,10 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 else {
                     auto [visc, include] = Viscosity_Single(sr,order,m_fluid,hyd_press,m_gravity[2]);
                     if (include) eta_arr(i,j,k) = visc;
-                    else eta_arr(i,j,k) = 0.0;
-                }
+                    else eta_arr(i,j,k) = 0.0; 
+                }  
+                // amrex::Print() <<"EY: **i = " << i<< ", j = " <<j<<", k = " <<k <<"\n"; 
+
             });
         }
     }
