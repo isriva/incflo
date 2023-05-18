@@ -510,6 +510,23 @@ amrex::Real incflo_cc_to_nodal (int i, int j, int k, amrex::Array4<amrex::Real c
 #endif
 }
 
+// average cc to edge parallel to y (in 2D) and z in 3D)
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+amrex::Real incflo_cc_to_edge (int i, int j, int k, amrex::Array4<amrex::Real const> const& rho) noexcept
+{
+    using namespace amrex;
+
+#if (AMREX_SPACEDIM == 3)
+
+    return Real(0.25)*(  rho(i-1,j-1,k)   + rho(i,j-1,k)    +
+                         rho(i-1,j,k)     + rho(i,j,k) );
+#elif (AMREX_SPACEDIM == 2)
+    
+    return Real(0.5)*(   rho(i-1,j,k)   + rho(i,j,k)  );
+
+#endif
+}
+
 #ifdef AMREX_USE_EB
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 amrex::Real incflo_strainrate_eb (int i, int j, int k,
@@ -652,3 +669,34 @@ amrex::Real incflo_strainrate_eb (int i, int j, int k,
 #endif
 
 #endif
+
+//AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+//amrex::Real incflo_get_hydrostatic_pressure(int i, int j, int k, amrex::Array4<amrex::Real const> const& rho,
+//                                     amrex::Real /*top*/, int n_top, amrex::Real dx, amrex::Real grav, amrex::Real amb_press) noexcept
+//{
+//    using namespace amrex;
+//    Real hyd_press = amb_press;
+//#if (AMREX_SPACEDIM == 3)
+//    if (k == n_top) {
+//        return hyd_press;
+//    }
+//    else {
+//        for (int kk = n_top-1; kk >= k; --kk) {
+//            Real dens = incflo_cc_to_edge(i,j,kk,rho);
+//            hyd_press -= dens*grav*dx;
+//        }
+//        return hyd_press;
+//    }
+//#elif (AMREX_SPACEDIM == 2)
+//    if (j == n_top) {
+//        return hyd_press;
+//    }
+//    else {
+//        for (int jj = n_top-1; jj >= j; --jj) {
+//            Real dens = incflo_cc_to_edge(i,jj,k,rho);
+//            hyd_press -= dens*grav*dx;
+//        }
+//        return hyd_press;
+//    }
+//#endif
+//}

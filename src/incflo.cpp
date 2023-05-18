@@ -584,6 +584,16 @@ Vector<MultiFab const*> incflo::get_gradp_const () const noexcept
     return r;
 }
 
+Vector<MultiFab const*> incflo::get_p_nd_const () const noexcept
+{
+    Vector<MultiFab const*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->p_nd));
+    }
+    return r;
+}
+
 void incflo::copy_from_new_to_old_velocity (IntVect const& ng)
 {
     for (int lev = 0; lev <= finest_level; ++lev) {

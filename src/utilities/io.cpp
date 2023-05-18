@@ -595,6 +595,7 @@ void incflo::WritePlotFile()
                                        &viscosity_nodal,
                                        &m_leveldata[lev]->density,
                                        &m_leveldata[lev]->velocity,
+                                       &m_leveldata[lev]->p_nd,
                                        &m_leveldata[lev]->gp,
                                        Geom(lev),
                                        m_cur_time, 0, 0);
@@ -613,6 +614,7 @@ void incflo::WritePlotFile()
                                            &vel_eta1,
                                            &m_leveldata[lev]->density,
                                            &m_leveldata[lev]->velocity,
+                                           &m_leveldata[lev]->p_nd,
                                            &m_leveldata[lev]->gp,
                                            Geom(lev),
                                            m_cur_time, 0, 1);
@@ -633,6 +635,7 @@ void incflo::WritePlotFile()
                                            &vel_eta2,
                                            &m_leveldata[lev]->density,
                                            &m_leveldata[lev]->velocity,
+                                           &m_leveldata[lev]->p_nd,
                                            &m_leveldata[lev]->gp,
                                            Geom(lev),
                                            m_cur_time, 0, 2);

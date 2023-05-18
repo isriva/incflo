@@ -160,6 +160,10 @@ void incflo::ReadRheologyParameters()
              //   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.max_visc > 0.0,
              //           "Max viscsoity parameter must be positive");
 
+             pp.query("min_visc", m_fluid.min_visc);
+             //   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.min_visc > 0.0,
+             //           "Max viscsoity parameter must be positive");
+
              pp.query("papa_reg", m_fluid.papa_reg);
              //   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg > 0.0,
              //           "Papanastasiou regularisation parameter must be positive");
@@ -195,6 +199,7 @@ void incflo::ReadRheologyParameters()
                             << " alpha_0 = " << m_fluid.alpha_0
                             << " tau_0 = " << m_fluid.tau_0
                             << ", max_visc = " << m_fluid.max_visc
+                            << ", min_visc = " << m_fluid.min_visc
                             << ", papa_reg = " << m_fluid.papa_reg
                             << ", A_1 = " << m_fluid.A_1
                             << " alpha_1 = " << m_fluid.alpha_1
@@ -243,6 +248,8 @@ void incflo::ReadRheologyParameters()
          ppVOF.queryarr("tau_0", tau_0);
          amrex::Vector<amrex::Real> max_visc;
          ppVOF.queryarr("max_visc", max_visc);
+         amrex::Vector<amrex::Real> min_visc;
+         ppVOF.queryarr("min_visc", min_visc);
          amrex::Vector<amrex::Real> papa_reg;
          ppVOF.queryarr("papa_reg", papa_reg);
          amrex::Vector<amrex::Real> eta_0;
@@ -397,6 +404,7 @@ void incflo::ReadRheologyParameters()
              if (alpha_0.size() == 2) fluid0.alpha_0 = alpha_0[0];
              if (tau_0.size() == 2) fluid0.tau_0 = tau_0[0];
              if (max_visc.size() == 2) fluid0.max_visc = max_visc[0];
+             if (min_visc.size() == 2) fluid0.min_visc = min_visc[0];
              if (papa_reg.size() == 2) fluid0.papa_reg = papa_reg[0];
              if (A_1.size() == 2) fluid0.A_1 = A_1[0];
              if (alpha_1.size() == 2) fluid0.alpha_1 = alpha_1[0];
@@ -439,6 +447,7 @@ void incflo::ReadRheologyParameters()
                             << " alpha_0 = " << fluid0.alpha_0
                             << " tau_0 = " << fluid0.tau_0
                             << ", max_visc = " << fluid0.max_visc
+                            << ", min_visc = " << fluid0.min_visc
                             << ", papa_reg = " << fluid0.papa_reg
                             << ", A_1 = " << fluid0.A_1
                             << " alpha_1 = " << fluid0.alpha_1
@@ -566,6 +575,7 @@ void incflo::ReadRheologyParameters()
              if (alpha_0.size() == 2) fluid1.alpha_0 = alpha_0[1];
              if (tau_0.size() == 2) fluid1.tau_0 = tau_0[1];
              if (max_visc.size() == 2) fluid1.max_visc = max_visc[1];
+             if (min_visc.size() == 2) fluid1.min_visc = min_visc[1];
              if (papa_reg.size() == 2) fluid1.papa_reg = papa_reg[1];
              if (A_1.size() == 2) fluid1.A_1 = A_1[1];
              if (alpha_1.size() == 2) fluid1.alpha_1 = alpha_1[1];
@@ -609,6 +619,7 @@ void incflo::ReadRheologyParameters()
                             << " alpha_0 = " << fluid1.alpha_0
                             << " tau_0 = " << fluid1.tau_0
                             << ", max_visc = " << fluid1.max_visc
+                            << ", min_visc = " << fluid1.min_visc
                             << ", papa_reg = " << fluid1.papa_reg
                             << ", A_1 = " << fluid1.A_1
                             << " alpha_1 = " << fluid1.alpha_1

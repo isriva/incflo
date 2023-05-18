@@ -268,6 +268,7 @@ public:
         amrex::Real n_0;
         amrex::Real tau_0;
         amrex::Real max_visc;
+        amrex::Real min_visc;
         amrex::Real papa_reg;
         amrex::Real papa_reg_press;
         amrex::Real eta_0;
@@ -301,6 +302,7 @@ public:
             , n_0(1.5)
             , tau_0(0.0)
             , max_visc(-1.0)
+            , min_visc(-1.0)
             , papa_reg(0.0)
             , papa_reg_press(0.0)
             , eta_0(0.0)
@@ -336,12 +338,14 @@ public:
     virtual void compute_viscosity (amrex::Vector<amrex::MultiFab*> const& eta,
                                     amrex::Vector<amrex::MultiFab*> const& rho,
                                     amrex::Vector<amrex::MultiFab*> const& vel,
+                                    amrex::Vector<amrex::MultiFab const*> const& press,
                                     amrex::Vector<amrex::MultiFab const*> const& gradp,
                                     amrex::Real time, int nghost, int type=1);
     virtual void compute_viscosity_at_level (int lev,
                                              amrex::MultiFab* eta,
                                              amrex::MultiFab* rho,
                                              amrex::MultiFab* vel,
+                                             amrex::MultiFab const* press,
                                              amrex::MultiFab const* gradp,
                                              amrex::Geometry& lev_geom,
                                              amrex::Real time, int nghost, int type);
@@ -839,6 +843,7 @@ private:
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_density_new_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tracer_old_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tracer_new_const () const noexcept;
+    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_p_nd_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_gradp_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_vel_forces_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tra_forces_const () const noexcept;
@@ -970,6 +975,7 @@ private:
     void set_background_pressure ();
     void ReadParameters ();
     void ReadIOParameters ();
+//    void AddGranPar ();
     void ResizeArrays (); // Resize arrays to fit (up to) max_level + 1 AMR levels
     void InitialProjection ();
     void InitialIterations ();
