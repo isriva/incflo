@@ -180,6 +180,14 @@ void incflo::ReadRheologyParameters()
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.tau_1 > 0.0,
                         "Papanastasiou regularisation parameter must be positive");
 
+             pp.query("max_visc_1", m_fluid.max_visc_1);
+             //   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.max_visc > 0.0,
+             //           "Max viscsoity parameter must be positive");
+
+             pp.query("min_visc_1", m_fluid.min_visc_1);
+             //   AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.min_visc > 0.0,
+             //           "Max viscsoity parameter must be positive");
+
              pp.query("papa_reg_1", m_fluid.papa_reg_1);
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg_1 > 0.0,
                         "Papanastasiou regularisation parameter must be positive");
@@ -204,7 +212,9 @@ void incflo::ReadRheologyParameters()
                             << ", A_1 = " << m_fluid.A_1
                             << " alpha_1 = " << m_fluid.alpha_1
                             << " tau_1 = " << m_fluid.tau_1
-                            << ", papa_reg_1 = " << m_fluid.papa_reg_1 << std::endl;
+                            << ", papa_reg_1 = " << m_fluid.papa_reg_1
+                            << ", max_visc_1 = " << m_fluid.max_visc_1
+                            << ", min_visc_1 = " << m_fluid.min_visc_1 << std::endl;
          }
 
          else
@@ -265,6 +275,10 @@ void incflo::ReadRheologyParameters()
          ppVOF.queryarr("n_1", n_1);
          amrex::Vector<amrex::Real> tau_1;
          ppVOF.queryarr("tau_1", tau_1);
+         amrex::Vector<amrex::Real> max_visc_1;
+         ppVOF.queryarr("max_visc_1", max_visc_1);
+         amrex::Vector<amrex::Real> min_visc_1;
+         ppVOF.queryarr("min_visc_1", min_visc_1);
          amrex::Vector<amrex::Real> papa_reg_1;
          ppVOF.queryarr("papa_reg_1", papa_reg_1);
          amrex::Vector<amrex::Real> eta_1;
@@ -409,6 +423,8 @@ void incflo::ReadRheologyParameters()
              if (A_1.size() == 2) fluid0.A_1 = A_1[0];
              if (alpha_1.size() == 2) fluid0.alpha_1 = alpha_1[0];
              if (tau_1.size() == 2) fluid0.tau_1 = tau_1[0];
+             if (max_visc_1.size() == 2) fluid0.max_visc_1 = max_visc_1[0];
+             if (min_visc_1.size() == 2) fluid0.min_visc_1 = min_visc_1[0];
              if (papa_reg_1.size() == 2) fluid0.papa_reg_1 = papa_reg_1[0];
             
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.diam > 0.0,
@@ -452,6 +468,8 @@ void incflo::ReadRheologyParameters()
                             << ", A_1 = " << fluid0.A_1
                             << " alpha_1 = " << fluid0.alpha_1
                             << " tau_1 = " << fluid0.tau_1
+                            << ", max_visc_1 = " << fluid0.max_visc_1
+                            << ", min_visc_1 = " << fluid0.min_visc_1
                             << ", papa_reg_1 = " << fluid0.papa_reg_1 << " and rho = " << fluid0.rho << std::endl;
          }
          else
@@ -580,6 +598,8 @@ void incflo::ReadRheologyParameters()
              if (A_1.size() == 2) fluid1.A_1 = A_1[1];
              if (alpha_1.size() == 2) fluid1.alpha_1 = alpha_1[1];
              if (tau_1.size() == 2) fluid1.tau_1 = tau_1[1];
+             if (max_visc_1.size() == 2) fluid1.max_visc_1 = max_visc_1[1];
+             if (min_visc_1.size() == 2) fluid1.min_visc_1 = min_visc_1[1];
              if (papa_reg_1.size() == 2) fluid1.papa_reg_1 = papa_reg_1[1];
             
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.diam > 0.0,
@@ -624,6 +644,8 @@ void incflo::ReadRheologyParameters()
                             << ", A_1 = " << fluid1.A_1
                             << " alpha_1 = " << fluid1.alpha_1
                             << " tau_1 = " << fluid1.tau_1
+                            << ", max_visc_1 = " << fluid1.max_visc_1
+                            << ", min_visc_1 = " << fluid1.min_visc_1
                             << ", papa_reg_1 = " << fluid1.papa_reg_1 << " and rho = " << fluid1.rho << std::endl;
          }
          else

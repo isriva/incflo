@@ -283,6 +283,8 @@ public:
         amrex::Real eta_1;
         amrex::Real alpha_1;
         amrex::Real A_1;
+        amrex::Real max_visc_1;
+        amrex::Real min_visc_1;
 
         // second-order rheology (2nd Rivlin-Ericksen)
         amrex::Real mu_2;
@@ -316,6 +318,8 @@ public:
             , eta_1(1.0)
             , alpha_1(1.0)
             , A_1(1.0)
+            , max_visc_1(-1.0)
+            , min_visc_1(-1.0)
 
             , mu_2(0.0)
             , n_2(0.0)

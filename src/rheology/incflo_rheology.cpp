@@ -99,9 +99,32 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
             }
 
         }
-        //else if (order == 1) {
-        //    visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(fluid.p_bg)*inertialNum(sr,fluid.p_bg, fluid.rho, fluid.diam, fluid.mu_2, fluid.A_2, 2*fluid.alpha_2);
-        //}
+        else if (order == 1) {
+
+            amrex::Real compute_visc;
+
+            if ((fluid.max_visc_1 < Real(0.0)) or (fluid.min_visc_1 < Real(0.0)))
+                amrex::Abort("need positive max and min firs notmal viscosity");
+
+            if (hyd_press < 0.0) { // negative pressure
+                visc = fluid.min_visc_1;
+                include = true;
+            }
+            else { // positive pressure
+                if (sr > Real(1.0e-13)) {
+                    amrex::Real compute_visc_org =
+                        (1.0/sr/sr)*(fluid.tau_1*hyd_press +
+                        fluid.A_1*std::pow(fluid.diam,2.0*fluid.alpha_1)*std::pow(fluid.rho,fluid.alpha_1)*
+                        std::pow(hyd_press,1.0-fluid.alpha_1)*std::pow(sr,2.0*fluid.alpha_1)); // unregularized viscosity
+                    compute_visc = std::min(compute_visc_org, fluid.max_visc_1);
+                }
+                else {
+                    compute_visc = fluid.max_visc_1;
+                }
+                visc = std::max(fluid.min_visc_1, compute_visc);
+                include = true;
+            }
+        }
         //else if (order == 2) {
         //    visc = -1*std::pow(2*(expterm(sr/papa_reg) / papa_reg),2)*(p_bg)*inertialNum(sr, p_bg, ro_0, diam, mu_3, A_3, 2*alpha_3);
         //}
@@ -252,31 +275,11 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 Real sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,domlo,domhi,bc_type); //  get nodal strainrate
                 Real dens = incflo_cc_to_nodal(i,j,k,rho_arr); // get nodal density
                 Real pressure = press_arr(i,j,k); // nodal pressure
-                //Real gp = incflo_cc_to_nodal(i,j,k,gradp_arr); // get nodal pressure gradient
-#if (AMREX_SPACEDIM == 3)
-                // Real hyd_press = m_p_amb_surface - gp*depth_from_surface; // get hydrostatic pressure
-                // Real hyd_press = incflo_get_hydrostatic_pressure(i, j, k, rho_arr, probhi[2], int(hi.z), dx[2], m_gravity[2], m_p_amb_surface);
-#elif (AMREX_SPACEDIM == 2)
-                // Real hyd_press = m_p_amb_surface - gp*depth_from_surface; // get hydrostatic pressure
-                // Real hyd_press = incflo_get_hydrostatic_pressure(i, j, k, rho_arr, probhi[1], int(hi.y), dx[1], m_gravity[1], m_p_amb_surface);
-#endif
-//                if (m_include_perturb_pressure) {
-//                   hyd_press += p_nodal_arr(i,j,k);
-//                }
-                // nodal viscosity
                 if (m_do_vof) {
-#if (AMREX_SPACEDIM == 3)
                     eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof,pressure);
-#elif (AMREX_SPACEDIM == 2)
-                    eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof,pressure);
-#endif
                 }
                 else {
-#if (AMREX_SPACEDIM == 3)
                     auto [visc, include] = Viscosity_Single(sr,order,m_fluid,pressure);
-#elif (AMREX_SPACEDIM == 2)
-                    auto [visc, include] = Viscosity_Single(sr,order,m_fluid,pressure);
-#endif
                     if (include) eta_arr(i,j,k) = visc;
                     else eta_arr(i,j,k) = 0.0;
                 }
