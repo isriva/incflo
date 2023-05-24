@@ -172,9 +172,9 @@ void incflo::Evolve()
         if ((m_GranVel_int > 0) and (m_nstep % m_GranVel_int == 0)) {
                 Vector<Real> gran_vel = ComputeGranVel();
 #if (AMREX_SPACEDIM == 3)
-                granoutfile << "Time, <rho ux>, <rho uy>, <rho uz> " <<  m_cur_time << " " << gran_vel[0] << " " << gran_vel[1] << " " << gran_vel[2] << std::endl;
+                granoutfile <<  m_cur_time << " " << gran_vel[0] << " " << gran_vel[1] << " " << gran_vel[2] << std::endl;
 #elif (AMREX_SPACEDIM == 2)
-                granoutfile << "Time, <rho ux>, <rho uy> " <<  m_cur_time << " " << gran_vel[0] << " " << gran_vel[1] << std::endl;
+                granoutfile <<  m_cur_time << " " << gran_vel[0] << " " << gran_vel[1] << std::endl;
 #endif
         }
 
