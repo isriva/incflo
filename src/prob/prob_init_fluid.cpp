@@ -785,9 +785,6 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
             if (m_smoothing_width < 0.0) { // discontinuous transition
 #if (AMREX_SPACEDIM == 3)
                 if (z > split) {
-#elif (AMREX_SPACEDIM == 2)
-                if (y > split) {
-#endif
                     density(i,j,k) = rho_1;
                     tracer(i,j,k) = 0.0;
                 }
@@ -795,6 +792,17 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
                     density(i,j,k) = rho_2;
                     tracer(i,j,k) = 1.0;
                 }
+#endif
+#if (AMREX_SPACEDIM == 2)
+                if (y > split) {
+                    density(i,j,k) = rho_1;
+                    tracer(i,j,k) = 0.0;
+                }
+                else {
+                    density(i,j,k) = rho_2;
+                    tracer(i,j,k) = 1.0;
+                }
+#endif
             }
             else { // smoothed interface
 #if (AMREX_SPACEDIM == 3)
@@ -808,81 +816,37 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
                 density(i,j,k) = rho_1*smoother + rho_2*(1.0-smoother);
             }
 
-            gp0(i,j,k,0) = 0.0;
 #if (AMREX_SPACEDIM == 3)
+            gp0(i,j,k,0) = m_gravity[0] * density(i,j,k);;
             gp0(i,j,k,1) = 0.0;
             gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
 #elif (AMREX_SPACEDIM == 2)
+            gp0(i,j,k,0) = m_gravity[0] * density(i,j,k);;
             gp0(i,j,k,1) = m_gravity[1] * density(i,j,k);
 #endif
-
             vel(i,j,k,0) = 0.0;
             vel(i,j,k,1) = 0.0;
 #if (AMREX_SPACEDIM == 3)
             vel(i,j,k,2) = 0.0;
 #endif
-            Real rho_bar = rho_1/rho_2;
-            if ((m_fluid_vof[0].fluid_model == incflo::FluidModel::Newtonian) and (m_fluid_vof[1].fluid_model == incflo::FluidModel::Granular)) { // Newtonian on Granular
-#if (AMREX_SPACEDIM == 3)
-                Real angle = std::atan(std::abs(m_gravity[0])/std::abs(m_gravity[2]));
-                Real H = 0.5*(probhi[2]-problo[2]);
-#elif (AMREX_SPACEDIM == 2)
-                Real angle = std::atan(std::abs(m_gravity[0])/std::abs(m_gravity[1]));
-                Real H = 0.5*(probhi[1]-problo[1]);
-#endif
-                Real sin_angle = std::sin(angle);
-                Real X = (2.0/3.0/m_fluid_vof[1].diam)*sqrt(std::cos(angle))*(std::tan(angle) - m_fluid_vof[1].tau_0)/m_fluid_vof[1].A_0;
-                Real Y = std::pow(1.0 + (rho_1/rho_2), 1.5) - std::pow((rho_1/rho_2), 1.5);
-                Real tau_0 = rho_1*std::abs(m_gravity[2])*sin_angle*H - m_fluid_vof[0].mu*X*Y;
-
-#if (AMREX_SPACEDIM == 3)
-                if (z > split) {
-                    vel(i,j,k,0) = (1.0/m_fluid_vof[0].mu) * (2*H - z) * (rho_1*std::abs(m_gravity[2])*sin_angle*H - tau_0);
-                }
-                else {
-                    vel(i,j,k,0) = (2.0/3.0/m_fluid_vof[1].diam)*sqrt(std::cos(angle)*std::abs(m_gravity[2])*H*H*H)*((std::tan(angle) - m_fluid_vof[1].tau_0)/m_fluid_vof[1].A_0)*(std::pow(1.0 + (rho_1/rho_2), 1.5) - std::pow(1.0 + (rho_1/rho_2) - (z/H), 1.5));
-                }
-#elif (AMREX_SPACEDIM == 2)
-                if (y > split) {
-                    vel(i,j,k,0) = (1.0/m_fluid_vof[0].mu) * (2*H - y) * (rho_1*std::abs(m_gravity[1])*sin_angle*H - tau_0);
-                }
-                else {
-                    vel(i,j,k,0) = (2.0/3.0/m_fluid_vof[1].diam)*sqrt(std::cos(angle)*std::abs(m_gravity[1])*H*H*H)*((std::tan(angle) - m_fluid_vof[1].tau_0)/m_fluid_vof[1].A_0)*(std::pow(1.0 + (rho_1/rho_2), 1.5) - std::pow(1.0 + (rho_1/rho_2) - (y/H), 1.5));
-                }
-#endif
-            }
-            //vel(i,j,k,0) = 0.0;
         }
         else {
-            Real x = problo[0] + (i+0.5)*dx[0];
-            Real y = problo[1] + (j+0.5)*dx[1];
-            Real z = problo[2] + (k+0.5)*dx[2];
-
             density(i,j,k) = rho;
-
-            gp0(i,j,k,0) = 0.0;
-            gp0(i,j,k,1) = 0.0;
-            gp0(i,j,k,2) = m_gravity[2] * rho;
-
             tracer(i,j,k) = 1.0;
 
-            // set a velocity profile based on constant viscosity
-            Real H = probhi[2]-problo[2];
-            Real angle = std::atan(std::abs(m_gravity[0])/std::abs(m_gravity[2]));
-            Real sin_angle = std::sin(angle);
-            Real scale = rho*std::abs(m_gravity[2])*H*H*0.5*sin_angle/m_fluid.mu;
-            vel(i,j,k,0) = scale*(1.0 - (1.0 - z/H)*(1.0 - z/H));
-            //vel(i,j,k,0) = scale*z/H;
-            //if (m_fluid_model == incflo::FluidModel::Bingham) {
-            //    vel(i,j,k,0) = scale*(1.0 - (1.0 - z/H)*(1.0 - z/H)) - z*m_tau_0/m_mu;
-            //}
-            if (m_fluid.fluid_model == incflo::FluidModel::Granular) {
-                scale = (2.0/3.0/m_fluid.diam)*sqrt(std::cos(angle))*(std::tan(angle) - m_fluid.tau_0)/m_fluid.A_0;
-                vel(i,j,k,0) = scale*(1.0 - std::pow((1.0-z/H),1.5));
-            }
-            //vel(i,j,k,0) = 0.0;
+#if (AMREX_SPACEDIM == 3)
+            gp0(i,j,k,0) = m_gravity[0] * density(i,j,k);;
+            gp0(i,j,k,1) = 0.0;
+            gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
+#elif (AMREX_SPACEDIM == 2)
+            gp0(i,j,k,0) = m_gravity[0] * density(i,j,k);;
+            gp0(i,j,k,1) = m_gravity[1] * density(i,j,k);
+#endif
+            vel(i,j,k,0) = 0.0;
             vel(i,j,k,1) = 0.0;
+#if (AMREX_SPACEDIM == 3)
             vel(i,j,k,2) = 0.0;
+#endif
         }
     });
 }
