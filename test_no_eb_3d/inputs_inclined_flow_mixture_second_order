@@ -10,8 +10,8 @@ steady_state            =   0           # Steady-state solver?
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
 #.......................................#
-incflo.fixed_dt         =   -0.01       # Use this constant dt if > 0
-incflo.cfl              = 0.2
+incflo.fixed_dt         =   -0.01        # Use this constant dt if > 0
+incflo.cfl              =   0.2
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
@@ -39,7 +39,7 @@ incflo.vof.n_1              = 0.0 -1.0
 
 incflo.mu_s                 =   0.0       # Scalar diffusion coefficient mu (mu = rho * nu)
 
-incflo.diffusion_type        = 2             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
+incflo.diffusion_type        = 0             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
 incflo.convection_type       = "BDS"
 incflo.do_second_rheology_1  = 1
 incflo.constant_density      = false

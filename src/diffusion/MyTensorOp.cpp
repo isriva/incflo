@@ -209,7 +209,7 @@ MyTensorOp::apply (int amrlev, int mglev, MultiFab& out, MultiFab& in, BCMode bc
     BL_PROFILE("MyTensorOp::apply()");
 
 //    {
-//        std::string plotfilename = "vel2_before_Lap";
+//        std::string plotfilename = "vel_before_Lap";
 //        std::ofstream ofs(plotfilename, std::ofstream::out);
 //        for (MFIter mfi(in); mfi.isValid(); ++mfi) {
 //            ofs<<std::setprecision(16)<< (in[mfi])<<std::endl;
@@ -225,14 +225,14 @@ MyTensorOp::apply (int amrlev, int mglev, MultiFab& out, MultiFab& in, BCMode bc
 //        }
 //        ofs.close();
 //    }
-//    {
-//        std::string plotfilename = "vel2_after_Lap";
-//        std::ofstream ofs(plotfilename, std::ofstream::out);
-//        for (MFIter mfi(in); mfi.isValid(); ++mfi) {
-//            ofs<<std::setprecision(16)<< (in[mfi])<<std::endl;
-//        }
-//        ofs.close();
-//    }
+   {
+       std::string plotfilename = "vel2_after_Lap";
+       std::ofstream ofs(plotfilename, std::ofstream::out);
+       for (MFIter mfi(in); mfi.isValid(); ++mfi) {
+           ofs<<std::setprecision(16)<< (in[mfi])<<std::endl;
+       }
+       ofs.close();
+   }
 
     if (mglev >= m_kappa[amrlev].size()) return;
 
