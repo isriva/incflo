@@ -1,21 +1,21 @@
-amrex.fpe_trap_invalid=1                # have a trap to catch a bug 
+amrex.fpe_trap_invalid=1                # hav a trap to catch a bug 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            SIMULATION STOP            #
 #.......................................#
-stop_time               =   10         # Max (simulated) time to evolve
+stop_time               =   25         # Max (simulated) time to evolve
 max_step                =   10          # Max number of time steps
 steady_state            =   0           # Steady-state solver? 
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
 #.......................................#
-incflo.fixed_dt         =   -0.1      # Use this constant dt if > 0
+incflo.fixed_dt         =   -0.01       # Use this constant dt if > 0
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
 #.......................................#
-amr.plot_per_exact      =   0.1        # Steps between plot files
-#amr.plot_int            =    10          # Steps between plot files
+amr.plot_per_exact      =   1.0         # Steps between plot files
+#amr.plot_int            =    1
 amr.check_int           =   -1          # Steps between checkpoint files
 amr.restart             =   ""          # Checkpoint to restart from 
 
@@ -25,14 +25,42 @@ amr.restart             =   ""          # Checkpoint to restart from
 incflo.gravity          =   0.  0.  0.  # Gravitational force (3D)
 incflo.ro_0             =   1.          # Reference density 
 
-incflo.fluid_model      =   "powerlaw"    # Fluid model (rheology)
+incflo.fluid_model      =   "granular"    # Fluid model (rheology)
 incflo.do_second_rheology_1 = 1
 incflo.mu               =   1.0            # Dynamic viscosity coefficient
 incflo.mu_1             =   1.0            # Dynamic viscosity coefficient
 incflo.n                =   2.0
 incflo.n_1              =   1.5
+incflo.diam             =   0.1
+incflo.rho              =   1.0
+incflo.tau_0            =   1.0
+incflo.tau_1            =   1.0
+incflo.papa_reg         =   1.0e-5
+incflo.papa_reg_1       =   1.0e-5
+incflo.A_0              =   0.528
+incflo.alpha_0          =   0.4
+incflo.A_1              =   0.02
+incflo.alpha_1          =   0.3
 
-incflo.diffusion_type    =    3          # Defualt is 2 (Implicit); 1 is CN, 0 is Explicit, 3 is RK2-Explicit
+
+
+
+
+
+
+
+
+
+
+
+
+
+            
+                
+
+
+                
+incflo.diffusion_type    =    0          # Defualt is 2 (Implicit); 1 is CN, 0 is Explicit 
 #incflo.convection_type       = "BDS"
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#

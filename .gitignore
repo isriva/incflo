@@ -21,6 +21,8 @@ chk?????
 plt?????
 chk?????.old.???????
 plt?????.old.???????
+**/plt**
+**/*.mat
 
 # Code Info
 compile_commands.json
@@ -64,18 +66,15 @@ exec/*.vtp
 exec/*.pvtp
 test/*.ex
 test/tmp_build_dir/
-test/Backtrace.*
+**/Backtrace.*
 test/*plt*/
 test/chk*/
-<<<<<<< HEAD
 test*/tmp_build_dir/
 test*/*.ex
 test*/*.cpp
 
 CMakeFiles
 CMakeCache.txt
-=======
->>>>>>> origin/development
 
 **/*.ex
 **/tmp_build_dir/

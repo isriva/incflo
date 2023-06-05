@@ -69,6 +69,7 @@ void incflo::Advance()
 
         // But dt should be doubled this time. -- TODO
         // label the new "vel" as velocity_temp
+        amrex::Print() << "I am here " << std::endl;
         copy_from_new_to_temp_velocity();
         // int ng = nghost_state();
         // for (int lev = 0; lev <= finest_level; ++lev) {
@@ -100,7 +101,7 @@ void incflo::Advance()
                 fillpatch_tracer(lev, m_t_old[lev], m_leveldata[lev]->tracer_o, ng);
             }
         }
-        m_cur_time = 1;
+        // m_cur_time = 1;
         ApplyCorrector();
         copy_from_old_to_new_velocity();
     }

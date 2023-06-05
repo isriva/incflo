@@ -570,7 +570,7 @@ private:
     bool m_use_mac_phi_in_godunov = false;
 
     enum struct DiffusionType {
-        Invalid, Explicit, Crank_Nicolson, Implicit, Exp_RK2
+        Invalid, Explicit, Crank_Nicolson, Implicit, Exp_RK2, predict_correct
     };
     DiffusionType m_diff_type = DiffusionType::Implicit;
 

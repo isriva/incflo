@@ -95,6 +95,8 @@ void incflo::ReadParameters ()
             m_diff_type = DiffusionType::Implicit;
         } else if (diffusion_type == 3) {
             m_diff_type = DiffusionType::Exp_RK2;
+        } else if (diffusion_type == 4) {
+            m_diff_type = DiffusionType::predict_correct;
         } else {
             amrex::Abort("We currently require diffusion_type = 0 for explicit, 1 for Crank-Nicolson or 2 for implicit");
         }
