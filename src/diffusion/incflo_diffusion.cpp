@@ -65,6 +65,17 @@ incflo::compute_divtau1(Vector<MultiFab      *> const& divtau,
 }
 
 void
+incflo::compute_divtau2(Vector<MultiFab      *> const& divtau,
+                        Vector<MultiFab const*> const& vel,
+                        Vector<MultiFab const*> const& density,
+                        Vector<MultiFab const*> const& eta)
+{
+    if (use_tensor_solve) {
+        get_diffusion_tensor_op2()->compute_divtau(divtau, vel, density, eta);
+    }
+}
+
+void
 incflo::compute_laps(Vector<MultiFab      *> const& laps,
                      Vector<MultiFab const*> const& scalar,
                      Vector<MultiFab const*> const& density,
@@ -112,6 +123,13 @@ incflo::get_diffusion_tensor_op1 ()
 {
     if (!m_diffusion_tensor_op1) m_diffusion_tensor_op1.reset(new DiffusionTensorOp1(this));
     return m_diffusion_tensor_op1.get();
+}
+
+DiffusionTensorOp2*
+incflo::get_diffusion_tensor_op2 ()
+{
+    if (!m_diffusion_tensor_op2) m_diffusion_tensor_op2.reset(new DiffusionTensorOp2(this));
+    return m_diffusion_tensor_op2.get();
 }
 
 DiffusionScalarOp*

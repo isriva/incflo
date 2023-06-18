@@ -3,6 +3,8 @@ CEXE_sources += DiffusionTensorOp.cpp DiffusionScalarOp.cpp
 CEXE_headers += DiffusionTensorOp.H   DiffusionScalarOp.H
 CEXE_sources += DiffusionTensorOp1.cpp
 CEXE_headers += DiffusionTensorOp1.H
+CEXE_sources += DiffusionTensorOp2.cpp
+CEXE_headers += DiffusionTensorOp2.H
 
 CEXE_sources += MyTensorOp.cpp
 CEXE_sources += MyTensorOp_grad.cpp

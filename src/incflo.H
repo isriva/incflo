@@ -16,6 +16,7 @@
 #include <DiffusionScalarOp.H>
 #include <DiffusionTensorOp.H>
 #include <DiffusionTensorOp1.H>
+#include <DiffusionTensorOp2.H>
 
 class incflo : public amrex::AmrCore
 {
@@ -23,6 +24,7 @@ public:
 
     friend DiffusionTensorOp;
     friend DiffusionTensorOp1;
+    friend DiffusionTensorOp2;
     friend DiffusionScalarOp;
 
     enum struct FluidModel {
@@ -192,10 +194,10 @@ public:
                           amrex::Vector<amrex::MultiFab const*> const& eta);
 
     // TODO: Second RE tensor
-    //void compute_divtau2 (amrex::Vector<amrex::MultiFab      *> const& divtau,
-    //                      amrex::Vector<amrex::MultiFab const*> const& velocity,
-    //                      amrex::Vector<amrex::MultiFab const*> const& density,
-    //                      amrex::Vector<amrex::MultiFab const*> const& eta);
+    void compute_divtau2 (amrex::Vector<amrex::MultiFab      *> const& divtau,
+                         amrex::Vector<amrex::MultiFab const*> const& velocity,
+                         amrex::Vector<amrex::MultiFab const*> const& density,
+                         amrex::Vector<amrex::MultiFab const*> const& eta);
 
     amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
     average_nodal_velocity_eta_to_faces (int lev, amrex::MultiFab const& nodal_eta) const;
@@ -668,6 +670,7 @@ private:
         amrex::MultiFab divtau;
         amrex::MultiFab divtau_o;
         amrex::MultiFab divtau_o1;
+        amrex::MultiFab divtau_o2;
         amrex::MultiFab laps;
         amrex::MultiFab laps_o;
 
@@ -716,6 +719,7 @@ private:
 
     std::unique_ptr<DiffusionTensorOp> m_diffusion_tensor_op;
     std::unique_ptr<DiffusionTensorOp1> m_diffusion_tensor_op1;
+    std::unique_ptr<DiffusionTensorOp2> m_diffusion_tensor_op2;
     std::unique_ptr<DiffusionScalarOp> m_diffusion_scalar_op;
 
     //
@@ -797,6 +801,7 @@ private:
 
     DiffusionTensorOp* get_diffusion_tensor_op ();
     DiffusionTensorOp1* get_diffusion_tensor_op1 ();
+    DiffusionTensorOp2* get_diffusion_tensor_op2 ();
     DiffusionScalarOp* get_diffusion_scalar_op ();
 
     amrex::Vector<amrex::MultiFab*> get_velocity_old () noexcept;
@@ -819,6 +824,7 @@ private:
     amrex::Vector<amrex::MultiFab*> get_conv_tracer_new () noexcept;
     amrex::Vector<amrex::MultiFab*> get_divtau_old () noexcept;
     amrex::Vector<amrex::MultiFab*> get_divtau_old1 () noexcept;
+    amrex::Vector<amrex::MultiFab*> get_divtau_old2 () noexcept;
     amrex::Vector<amrex::MultiFab*> get_divtau_new () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_old () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_new () noexcept;

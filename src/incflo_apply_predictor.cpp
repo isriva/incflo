@@ -120,9 +120,9 @@ void incflo::ApplyPredictor (bool incremental_projection)
         if (m_do_second_rheology_1) {
             vel_eta1.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
         }
-        //if (m_do_second_rheology_2) { // TODO: add the second RE tensor 
-        //    vel_eta2.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
-        //}
+        if (m_do_second_rheology_2) { // TODO: add the second RE tensor 
+           vel_eta2.emplace_back(amrex::convert(grids[lev],IntVect::TheNodeVector()), dmap[lev], 1, 0, MFInfo(), Factory(lev));
+        }
         
         if (m_advect_tracer) {
             tra_eta.emplace_back(grids[lev], dmap[lev], m_ntrac, 1, MFInfo(), Factory(lev));
@@ -164,10 +164,10 @@ void incflo::ApplyPredictor (bool incremental_projection)
         compute_divtau1(get_divtau_old1(),get_velocity_old_const(),
                         get_density_old_const(),GetVecOfConstPtrs(vel_eta1));
     }
-    //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
-    //    compute_divtau2(get_divtau_old3(),get_velocity_old_const(),
-    //                    get_density_old_const(),GetVecOfConstPtrs(vel_eta2));
-    //}
+    if (m_do_second_rheology_2) { // TODO: add the second RE tensor
+       compute_divtau2(get_divtau_old2(),get_velocity_old_const(),
+                       get_density_old_const(),GetVecOfConstPtrs(vel_eta2));
+    }
 
     // *************************************************************************************
     // Compute explicit diffusive terms
@@ -401,11 +401,11 @@ void incflo::ApplyPredictor (bool incremental_projection)
             compute_viscosity(GetVecOfPtrs(vel_eta1),get_density_new(), 
                     get_velocity_old(), get_pressure_const(), m_cur_time, 1, 1);
         }
-        //if (m_do_second_rheology_2) //TODO: add the second RE tensor 
-        //{
-        //    compute_viscosity(GetVecOfPtrs(vel_eta2),get_density_new(), 
-        //            get_velocity_old(),m_cur_time, 1, 2);
-        //}
+        if (m_do_second_rheology_2) //TODO: add the second RE tensor 
+        {
+           compute_viscosity(GetVecOfPtrs(vel_eta2),get_density_new(), 
+                   get_velocity_old(), get_pressure_const(), m_cur_time, 1, 2);
+        }
     }
 
     // *************************************************************************************

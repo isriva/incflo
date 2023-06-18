@@ -8,5 +8,7 @@ target_sources(incflo
    DiffusionTensorOp.H
    DiffusionTensorOp1.cpp
    DiffusionTensorOp1.H
+   DiffusionTensorOp2.cpp
+   DiffusionTensorOp2.H
    incflo_diffusion.cpp
    )
