@@ -194,7 +194,6 @@ void incflo::ReadRheologyParameters()
                             << " tau_1 = " << m_fluid.tau_1
                             << ", papa_reg_1 = " << m_fluid.papa_reg_1 << std::endl;
          }
-
          else
          {
              amrex::Abort("Unknown fluid_model!");
@@ -431,6 +430,22 @@ void incflo::ReadRheologyParameters()
                             << " tau_1 = " << fluid0.tau_1
                             << ", papa_reg_1 = " << fluid0.papa_reg_1 << " and rho = " << fluid0.rho << std::endl;
          }
+         // Suspension in a Newtronian matrix fluid0
+         else if(fluid_model[0] == "suspension")
+         {
+             fluid0.fluid_model = FluidModel::Suspension;
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(mu_2[0] > 0.0,
+                     "No point in using suspension rheology with mu_2 = 0");
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[0] > 0.0,
+                        "Papanastasiou regularisation parameter must be positive");
+             
+             fluid0.mu = mu[0];
+             fluid0.papa_reg = papa_reg[0];
+             amrex::Print() << "Suspension fluid0 with"
+                            << " mu = " << fluid0.mu
+                            << ", mu_2 = " << fluid0.mu_2
+                            << ", papa_reg = " << fluid0.papa_reg << " and rho = " << fluid0.rho << std::endl;
+         }
          else
          {
              amrex::Abort("Unknown fluid_model for fluid0! Choose either newtonian, powerlaw, bingham, hb, smd");
@@ -594,6 +609,23 @@ void incflo::ReadRheologyParameters()
                             << " alpha_1 = " << fluid1.alpha_1
                             << " tau_1 = " << fluid1.tau_1
                             << ", papa_reg_1 = " << fluid1.papa_reg_1 << " and rho = " << fluid1.rho << std::endl;
+         }
+         else if(fluid_model[1] == "suspension")
+         {
+             fluid1.fluid_model = FluidModel::Suspension;
+
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(mu_2[1] > 0.0,
+                     "No point in using suspension rheology with mu_2 = 0");
+             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[1] > 0.0,
+                        "Papanastasiou regularisation parameter must be positive");
+             
+             fluid1.mu = mu[1];
+             fluid1.mu_2 = mu_2[1];
+             fluid1.papa_reg = papa_reg[1];
+             amrex::Print() << "Suspension fluid1 with"
+                            << " mu = " << fluid1.mu
+                            << ", mu_2 = " << fluid1.mu_2
+                            << ", papa_reg = " << fluid1.papa_reg << " and rho = " << fluid1.rho << std::endl;
          }
          else
          {

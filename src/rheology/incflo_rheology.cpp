@@ -91,6 +91,11 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
         //    visc = -1*std::pow(2*(expterm(sr/papa_reg) / papa_reg),2)*(p_bg)*inertialNum(sr, p_bg, ro_0, diam, mu_3, A_3, 2*alpha_3);
         //}
     }
+    else if (fluid.fluid_model == incflo::FluidModel::Suspension) {
+        // This visc is the second order strain rate term: 2v_2 in Tanner's review paper (2018)
+        visc = 2*(-4.4)*fluid.mu*fluid.papa_reg;
+        include = true;
+    }
     return {visc, include};
 }
 

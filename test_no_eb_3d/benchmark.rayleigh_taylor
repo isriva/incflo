@@ -39,7 +39,7 @@ incflo.advection_type   = "Godunov"
 incflo.constant_density = false
 incflo.advect_tracer    = true
 
-incflo.diffusion_type        = 1             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
+incflo.diffusion_type        = 0             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
 
 incflo.verbose               =   2           # incflo_level
 mac_proj.verbose             =   1           # MAC Projector
