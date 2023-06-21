@@ -25,6 +25,8 @@ void incflo::ReadParameters ()
 #endif
         pp.query("KE_int", m_KE_int);
         pp.query("GranVel_int", m_GranVel_int);
+        
+        pp.queryarr("n_cell",m_n_cells,0,AMREX_SPACEDIM);
 
     } // end prefix amr
 
@@ -55,11 +57,17 @@ void incflo::ReadParameters ()
         pp.query("advect_tracer"            , m_advect_tracer);
         pp.query("test_tracer_conservation" , m_test_tracer_conservation);
 
+        // use gp0 (initial gradp) in pressure forcing
+        pp.query("use_base_gradp", m_use_base_gradp);
+        
+        // pressure-dependent viscosity (0: none; 1: use p0; 2: use p - p(z=zhi) + m_p_top_surface
+        pp.query("p_dep_visc", m_p_dep_visc);
+
+        // pressure at the top surface (for certain problems)
+        pp.query("p_top_surface", m_p_top_surface);
+
         // Are we advecting velocity or momentum (default is velocity)
         pp.query("advect_momentum"                  , m_advect_momentum);
-
-        // Are we setting the base pressure gradient based on initial variable density?
-        pp.query("base_pressure_gradient"    , m_base_pressure_gradient);
 
         // Are we using MOL or Godunov?
         pp.query("advection_type"                   , m_advection_type);
@@ -272,6 +280,7 @@ void incflo::ReadIOParameters()
         m_plt_rho        = 1;
         m_plt_tracer     = 1;
         m_plt_p_nd       = 0;
+        m_plt_p_visc     = 0;
         m_plt_macphi     = 0;
         m_plt_eta        = 1;
         m_plt_eta_1      = 0;
@@ -298,6 +307,7 @@ void incflo::ReadIOParameters()
     pp.query("plt_rho",        m_plt_rho   );
     pp.query("plt_tracer",     m_plt_tracer);
     pp.query("plt_p_nd",       m_plt_p_nd  );
+    pp.query("plt_p_visc",     m_plt_p_visc  );
     pp.query("plt_macphi",     m_plt_macphi);
     pp.query("plt_eta",        m_plt_eta   );
     pp.query("plt_eta_1",      m_plt_eta_1  );

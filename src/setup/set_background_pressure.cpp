@@ -4,8 +4,6 @@ using namespace amrex;
 
 void incflo::set_background_pressure ()
 {
-    m_p000 = m_ic_p;
-
     if (m_probtype == 11 || m_probtype == 111 || m_probtype == 112 || m_probtype == 113 ||
         m_probtype == 500 ) {
         m_use_boussinesq = true;
@@ -45,13 +43,13 @@ void incflo::set_background_pressure ()
             }
         }
         // (3) gravity
-        if (!m_base_pressure_gradient) {
+        if (!m_use_base_gradp) {
             for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
                 Real dpdx = m_gravity[dir] * m_ro_0;
                 if (std::abs(dpdx) > std::numeric_limits<Real>::epsilon()) {
             //        if (delp_dir == -1) {
             //            delp_dir = dir;
-                        m_gp0[dir] = dpdx;
+            //            m_gp0[dir] = dpdx;
             //        } else {
             //            amrex::Abort("set_background_pressure: how did this happen?");
             //        }

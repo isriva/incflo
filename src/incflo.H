@@ -339,22 +339,29 @@ public:
     amrex::Real m_p_amb_surface = amrex::Real(0.0); // set pressure at the free surface
     amrex::Vector<FLUID_t> m_fluid_vof;
     
-    virtual void compute_viscosity (amrex::Vector<amrex::MultiFab*> const& eta,
-                                    amrex::Vector<amrex::MultiFab*> const& rho,
-                                    amrex::Vector<amrex::MultiFab*> const& vel,
+    virtual void compute_viscosity (amrex::Vector<amrex::MultiFab      *> const& eta,
+                                    amrex::Vector<amrex::MultiFab const*> const& rho,
+                                    amrex::Vector<amrex::MultiFab const*> const& vel,
                                     amrex::Vector<amrex::MultiFab const*> const& press,
-                                    amrex::Vector<amrex::MultiFab const*> const& gradp,
-                                    amrex::Real time, int nghost, int type=1);
+                                    amrex::Vector<amrex::MultiFab const*> const& press0,
+                                    amrex::Vector<amrex::MultiFab      *> const& press_visc,
+                                    amrex::Real time, int nghost, int order=1);
+
     virtual void compute_viscosity_at_level (int lev,
-                                             amrex::MultiFab* eta,
-                                             amrex::MultiFab* rho,
-                                             amrex::MultiFab* vel,
+                                             amrex::MultiFab      * eta,
+                                             amrex::MultiFab const* rho,
+                                             amrex::MultiFab const* vel,
                                              amrex::MultiFab const* press,
-                                             amrex::MultiFab const* gradp,
+                                             amrex::MultiFab const* press0,
+                                             amrex::MultiFab      * press_visc,
                                              amrex::Geometry& lev_geom,
-                                             amrex::Real time, int nghost, int type);
+                                             amrex::Real time, int nghost, int order);
+
     virtual void compute_tracer_diff_coeff (amrex::Vector<amrex::MultiFab*> const& tra_eta,
                                             int nghost);
+
+    virtual void getsurfacepressure (amrex::MultiFab const* press, amrex::Gpu::DeviceVector<amrex::Real>& p_surface_in, 
+                                     amrex::Geometry& geom);
 
 #ifdef AMREX_USE_EB
     ///////////////////////////////////////////////////////////////////////////
@@ -391,7 +398,10 @@ private:
 
     //
     // member variables
-    //
+    
+
+    // Number of cells
+    amrex::Vector<int> m_n_cells{{1,1,1}};
 
     // Be verbose?
     int m_verbose = 0;
@@ -506,11 +516,12 @@ private:
     // ***************************************************************
     // ***************************************************************
 
-    amrex::Real m_p000 = 0.0; // background pressure at node (0,0,0).
+    // Pressure gradient and gravity vectors
     amrex::Vector<amrex::Real> m_gp0{{0.0, 0.0, 0.0}};
     amrex::Vector<amrex::Real> m_gravity{{0.0, 0.0, 0.0}};
     amrex::Vector<amrex::Real> m_delp{{0.0, 0.0, 0.0}};
 
+    // extent of granular material in two-component flows
     amrex::Vector<amrex::Real> m_gran_lim{{-1.0, -1.0}};
 
     // Scalar diffusive coefficient
@@ -525,15 +536,24 @@ private:
     bool m_constant_density = true;
     bool m_advect_tracer    = false;
     bool m_test_tracer_conservation = false;
+    
+    // use gp0 in computing pressure forcing
+    bool m_use_base_gradp = false; // use gp0 in computing pressure forcing
+
+    // pressure-dependent viscosity (-1: none; 0: use p0; 1: use p - p(z=zhi) + m_p_top_surface
+    int m_p_dep_visc = -1;
+
+    // do strain rate computation (nodal) for viscosity
+    bool m_need_strainrate = false;
+
+    // pressure at top surface
+    amrex::Real m_p_top_surface = 0.0; // pressure at top surface
 
     // If false then we update velocity using the convective   form, u dot grad u
     // If  true then we update velocity using the conservative form, del dot (u u)
     bool m_advect_momentum = false;
 
     std::string m_advection_type = "Godunov";
-
-    // set the base pressure gradient based on variable initial density?
-    bool m_base_pressure_gradient = false;
 
 #ifdef AMREX_USE_EB
     std::string m_redistribution_type = "StateRedist";
@@ -622,6 +642,7 @@ private:
     int m_plt_rho         = 1;
     int m_plt_tracer      = 0;
     int m_plt_p_nd        = 0;
+    int m_plt_p_visc      = 0;
     int m_plt_macphi      = 0;
     int m_plt_eta         = 1;
     int m_plt_eta_1       = 0;
@@ -682,8 +703,20 @@ private:
         amrex::MultiFab laps;
         amrex::MultiFab laps_o;
 
+        // base state pressure
+        amrex::MultiFab p0;
+
         // base state pressure gradient
         amrex::MultiFab gp0;
+
+        // viscosity
+        amrex::MultiFab vel_eta;
+
+        // pressure for viscosity
+        amrex::MultiFab p_visc;
+
+        // base state density
+        amrex::MultiFab density0;
     };
 
     amrex::Vector<std::unique_ptr<LevelData> > m_leveldata;
@@ -837,6 +870,8 @@ private:
     amrex::Vector<amrex::MultiFab*> get_divtau_new () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_old () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_new () noexcept;
+    amrex::Vector<amrex::MultiFab*> get_vel_eta () noexcept;
+    amrex::Vector<amrex::MultiFab*> get_p_visc () noexcept;
     //
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_old_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_new_const () const noexcept;
@@ -848,9 +883,11 @@ private:
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tracer_old_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tracer_new_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_p_nd_const () const noexcept;
-    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_gradp_const () const noexcept;
+    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_p0_const () const noexcept;
+    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_p_visc_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_vel_forces_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tra_forces_const () const noexcept;
+    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_vel_eta_const () const noexcept;
 
     [[nodiscard]] amrex::Vector<int> const& get_velocity_iconserv () const noexcept { return m_iconserv_velocity; }
     [[nodiscard]] amrex::Vector<int> const& get_density_iconserv () const noexcept { return m_iconserv_density; }
