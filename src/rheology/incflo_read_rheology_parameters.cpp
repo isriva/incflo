@@ -37,6 +37,7 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model_s == "powerlaw")
          {
             m_fluid.fluid_model = FluidModel::Powerlaw;
+            m_need_strainrate = true;
             
             pp.query("mu_1", m_fluid.mu_1);
             //AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.mu_1 >= 0.0,
@@ -59,6 +60,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model_s == "bingham")
          {
             m_fluid.fluid_model = FluidModel::Bingham;
+            m_need_strainrate = true;
+            
             pp.query("tau_0", m_fluid.tau_0);
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.tau_0 > 0.0,
                     "No point in using Bingham rheology with tau_0 = 0");
@@ -78,6 +81,7 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model_s == "hb")
          {
             m_fluid.fluid_model = FluidModel::HerschelBulkley;
+            m_need_strainrate = true;
          
             pp.query("mu_1", m_fluid.mu_1);
             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.mu_1 >= 0.0,
@@ -117,6 +121,7 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model_s == "smd")
          {
              m_fluid.fluid_model = FluidModel::deSouzaMendesDutra;
+            m_need_strainrate = true;
              
              pp.query("n", m_fluid.n_0);
              AMREX_ALWAYS_ASSERT(m_fluid.n_0 > 0.0);
@@ -139,6 +144,9 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model_s == "granular")
          {
              m_fluid.fluid_model = FluidModel::Granular;
+             m_need_strainrate = true;
+
+//             if (m_p_dep_visc == -1) amrex::Abort("m_p_dep_visc = 0 or 1 for granular");
             
              pp.query("diam", m_fluid.diam);
                 AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.diam > 0.0,
@@ -307,6 +315,7 @@ void incflo::ReadRheologyParameters()
          if(fluid_model[0] == "newtonian")
          {
              fluid0.fluid_model = FluidModel::Newtonian;
+             
              fluid0.mu = mu[0];
              amrex::Print() << "Newtonian fluid0 with"
                             << " mu = " << fluid0.mu << " and rho = " << fluid0.rho << std::endl;
@@ -314,6 +323,7 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[0] == "powerlaw")
          {
              fluid0.fluid_model = FluidModel::Powerlaw;
+             m_need_strainrate = true;
              
              if (mu.size() == 2) fluid0.mu = mu[0];
              if (n_0.size() == 2) fluid0.n_0 = n_0[0];
@@ -340,6 +350,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[0] == "bingham")
          {
              fluid0.fluid_model = FluidModel::Bingham;
+             m_need_strainrate = true;
+             
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[0] > 0.0,
                      "No point in using Bingham rheology with tau_0 = 0");
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[0] > 0.0,
@@ -356,6 +368,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[0] == "hb")
          {
              fluid0.fluid_model = FluidModel::HerschelBulkley;
+             m_need_strainrate = true;
+             
              AMREX_ALWAYS_ASSERT(n_0[0] > 0.0);
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(mu_1[0] >= 0.0,
                  "viscosities mu_1 must be positive or zero");
@@ -394,6 +408,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[0] == "smd")
          {
              fluid0.fluid_model = FluidModel::deSouzaMendesDutra;
+             m_need_strainrate = true;
+             
              AMREX_ALWAYS_ASSERT(n_0[0] > 0.0);
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[0] > 0.0,
                      "No point in using de Souza Mendes-Dutra rheology with tau_0 = 0");
@@ -412,6 +428,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[0] == "granular")
          {
              fluid0.fluid_model = FluidModel::Granular;
+             m_need_strainrate = true;
+//             if (m_p_dep_visc == -1) amrex::Abort("m_p_dep_visc = 0 or 1 for granular");
 
              if (diam.size() == 2) fluid0.diam = diam[0];
              if (A_0.size() == 2) fluid0.A_0 = A_0[0];
@@ -489,6 +507,7 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[1] == "powerlaw")
          {
              fluid1.fluid_model = FluidModel::Powerlaw;
+             m_need_strainrate = true;
 
              if (mu.size() == 2) fluid1.mu = mu[1];
              if (n_0.size() == 2) fluid1.n_0 = n_0[1];
@@ -515,6 +534,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[1] == "bingham")
          {
              fluid1.fluid_model = FluidModel::Bingham;
+             m_need_strainrate = true;
+
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[1] > 0.0,
                      "No point in using Bingham rheology with tau_0 = 0");
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[1] > 0.0,
@@ -531,6 +552,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[1] == "hb")
          {
              fluid1.fluid_model = FluidModel::HerschelBulkley;
+             m_need_strainrate = true;
+
              AMREX_ALWAYS_ASSERT(n_0[1] > 0.0);
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(mu_1[1] >= 0.0,
                  "viscosities mu_1 must be positive or zero");
@@ -569,6 +592,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[1] == "smd")
          {
              fluid1.fluid_model = FluidModel::deSouzaMendesDutra;
+             m_need_strainrate = true;
+             
              AMREX_ALWAYS_ASSERT(n_0[1] > 0.0);
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[1] > 0.0,
                      "No point in using de Souza Mendes-Dutra rheology with tau_0 = 0");
@@ -587,6 +612,8 @@ void incflo::ReadRheologyParameters()
          else if(fluid_model[1] == "granular")
          {
              fluid1.fluid_model = FluidModel::Granular;
+             m_need_strainrate = true;
+//             if (m_p_dep_visc == -1) amrex::Abort("m_p_dep_visc = 0 or 1 for granular");
 
              if (diam.size() == 2) fluid1.diam = diam[1];
              if (A_0.size() == 2) fluid1.A_0 = A_0[1];
