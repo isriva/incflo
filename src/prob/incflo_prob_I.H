@@ -66,25 +66,57 @@
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi);
 
-    void column_collapse       (amrex::Box const& vbx, amrex::Box const& gbx,
+    void column_collapse       (amrex::Box const& vbx, amrex::Box const& gbx, amrex::Box const& nbx,
                                amrex::Array4<amrex::Real> const& vel,
                                amrex::Array4<amrex::Real> const& density,
                                amrex::Array4<amrex::Real> const& tracer,
-                               amrex::Array4<amrex::Real> const& gp0,
+                               amrex::Array4<amrex::Real> const& gp,
+                               amrex::Array4<amrex::Real> const& p0,
                                amrex::Box const& domain,
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi);
 
-    void inclined_channel      (amrex::Box const& vbx, amrex::Box const& gbx,
+
+    void column_collapse_granular      (amrex::Box const& vbx, amrex::Box const& gbx, amrex::Box const& nbx,
+                                        amrex::Array4<amrex::Real> const& vel,
+                                        amrex::Array4<amrex::Real> const& density,
+                                        amrex::Array4<amrex::Real> const& tracer,
+                                        amrex::Array4<amrex::Real> const& p_nd,
+                                        amrex::Array4<amrex::Real> const& p0,
+                                        amrex::Array4<amrex::Real> const& p_visc,
+                                        amrex::Array4<amrex::Real> const& gp,
+                                        amrex::Array4<amrex::Real> const& gp0,
+                                        amrex::Array4<amrex::Real> const& density0,
+                                        amrex::Box const& domain,
+                                        amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
+                                        amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
+                                        amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi);
+
+    void inclined_channel      (amrex::Box const& vbx, amrex::Box const& gbx, amrex::Box const& nbx,
                                amrex::Array4<amrex::Real> const& vel,
                                amrex::Array4<amrex::Real> const& density,
                                amrex::Array4<amrex::Real> const& tracer,
-                               amrex::Array4<amrex::Real> const& gp0,
+                               amrex::Array4<amrex::Real> const& gp,
                                amrex::Box const& domain,
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
                                amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi);
+
+    void inclined_channel_granular      (amrex::Box const& vbx, amrex::Box const& gbx, amrex::Box const& nbx,
+                                         amrex::Array4<amrex::Real> const& vel,
+                                         amrex::Array4<amrex::Real> const& density,
+                                         amrex::Array4<amrex::Real> const& tracer,
+                                         amrex::Array4<amrex::Real> const& p_nd,
+                                         amrex::Array4<amrex::Real> const& p0,
+                                         amrex::Array4<amrex::Real> const& p_visc,
+                                         amrex::Array4<amrex::Real> const& gp,
+                                         amrex::Array4<amrex::Real> const& gp0,
+                                         amrex::Array4<amrex::Real> const& density0,
+                                         amrex::Box const& domain,
+                                         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
+                                         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
+                                         amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi);
 
     void init_tuscan (amrex::Box const& vbx, amrex::Box const& gbx,
                       amrex::Array4<amrex::Real> const& vel,

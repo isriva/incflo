@@ -12,9 +12,11 @@ void incflo::prob_init_fluid (int lev)
 
     ld.p_nd.setVal(0.0);
     ld.gp.setVal(0.0);
+    ld.vel_eta.setVal(1.0);
 
     ld.density.setVal(m_ro_0);
     ld.density_o.setVal(m_ro_0);
+    ld.density0.setVal(0.0);
 
     AMREX_D_TERM(ld.velocity.setVal(m_ic_u, 0, 1);,
                  ld.velocity.setVal(m_ic_v, 1, 1);,
@@ -25,7 +27,9 @@ void incflo::prob_init_fluid (int lev)
     for (MFIter mfi(ld.density); mfi.isValid(); ++mfi)
     {
         const Box& vbx = mfi.validbox();
+//        const Box& vbx = mfi.growntilebox(1);
         const Box& gbx = mfi.fabbox();
+        const Box& nbx = mfi.tilebox(IntVect::TheNodeVector()); // nodal box
         if (0 == m_probtype || 114 == m_probtype )
         { }
         else if (1 == m_probtype)
@@ -160,21 +164,59 @@ void incflo::prob_init_fluid (int lev)
         }
         else if (52 == m_probtype)
         {
-            inclined_channel(vbx, gbx,
+            inclined_channel(vbx, gbx, nbx, 
                             ld.velocity.array(mfi),
                             ld.density.array(mfi),
                             ld.tracer.array(mfi),
-                            ld.gp0.array(mfi),
+                            ld.gp.array(mfi),
                             domain, dx, problo, probhi);
+        }
+        else if (521 == m_probtype)
+        {
+            //if (!m_do_vof) {
+            //    if (m_fluid.fluid_model != incflo::FluidModel::Granular) amrex::Abort("probtype=521 works for granular only");
+            //}
+            //else {
+            //    if ((m_fluid_vof[0].fluid_model != incflo::FluidModel::Granular) &&
+            //            (m_fluid_vof[1].fluid_model != incflo::FluidModel::Granular))
+            //        amrex::Abort("probtype=521 works for granular only");
+            //}
+            //if (!m_use_base_gradp) amrex::Abort("probtype=521 requires incflo.use_base_gradp = true");
+            inclined_channel_granular(vbx, gbx, nbx, 
+                                      ld.velocity.array(mfi),
+                                      ld.density.array(mfi),
+                                      ld.tracer.array(mfi),
+                                      ld.p_nd.array(mfi),
+                                      ld.p0.array(mfi),
+                                      ld.p_visc.array(mfi),
+                                      ld.gp.array(mfi),
+                                      ld.gp0.array(mfi),
+                                      ld.density0.array(mfi),
+                                      domain, dx, problo, probhi);
         }
         else if (53 == m_probtype)
         {
-            column_collapse (vbx, gbx,
+            column_collapse (vbx, gbx, nbx, 
                             ld.velocity.array(mfi),
                             ld.density.array(mfi),
                             ld.tracer.array(mfi),
-                            ld.gp0.array(mfi),
+                            ld.gp.array(mfi),
+                            ld.p0.array(mfi),
                             domain, dx, problo, probhi);
+        }
+        else if (531 == m_probtype)
+        {
+            column_collapse_granular (vbx, gbx, nbx, 
+                                      ld.velocity.array(mfi),
+                                      ld.density.array(mfi),
+                                      ld.tracer.array(mfi),
+                                      ld.p_nd.array(mfi),
+                                      ld.p0.array(mfi),
+                                      ld.p_visc.array(mfi),
+                                      ld.gp.array(mfi),
+                                      ld.gp0.array(mfi),
+                                      ld.density0.array(mfi),
+                                      domain, dx, problo, probhi);
         }
 #if 0
         else if (500 == m_probtype)
@@ -685,11 +727,12 @@ void incflo::init_rayleigh_taylor_vof (Box const& vbx, Box const& /*gbx*/,
 #endif
 }
 
-void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/,
+void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/, Box const& nbx,
                                Array4<Real> const& vel,
                                Array4<Real> const& density,
                                Array4<Real> const& tracer,
-                               Array4<Real> const& gp0,
+                               Array4<Real> const& gp,
+                               Array4<Real> const& p0,
                                Box const& /*domain*/,
                                GpuArray<Real, AMREX_SPACEDIM> const& dx,
                                GpuArray<Real, AMREX_SPACEDIM> const& problo,
@@ -721,9 +764,9 @@ void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/,
             density(i,j,k) = rho_1;
             tracer(i,j,k) = 0.0;
         }
-        gp0(i,j,k,0) = 0.0;
-        gp0(i,j,k,1) = 0.0; 
-        gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
+        gp(i,j,k,0) = 0.0;
+        gp(i,j,k,1) = 0.0; 
+        gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
 
         vel(i,j,k,0) = 0.0;
         vel(i,j,k,1) = 0.0;
@@ -737,8 +780,9 @@ void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/,
             density(i,j,k) = rho_1;
             tracer(i,j,k) = 0.0;
         }
-        gp0(i,j,k,0) = 0.0;
-        gp0(i,j,k,1) = m_gravity[1] * density(i,j,k);
+        gp(i,j,k,0) = 0.0;
+        gp(i,j,k,1) = 0.0;
+//        gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
 
         vel(i,j,k,0) = 0.0;
         vel(i,j,k,1) = 0.0;
@@ -746,42 +790,170 @@ void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/,
 
     });
 }
-void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
+void incflo::column_collapse_granular  (Box const& vbx, Box const& /*gbx*/, Box const& nbx,
+                                        Array4<Real> const& vel,
+                                        Array4<Real> const& density,
+                                        Array4<Real> const& tracer,
+                                        Array4<Real> const& p_nd,
+                                        Array4<Real> const& p0,
+                                        Array4<Real> const& p_visc,
+                                        Array4<Real> const& gp,
+                                        Array4<Real> const& gp0,
+                                        Array4<Real> const& density0,
+                                        Box const& /*domain*/,
+                                        GpuArray<Real, AMREX_SPACEDIM> const& dx,
+                                        GpuArray<Real, AMREX_SPACEDIM> const& problo,
+                                        GpuArray<Real, AMREX_SPACEDIM> const& probhi)
+{
+    if (!m_do_vof) amrex::Abort("need vof for this setup");
+    if ((m_gran_lim[0] < Real(0.0)) or (m_gran_lim[1] < Real(0.0))) amrex::Abort("provide m_gran_lim for this problem");
+    
+    Real rho_1, rho_2, rho;
+    rho_1 = m_fluid_vof[0].rho;
+    rho_2 = m_fluid_vof[1].rho;
+    amrex::Print() << "rho1 and rho2 during column collapse setup: " << rho_1 << " " << rho_2 << std::endl;
+
+#if (AMREX_SPACEDIM == 3)
+    const Real H = probhi[2] - problo[2];
+    amrex::Print() << "granular region: " << problo[0] << " < x < " << m_gran_lim[0] << "; and " << problo[2] << " z < " << m_gran_lim[1] << std::endl;
+#elif (AMREX_SPACEDIM == 2)
+    const Real H = probhi[1] - problo[1];
+    amrex::Print() << "granular region: " << problo[0] << " < x < " << m_gran_lim[0] << "; and " << problo[1] << " y < " << m_gran_lim[1] << std::endl;
+#endif
+    
+    amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        Real x = problo[0] + (i+0.5)*dx[0];
+        Real y = problo[1] + (j+0.5)*dx[1];
+#if (AMREX_SPACEDIM == 3)
+        Real z = problo[2] + (k+0.5)*dx[2];
+
+        if ((x < m_gran_lim[0]) and (z < m_gran_lim[1])) {
+            density(i,j,k) = rho_2;
+            tracer(i,j,k) = 1.0;
+        }
+        else {
+            density(i,j,k) = rho_1;
+            tracer(i,j,k) = 0.0;
+        }
+        gp(i,j,k,0) = 0.0;
+        gp(i,j,k,1) = 0.0; 
+//        gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
+
+        gp0(i,j,k,0) = gp(i,j,k,0);
+        gp0(i,j,k,1) = gp(i,j,k,1);
+        gp0(i,j,k,2) = gp(i,j,k,2);
+
+        vel(i,j,k,0) = 0.0;
+        vel(i,j,k,1) = 0.0;
+        vel(i,j,k,2) = 0.0;
+#elif (AMREX_SPACEDIM == 2)
+        if ((x < m_gran_lim[0]) and (y < m_gran_lim[1])) {
+            density(i,j,k) = rho_2;
+            tracer(i,j,k) = 1.0;
+        }
+        else {
+            density(i,j,k) = rho_1;
+            tracer(i,j,k) = 0.0;
+        }
+        gp(i,j,k,0) = 0.0;
+        gp(i,j,k,1) = 0.0;
+//        gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
+        
+        gp0(i,j,k,0) = gp(i,j,k,0);
+        gp0(i,j,k,1) = gp(i,j,k,1);
+
+        vel(i,j,k,0) = 0.0;
+        vel(i,j,k,1) = 0.0;
+#endif
+
+        density0(i,j,k) = density(i,j,k);
+    });
+
+    amrex::ParallelFor(nbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        Real x = problo[0] + i*dx[0];
+        Real y = problo[1] + j*dx[1];
+#if (AMREX_SPACEDIM == 3)
+        Real z = problo[2] + k*dx[2];
+#endif
+#if (AMREX_SPACEDIM == 3)
+        Real p_at_split = m_p_top_surface + (H-m_gran_lim[1])*rho_1*std::abs(m_gravity[2]); // pressure at interface
+        if (x <  m_gran_lim[0]) { // contains granular interface
+            if (z > m_gran_lim[1]) {
+                p0(i,j,k) = m_p_top_surface + (H-z)*rho_1*std::abs(m_gravity[2]);
+            }
+            else {
+                p0(i,j,k) = p_at_split + (m_gran_lim[1]-z)*rho_2*std::abs(m_gravity[2]);
+            }
+        }
+        else { // all lighter fluid
+            p0(i,j,k) = m_p_top_surface + (H-z)*rho_1*std::abs(m_gravity[2]);
+        }
+#elif (AMREX_SPACEDIM == 2)
+        Real p_at_split = m_p_top_surface + (H-m_gran_lim[1])*rho_1*std::abs(m_gravity[1]); // pressure at interface
+        if (x <  m_gran_lim[0]) { // contains granular interface
+            if (y > m_gran_lim[1]) {
+                p0(i,j,k) = m_p_top_surface + (H-y)*rho_1*std::abs(m_gravity[1]);
+            }
+            else {
+                p0(i,j,k) = p_at_split + (m_gran_lim[1]-y)*rho_2*std::abs(m_gravity[1]);
+            }
+        }
+        else { // all lighter fluid
+            p0(i,j,k) = m_p_top_surface + (H-y)*rho_1*std::abs(m_gravity[1]);
+        }
+#endif
+        p_visc(i,j,k) = p0(i,j,k);
+//        p_nd(i,j,k) = p0(i,j,k);
+    });
+}
+
+
+void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/, Box const& nbx,
                                Array4<Real> const& vel,
                                Array4<Real> const& density,
                                Array4<Real> const& tracer,
-                               Array4<Real> const& gp0,
+                               Array4<Real> const& gp,
                                Box const& /*domain*/,
                                GpuArray<Real, AMREX_SPACEDIM> const& dx,
                                GpuArray<Real, AMREX_SPACEDIM> const& problo,
                                GpuArray<Real, AMREX_SPACEDIM> const& probhi)
 {
     Real rho_1, rho_2, rho;
+    Real mu_1, mu_2, nu_1, nu_2, nu;
 
 #if (AMREX_SPACEDIM == 3)
     const Real split = 0.5*(problo[2] + probhi[2]);
+    const Real H = probhi[2] - problo[2];
 #elif (AMREX_SPACEDIM == 2)
     const Real split = 0.5*(problo[1] + probhi[1]);
+    const Real H = probhi[1] - problo[1];
 #endif
 
     if (m_do_vof) {
         rho_1 = m_fluid_vof[0].rho;
         rho_2 = m_fluid_vof[1].rho;
+        mu_1 = m_fluid_vof[0].mu;
+        mu_2 = m_fluid_vof[1].mu;
+        nu_1 = m_fluid_vof[0].mu/rho_1; // kinematic viscosity
+        nu_2 = m_fluid_vof[1].mu/rho_2; // kinematic viscosity
+        nu = std::min(nu_1,nu_2); // kinematic viscosity of top fluid
         amrex::Print() << "rho1 and rho2 during incline channel setup: " << rho_1 << " " << rho_2 << std::endl;
     }
     else {
         rho = m_ro_0;
+        nu = m_fluid.mu/m_fluid.rho; // kinematic viscosity
         amrex::Print() << "rho during single_fluid incline channel setup: " << rho << std::endl;
     }
 
     amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        if (m_do_vof) {
-            Real x = problo[0] + (i+0.5)*dx[0];
-            Real y = problo[1] + (j+0.5)*dx[1];
+        Real y = problo[1] + (j+0.5)*dx[1];
 #if (AMREX_SPACEDIM == 3)
-            Real z = problo[2] + (k+0.5)*dx[2];
+        Real z = problo[2] + (k+0.5)*dx[2];
 #endif
+        if (m_do_vof) {
             if (m_smoothing_width < 0.0) { // discontinuous transition
 #if (AMREX_SPACEDIM == 3)
                 if (z > split) {
@@ -814,20 +986,45 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
 #endif
                 tracer(i,j,k) = 1.0 - smoother;
                 density(i,j,k) = rho_1*smoother + rho_2*(1.0-smoother);
+            
             }
 
 #if (AMREX_SPACEDIM == 3)
-            gp0(i,j,k,0) = m_gravity[0] * density(i,j,k);;
-            gp0(i,j,k,1) = 0.0;
-            gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
+            gp(i,j,k,0) = m_gravity[0] * density(i,j,k);          
+            gp(i,j,k,1) = 0.0;
+            gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
+
+            // two-layer newtonian fluid solution
+            Real halfH = 0.5*H;
+            Real A = ((-m_gravity[0] * halfH)/(2.0*(mu_1+mu_2))) * (rho_1*mu_2 + rho_2*mu_1 + 2.0*rho_2*mu_2);
+            Real C = ((-m_gravity[0] * halfH)/(2.0*(mu_1+mu_2))) * (3.0*rho_1*mu_2 - rho_2*mu_1 + 2.0*rho_1*mu_1);
+            if (z<split) {
+                vel(i,j,k,0) = (rho_2*m_gravity[0]/(2.0*mu_2))*z*z + A*z/mu_2;
+            }
+            else {
+                vel(i,j,k,0) = (rho_1*m_gravity[0]/(2.0*mu_1))*(z*z - H*H) + C*(z-H)/mu_1;
+            }
+            vel(i,j,k,1) = 0.0;
+            vel(i,j,k,2) = 0.0;
 #elif (AMREX_SPACEDIM == 2)
-            gp0(i,j,k,0) = m_gravity[0] * density(i,j,k);;
-            gp0(i,j,k,1) = m_gravity[1] * density(i,j,k);
-#endif
+            gp(i,j,k,0) = m_gravity[0] * density(i,j,k);
+            gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
+            
             vel(i,j,k,0) = 0.0;
             vel(i,j,k,1) = 0.0;
-#if (AMREX_SPACEDIM == 3)
-            vel(i,j,k,2) = 0.0;
+
+            // two-layer newtonian fluid solution
+            Real halfH = 0.5*H;
+            Real A = ((-m_gravity[0] * halfH)/(2.0*(mu_1+mu_2))) * (rho_1*mu_2 + rho_2*mu_1 + 2.0*rho_2*mu_2);
+            Real C = ((-m_gravity[0] * halfH)/(2.0*(mu_1+mu_2))) * (3.0*rho_1*mu_2 - rho_2*mu_1 + 2.0*rho_1*mu_1);
+            if (y<split) {
+                vel(i,j,k,0) = (rho_2*m_gravity[0]/(2.0*mu_2))*y*y + A*y/mu_2;
+            }
+            else {
+                vel(i,j,k,0) = (rho_1*m_gravity[0]/(2.0*mu_1))*(y*y - H*H) + C*(y-H)/mu_1;
+            }
+            vel(i,j,k,1) = 0.0;
+
 #endif
         }
         else {
@@ -835,18 +1032,205 @@ void incflo::inclined_channel (Box const& vbx, Box const& /*gbx*/,
             tracer(i,j,k) = 1.0;
 
 #if (AMREX_SPACEDIM == 3)
-            gp0(i,j,k,0) = m_gravity[0] * density(i,j,k);;
-            gp0(i,j,k,1) = 0.0;
-            gp0(i,j,k,2) = m_gravity[2] * density(i,j,k);
+            gp(i,j,k,0) = 0.0;
+            gp(i,j,k,0) = m_gravity[0] * density(i,j,k);          
+            gp(i,j,k,1) = 0.0;
+            gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
+            
+            vel(i,j,k,0) = 0.0;
+//            vel(i,j,k,0) = (m_gravity[0]*H/nu)*z - (0.5*m_gravity[0]/nu)*z*z;
+//            vel(i,j,k,0) = (m_gravity[0]*H/nu)*z;
+            vel(i,j,k,1) = 0.0;
+            vel(i,j,k,2) = 0.0;
 #elif (AMREX_SPACEDIM == 2)
-            gp0(i,j,k,0) = m_gravity[0] * density(i,j,k);;
-            gp0(i,j,k,1) = m_gravity[1] * density(i,j,k);
+            gp(i,j,k,0) = m_gravity[0] * density(i,j,k);
+//            gp(i,j,k,0) = 0.0;
+            gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
+            
+            vel(i,j,k,0) = 0.0;
+            vel(i,j,k,0) = y*(rho*m_gravity[0])*0.5*(probhi[1]-problo[1])/m_fluid.mu;
+//            vel(i,j,k,0) = (m_gravity[0]*H/nu)*y - (0.5*m_gravity[0]/nu)*y*y;
+//            vel(i,j,k,0) = (m_gravity[0]*H/nu)*y;
+            vel(i,j,k,1) = 0.0;
 #endif
+        }
+    });
+}
+
+void incflo::inclined_channel_granular (Box const& vbx, Box const& /*gbx*/, Box const& nbx,
+                                        Array4<Real> const& vel,
+                                        Array4<Real> const& density,
+                                        Array4<Real> const& tracer,
+                                        Array4<Real> const& p_nd,
+                                        Array4<Real> const& p0,
+                                        Array4<Real> const& p_visc,
+                                        Array4<Real> const& gp,
+                                        Array4<Real> const& gp0,
+                                        Array4<Real> const& density0,
+                                        Box const& /*domain*/,
+                                        GpuArray<Real, AMREX_SPACEDIM> const& dx,
+                                        GpuArray<Real, AMREX_SPACEDIM> const& problo,
+                                        GpuArray<Real, AMREX_SPACEDIM> const& probhi)
+{
+    Real rho_1, rho_2, rho;
+    Real nu_1, nu_2, nu;
+
+#if (AMREX_SPACEDIM == 3)
+    const Real split = 0.5*(problo[2] + probhi[2]);
+    const Real H = probhi[2] - problo[2];
+#elif (AMREX_SPACEDIM == 2)
+    const Real split = 0.5*(problo[1] + probhi[1]);
+    const Real H = probhi[1] - problo[1];
+#endif
+
+    if (m_do_vof) {
+        rho_1 = m_fluid_vof[0].rho;
+        rho_2 = m_fluid_vof[1].rho;
+        nu_1 = m_fluid_vof[0].mu/rho_1; // kinematic viscosity
+        nu_2 = m_fluid_vof[1].mu/rho_2; // kinematic viscosity
+        nu = std::min(nu_1,nu_2); // kinematic viscosity of top fluid
+        amrex::Print() << "rho1 and rho2 during incline channel setup: " << rho_1 << " " << rho_2 << std::endl;
+    }
+    else {
+        rho = m_fluid.rho;
+        nu = m_fluid.mu/m_fluid.rho; // kinematic viscosity
+        amrex::Print() << "rho during single_fluid incline channel setup: " << rho << std::endl;
+    }
+
+    amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        Real y = problo[1] + (j+0.5)*dx[1];
+#if (AMREX_SPACEDIM == 3)
+        Real z = problo[2] + (k+0.5)*dx[2];
+#endif
+        if (m_do_vof) {
+            if (m_smoothing_width < 0.0) { // discontinuous transition
+#if (AMREX_SPACEDIM == 3)
+                if (z > split) {
+                    density(i,j,k) = rho_1;
+                    tracer(i,j,k) = 0.0;
+                }
+                else {
+                    density(i,j,k) = rho_2;
+                    tracer(i,j,k) = 1.0;
+                }
+#endif
+#if (AMREX_SPACEDIM == 2)
+                if (y > split) {
+                    density(i,j,k) = rho_1;
+                    tracer(i,j,k) = 0.0;
+                }
+                else {
+                    density(i,j,k) = rho_2;
+                    tracer(i,j,k) = 1.0;
+                }
+#endif
+                density0(i,j,k) = density(i,j,k);
+            }
+            else { // smoothed interface
+#if (AMREX_SPACEDIM == 3)
+                Real z_rel = problo[2] + (k+0.5)*dx[2] - split;
+                Real smoother = 0.5*std::tanh(z_rel/(m_smoothing_width*dx[2]))+0.5; //goes from 0 to 1
+#elif (AMREX_SPACEDIM == 2)
+                Real y_rel = problo[1] + (j+0.5)*dx[1] - split;
+                Real smoother = 0.5*std::tanh(y_rel/(m_smoothing_width*dx[1]))+0.5; //goes from 0 to 1
+#endif
+                tracer(i,j,k) = 1.0 - smoother;
+                density(i,j,k) = rho_1*smoother + rho_2*(1.0-smoother);
+            
+                density0(i,j,k) = density(i,j,k);
+            }
+
+#if (AMREX_SPACEDIM == 3)
+            gp(i,j,k,0) = m_gravity[0] * density(i,j,k);          
+            gp(i,j,k,1) = 0.0;
+            gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
+
+            gp0(i,j,k,0) = 0.0;
+            gp0(i,j,k,1) = 0.0;
+            gp0(i,j,k,2) = 0.0;
+            
             vel(i,j,k,0) = 0.0;
             vel(i,j,k,1) = 0.0;
-#if (AMREX_SPACEDIM == 3)
             vel(i,j,k,2) = 0.0;
+#elif (AMREX_SPACEDIM == 2)
+            gp(i,j,k,0) = m_gravity[0] * density(i,j,k);
+            gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
+            
+            gp0(i,j,k,0) = 0.0;
+            gp0(i,j,k,1) = 0.0;
+  
+            vel(i,j,k,0) = 0.0;
+            vel(i,j,k,1) = 0.0;
 #endif
+        }
+        else {
+            density(i,j,k) = rho;
+            tracer(i,j,k) = 1.0;
+
+#if (AMREX_SPACEDIM == 3)
+            gp(i,j,k,0) = 0.0;
+            gp(i,j,k,0) = m_gravity[0] * density(i,j,k);          
+            gp(i,j,k,1) = 0.0;
+            gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
+            
+            gp0(i,j,k,0) = 0.0;
+            gp0(i,j,k,1) = 0.0;
+            gp0(i,j,k,2) = 0.0;
+  
+            vel(i,j,k,0) = 0.0;
+            vel(i,j,k,1) = 0.0;
+            vel(i,j,k,2) = 0.0;
+#elif (AMREX_SPACEDIM == 2)
+            gp(i,j,k,0) = 0.0;
+            gp(i,j,k,0) = m_gravity[0] * density(i,j,k);          
+            gp(i,j,k,1) = 0.0;
+            gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
+            
+            gp0(i,j,k,0) = 0.0;
+            gp0(i,j,k,1) = 0.0;
+
+            vel(i,j,k,0) = 0.0;
+            vel(i,j,k,1) = 0.0;
+#endif
+        }
+    });
+
+    amrex::ParallelFor(nbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        Real y = problo[1] + j*dx[1];
+#if (AMREX_SPACEDIM == 3)
+        Real z = problo[2] + k*dx[2];
+#endif
+        if (m_do_vof) {
+#if (AMREX_SPACEDIM == 3)
+            Real p_at_split = m_p_top_surface + (H-split)*rho_1*std::abs(m_gravity[2]); // pressure at interface
+            if (z > split) {
+                p0(i,j,k) = m_p_top_surface + (H-z)*rho_1*std::abs(m_gravity[2]);
+            }
+            else {
+                p0(i,j,k) = p_at_split + (split-z)*rho_2*std::abs(m_gravity[2]);
+            }
+#elif (AMREX_SPACEDIM == 2)
+            Real p_at_split = m_p_top_surface + (H-split)*rho_1*std::abs(m_gravity[1]); // pressure at interface
+            if (y > split) {
+                p0(i,j,k) = m_p_top_surface + (H-y)*rho_1*std::abs(m_gravity[1]);
+            }
+            else {
+                p0(i,j,k) = p_at_split + (split-y)*rho_2*std::abs(m_gravity[1]);
+            }
+#endif
+            p_visc(i,j,k) = p0(i,j,k);
+            p_nd(i,j,k) = p0(i,j,k);
+        }
+        else {
+#if (AMREX_SPACEDIM == 3)
+            p0(i,j,k) = m_p_top_surface + (H-z)*rho*std::abs(m_gravity[2]);
+#elif (AMREX_SPACEDIM == 2)
+            p0(i,j,k) = m_p_top_surface + (H-y)*rho*std::abs(m_gravity[1]);
+#endif
+            p_visc(i,j,k) = p0(i,j,k);
+            p_nd(i,j,k) = p0(i,j,k);
         }
     });
 }
