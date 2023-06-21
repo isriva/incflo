@@ -12,6 +12,7 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
       velocity_o(ba, dm, AMREX_SPACEDIM, ng_state, MFInfo(), fact),
       velocity_eb(ba, dm, AMREX_SPACEDIM, ng_state, MFInfo(), fact),
       density   (ba, dm, 1             , ng_state, MFInfo(), fact),
+      density0  (ba, dm, 1             , ng_state, MFInfo(), fact),
       density_eb(ba, dm, 1             , ng_state, MFInfo(), fact),
       density_o (ba, dm, 1             , ng_state, MFInfo(), fact),
       tracer    (ba, dm, ntrac         , ng_state, MFInfo(), fact),
@@ -21,10 +22,16 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
       p_nd      (amrex::convert(ba,IntVect::TheNodeVector()),
                      dm, 1             , 0 , MFInfo(), fact),
       gp        (ba, dm, AMREX_SPACEDIM, 1       , MFInfo(), fact),
+      gp0       (ba, dm, AMREX_SPACEDIM, 1       , MFInfo(), fact),
       conv_velocity_o(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact),
       conv_density_o (ba, dm, 1             , 0, MFInfo(), fact),
       conv_tracer_o  (ba, dm, ntrac         , 0, MFInfo(), fact),
-      gp0       (ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact)
+      p0        (amrex::convert(ba,IntVect::TheNodeVector()),
+                     dm, 1             , 0 , MFInfo(), fact),
+      p_visc    (amrex::convert(ba,IntVect::TheNodeVector()),
+                     dm, 1             , 0 , MFInfo(), fact),
+      vel_eta   (amrex::convert(ba,IntVect::TheNodeVector()),
+                     dm, 3             , 0 , MFInfo(), fact)
 {
     if (advection_type != "MOL") {
         divtau_o.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);

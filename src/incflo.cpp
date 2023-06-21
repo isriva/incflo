@@ -514,6 +514,26 @@ Vector<MultiFab*> incflo::get_laps_new () noexcept
     return r;
 }
 
+Vector<MultiFab*> incflo::get_vel_eta () noexcept
+{
+    Vector<MultiFab*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->vel_eta));
+    }
+    return r;
+}
+
+Vector<MultiFab*> incflo::get_p_visc () noexcept
+{
+    Vector<MultiFab*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->p_visc));
+    }
+    return r;
+}
+
 Vector<MultiFab const*> incflo::get_velocity_old_const () const noexcept
 {
     Vector<MultiFab const*> r;
@@ -574,22 +594,42 @@ Vector<MultiFab const*> incflo::get_tracer_new_const () const noexcept
     return r;
 }
 
-Vector<MultiFab const*> incflo::get_gradp_const () const noexcept
-{
-    Vector<MultiFab const*> r;
-    r.reserve(finest_level+1);
-    for (int lev = 0; lev <= finest_level; ++lev) {
-        r.push_back(&(m_leveldata[lev]->gp));
-    }
-    return r;
-}
-
 Vector<MultiFab const*> incflo::get_p_nd_const () const noexcept
 {
     Vector<MultiFab const*> r;
     r.reserve(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev) {
         r.push_back(&(m_leveldata[lev]->p_nd));
+    }
+    return r;
+}
+
+Vector<MultiFab const*> incflo::get_p0_const () const noexcept
+{
+    Vector<MultiFab const*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->p0));
+    }
+    return r;
+}
+
+Vector<MultiFab const*> incflo::get_p_visc_const () const noexcept
+{
+    Vector<MultiFab const*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->p_visc));
+    }
+    return r;
+}
+
+Vector<MultiFab const*> incflo::get_vel_eta_const () const noexcept
+{
+    Vector<MultiFab const*> r;
+    r.reserve(finest_level+1);
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        r.push_back(&(m_leveldata[lev]->vel_eta));
     }
     return r;
 }

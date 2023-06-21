@@ -107,7 +107,7 @@ void incflo::ApplyCorrector()
     //    in constructing the advection term
     // **********************************************************************************************
     Vector<MultiFab> vel_forces, tra_forces;
-    Vector<MultiFab> vel_eta, tra_eta;
+    Vector<MultiFab> tra_eta;
     for (int lev = 0; lev <= finest_level; ++lev) {
         vel_forces.emplace_back(grids[lev], dmap[lev], AMREX_SPACEDIM, nghost_force(),
                                 MFInfo(), Factory(lev));
@@ -115,7 +115,6 @@ void incflo::ApplyCorrector()
             tra_forces.emplace_back(grids[lev], dmap[lev], m_ntrac, nghost_force(),
                                     MFInfo(), Factory(lev));
         }
-        vel_eta.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
         if (m_advect_tracer) {
             tra_eta.emplace_back(grids[lev], dmap[lev], m_ntrac, 1, MFInfo(), Factory(lev));
         }
@@ -144,8 +143,7 @@ void incflo::ApplyCorrector()
     // *************************************************************************************
     // Compute viscosity / diffusive coefficients
     // *************************************************************************************
-    compute_viscosity(GetVecOfPtrs(vel_eta),
-                      get_density_new(), get_velocity_new(), get_pressure_const(),
+    compute_viscosity(get_vel_eta(), get_density_new(), get_velocity_new(), get_pressure_const(),
                       new_time, 1);
     compute_tracer_diff_coeff(GetVecOfPtrs(tra_eta),1);
 
@@ -154,7 +152,7 @@ void incflo::ApplyCorrector()
     if ( (m_diff_type == DiffusionType::Explicit) || use_tensor_correction )
     {
         compute_divtau(get_divtau_new(), get_velocity_new_const(),
-                       get_density_new_const(), GetVecOfConstPtrs(vel_eta));
+                       get_density_new_const(), get_vel_eta_const());
     }
 
     if (m_advect_tracer && m_diff_type == DiffusionType::Explicit) {
@@ -534,7 +532,7 @@ void incflo::ApplyCorrector()
         }
 
         Real dt_diff = (m_diff_type == DiffusionType::Implicit) ? m_dt : m_half*m_dt;
-        diffuse_velocity(get_velocity_new(), get_density_new(), GetVecOfConstPtrs(vel_eta), dt_diff);
+        diffuse_velocity(get_velocity_new(), get_density_new(), get_vel_eta_const(), dt_diff);
     }
 
     // **********************************************************************************************

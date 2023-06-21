@@ -358,6 +358,9 @@ void incflo::WritePlotFile()
     // Pressure
     if(m_plt_p_nd) ++ncomp;
 
+    // Pressure for viscosity
+    if(m_plt_p_visc) ++ncomp;
+
     // MAC phi
     if(m_plt_macphi) ncomp += 1;
 
@@ -494,6 +497,12 @@ void incflo::WritePlotFile()
         pltscaVarsName.push_back("p_nd");
         ++icomp;
     }
+    if (m_plt_p_visc) {
+        for (int lev = 0; lev <= finest_level; ++lev)
+            amrex::average_node_to_cellcenter(mf[lev], icomp, m_leveldata[lev]->p_visc, 0, 1);
+        pltscaVarsName.push_back("p_visc");
+        ++icomp;
+    }
 
     if (m_plt_macphi) {
         for (int lev = 0; lev <= finest_level; ++lev)
@@ -584,23 +593,8 @@ void incflo::WritePlotFile()
     }
 
     if (m_plt_eta) {
-        for (int lev = 0; lev <= finest_level; ++lev) {
-            MultiFab vel_eta(mf[lev], amrex::make_alias, icomp, 1);
-            const auto& ba = mf[lev].boxArray();
-            const auto& dm = mf[lev].DistributionMap();
-            const auto& fact = mf[lev].Factory();
-            MultiFab viscosity_nodal(amrex::convert(ba,IntVect(AMREX_D_DECL(1,1,1))), 
-                                     dm, 1, 0, MFInfo(), fact);
-            compute_viscosity_at_level(lev,
-                                       &viscosity_nodal,
-                                       &m_leveldata[lev]->density,
-                                       &m_leveldata[lev]->velocity,
-                                       &m_leveldata[lev]->p_nd,
-                                       &m_leveldata[lev]->gp,
-                                       Geom(lev),
-                                       m_cur_time, 0, 0);
-            amrex::average_node_to_cellcenter(vel_eta,0,viscosity_nodal,0,1,0);
-        }
+        for (int lev = 0; lev <= finest_level; ++lev)
+            amrex::average_node_to_cellcenter(mf[lev], icomp, m_leveldata[lev]->vel_eta, 0, 1);
         pltscaVarsName.push_back("eta");
         ++icomp;
     }
@@ -608,17 +602,8 @@ void incflo::WritePlotFile()
 #if (AMREX_SPACEDIM == 3)
     if (m_plt_eta_1) {
         if (m_do_second_rheology_1) {
-            for (int lev = 0; lev <= finest_level; ++lev) {
-                MultiFab vel_eta1(mf[lev], amrex::make_alias, icomp, 1);
-                compute_viscosity_at_level(lev,
-                                           &vel_eta1,
-                                           &m_leveldata[lev]->density,
-                                           &m_leveldata[lev]->velocity,
-                                           &m_leveldata[lev]->p_nd,
-                                           &m_leveldata[lev]->gp,
-                                           Geom(lev),
-                                           m_cur_time, 0, 1);
-            }
+            for (int lev = 0; lev <= finest_level; ++lev)
+                amrex::average_node_to_cellcenter(mf[lev], icomp, m_leveldata[lev]->vel_eta, 1, 1);
             pltscaVarsName.push_back("eta2");
             ++icomp;
         }
@@ -629,17 +614,8 @@ void incflo::WritePlotFile()
 
     if (m_plt_eta_2) {
         if (m_do_second_rheology_2) {
-            for (int lev = 0; lev <= finest_level; ++lev) {
-                MultiFab vel_eta2(mf[lev], amrex::make_alias, icomp, 1);
-                compute_viscosity_at_level(lev,
-                                           &vel_eta2,
-                                           &m_leveldata[lev]->density,
-                                           &m_leveldata[lev]->velocity,
-                                           &m_leveldata[lev]->p_nd,
-                                           &m_leveldata[lev]->gp,
-                                           Geom(lev),
-                                           m_cur_time, 0, 2);
-            }
+            for (int lev = 0; lev <= finest_level; ++lev)
+                amrex::average_node_to_cellcenter(mf[lev], icomp, m_leveldata[lev]->vel_eta, 2, 1);
             pltscaVarsName.push_back("eta3");
             ++icomp;
         }
