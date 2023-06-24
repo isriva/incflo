@@ -836,13 +836,13 @@ void incflo::column_collapse_granular  (Box const& vbx, Box const& /*gbx*/, Box 
             density(i,j,k) = rho_1;
             tracer(i,j,k) = 0.0;
         }
-        gp(i,j,k,0) = 0.0;
+        gp(i,j,k,0) = m_gravity[0] * density(i,j,k);
         gp(i,j,k,1) = 0.0; 
-//        gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
+        gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
 
-        gp0(i,j,k,0) = gp(i,j,k,0);
-        gp0(i,j,k,1) = gp(i,j,k,1);
-        gp0(i,j,k,2) = gp(i,j,k,2);
+        gp0(i,j,k,0) = 0.0;
+        gp0(i,j,k,1) = 0.0;
+        gp0(i,j,k,2) = 0.0;
 
         vel(i,j,k,0) = 0.0;
         vel(i,j,k,1) = 0.0;
@@ -856,12 +856,11 @@ void incflo::column_collapse_granular  (Box const& vbx, Box const& /*gbx*/, Box 
             density(i,j,k) = rho_1;
             tracer(i,j,k) = 0.0;
         }
-        gp(i,j,k,0) = 0.0;
-        gp(i,j,k,1) = 0.0;
-//        gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
+        gp(i,j,k,0) = m_gravity[0] * density(i,j,k);
+        gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
         
-        gp0(i,j,k,0) = gp(i,j,k,0);
-        gp0(i,j,k,1) = gp(i,j,k,1);
+        gp0(i,j,k,0) = 0.0;
+        gp0(i,j,k,1) = 0.0;
 
         vel(i,j,k,0) = 0.0;
         vel(i,j,k,1) = 0.0;
@@ -905,7 +904,7 @@ void incflo::column_collapse_granular  (Box const& vbx, Box const& /*gbx*/, Box 
         }
 #endif
         p_visc(i,j,k) = p0(i,j,k);
-//        p_nd(i,j,k) = p0(i,j,k);
+        p_nd(i,j,k) = p0(i,j,k);
     });
 }
 
