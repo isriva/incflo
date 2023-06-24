@@ -57,7 +57,7 @@ incflo::compute_MAC_projected_velocities (
         EB_interp_CellCentroid_to_FaceCentroid (*density[lev], GetArrOfPtrs(inv_rho[lev]),
                                                 0, 0, 1, geom[lev], get_density_bcrec());
 #else
-        amrex::average_cellcenter_to_face(GetArrOfPtrs(inv_rho[lev]), *density[lev], geom[lev]);
+        amrex::average_cellcenter_to_face(GetArrOfPtrs(inv_rho[lev]), *density[lev], geom[lev], true);
 #endif
 
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {

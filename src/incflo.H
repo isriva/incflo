@@ -200,9 +200,9 @@ public:
     //                      amrex::Vector<amrex::MultiFab const*> const& eta);
 #endif
     amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
-    average_nodal_velocity_eta_to_faces (int lev, amrex::MultiFab const& nodal_eta) const;
+    average_nodal_velocity_eta_to_faces (int lev, amrex::MultiFab const& nodal_eta, bool use_harmonic = false) const;
 
-    void average_nodal_to_face (amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>& fc, amrex::MultiFab const& nodal) const;
+    void average_nodal_to_face (amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>& fc, amrex::MultiFab const& nodal, bool use_harmonic) const;
 
 
     void diffuse_velocity (amrex::Vector<amrex::MultiFab      *> const&  velocity,

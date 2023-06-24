@@ -318,7 +318,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 // Get Density (nodal)
                 Real dens = m_ro_0;
                 if (m_do_vof) {
-                    dens = incflo_cc_to_nodal(i,j,k,rho_arr);
+                    dens = incflo_cc_to_nodal(i,j,k,rho_arr,true);
                 }
 
                 // Get Pressure (nodal)

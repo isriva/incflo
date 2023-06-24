@@ -492,21 +492,46 @@ amrex::Real incflo_strainrate_nodal (int i, int j, int k,
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real incflo_cc_to_nodal (int i, int j, int k, amrex::Array4<amrex::Real const> const& rho) noexcept
+amrex::Real incflo_cc_to_nodal (int i, int j, int k, amrex::Array4<amrex::Real const> const& rho, bool use_harmonic) noexcept
 {
     using namespace amrex;
 
+    Real nodal = 0.0;
+
 #if (AMREX_SPACEDIM == 3)
 
-    return Real(0.125)*(  rho(i-1,j-1,k-1) + rho(i,j-1,k-1)  + 
-                          rho(i-1,j,k-1)   + rho(i,j,k-1)    +
-                          rho(i-1,j-1,k)   + rho(i,j-1,k)    +
-                          rho(i-1,j,k)     + rho(i,j,k) );
+    if (!use_harmonic) {
+
+        nodal = Real(0.125)*(  rho(i-1,j-1,k-1) + rho(i,j-1,k-1)  + 
+                               rho(i-1,j,k-1)   + rho(i,j,k-1)    +
+                               rho(i-1,j-1,k)   + rho(i,j-1,k)    +
+                               rho(i-1,j,k)     + rho(i,j,k)      );
+
+    }
+
+    else {
+
+        nodal = Real(8.0) / (  (amrex::Real(1.0)/rho(i-1,j-1,k-1)) + (amrex::Real(1.0)/rho(i,j-1,k-1))  + 
+                               (amrex::Real(1.0)/rho(i-1,j,k-1))   + (amrex::Real(1.0)/rho(i,j,k-1))    +
+                               (amrex::Real(1.0)/rho(i-1,j-1,k))   + (amrex::Real(1.0)/rho(i,j-1,k))    +
+                               (amrex::Real(1.0)/rho(i-1,j,k))     + (amrex::Real(1.0)/rho(i,j,k))      );
+    }
+    return nodal;
 #elif (AMREX_SPACEDIM == 2)
     
-    return Real(0.25)*(   rho(i-1,j-1,k)   + rho(i,j-1,k)    +
-                          rho(i-1,j,k)     + rho(i,j,k) );
+    if (!use_harmonic) {
 
+        nodal = Real(0.25)*(   rho(i-1,j-1,k)   + rho(i,j-1,k)    +
+                               rho(i-1,j,k)     + rho(i,j,k)      );
+    }
+
+    else {
+
+        nodal = Real(4.0)/(   (amrex::Real(1.0)/rho(i-1,j-1,k))   + (amrex::Real(1.0)/rho(i,j-1,k))    +
+                              (amrex::Real(1.0)/rho(i-1,j,k))     + (amrex::Real(1.0)/rho(i,j,k))      );
+
+    }
+    return nodal;
 #endif
 }
 
