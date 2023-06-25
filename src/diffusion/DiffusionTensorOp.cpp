@@ -109,8 +109,7 @@ DiffusionTensorOp::diffuse_velocity (Vector<MultiFab*> const& velocity,
     //
     // So the constants and variable coefficients are:
     //
-    //      alpha: 1
-    //      beta: dt
+    //      alpha: 1f
     //      a: rho
     //      b: mu
 

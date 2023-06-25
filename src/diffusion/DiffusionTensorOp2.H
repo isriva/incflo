@@ -36,8 +36,8 @@ private:
 
     incflo* m_incflo;
 
-    std::unique_ptr<amrex::MyTensorOp> m_reg_solve_op1;
-    std::unique_ptr<amrex::MyTensorOp> m_reg_apply_op1;
+    std::unique_ptr<amrex::MyTensorOp> m_reg_solve_op2;
+    std::unique_ptr<amrex::MyTensorOp> m_reg_apply_op2;
 
     // DiffusionOp verbosity
     int m_verbose = 0;
