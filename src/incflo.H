@@ -394,6 +394,8 @@ private:
 
     amrex::Vector<amrex::Real> m_t_old;
     amrex::Vector<amrex::Real> m_t_new;
+    //EY
+    amrex::Vector<amrex::Real> m_t_temp;
 
     // Times
     amrex::Real m_cur_time     = amrex::Real( 0.0);
@@ -830,11 +832,10 @@ private:
 
     //
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_old_const () const noexcept;
-
     //EY 
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_temp_const () const noexcept;
-
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_new_const () const noexcept;
+
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_eb () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_density_eb () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tracer_eb () const noexcept;

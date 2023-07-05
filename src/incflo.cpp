@@ -136,7 +136,13 @@ void incflo::Evolve()
         // Advance to time t + dt
         Advance();
         m_nstep++;
-        m_cur_time += m_dt;
+
+        if (m_diff_type == DiffusionType::Exp_RK2)
+        {
+            m_cur_time += Real(0.5)*m_dt;
+        } else {
+            m_cur_time += m_dt;
+        }
 
         if (writeNow())
         {
@@ -218,6 +224,8 @@ void incflo::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& new_gr
 
     m_t_new[lev] = time;
     m_t_old[lev] = time - Real(1.e200);
+    //EY
+    m_t_temp[lev] = time - Real(1.e100);
 
     if (m_restart_file.empty()) {
         prob_init_fluid(lev);

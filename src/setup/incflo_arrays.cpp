@@ -60,6 +60,8 @@ void incflo::ResizeArrays ()
     // Time holders for fillpatch stuff
     m_t_new.resize(max_level + 1);
     m_t_old.resize(max_level + 1);
+    //EY
+    m_t_temp.resize(max_level + 1);
 
     m_leveldata.resize(max_level+1);
 

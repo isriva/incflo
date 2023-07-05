@@ -139,7 +139,7 @@ void incflo::ApplyCorrector (bool incremental_projection)
     // *************************************************************************************
 
     compute_viscosity(GetVecOfPtrs(vel_eta),
-                      get_density_new(), get_velocity_temp(), get_pressure_const(),
+                      get_density_old(), get_velocity_temp(), get_pressure_const(),
                       m_cur_time, 1, 0); 
     if (m_do_second_rheology_1) 
     {
@@ -165,6 +165,9 @@ void incflo::ApplyCorrector (bool incremental_projection)
     if (m_do_second_rheology_1) {
         compute_divtau1(get_divtau_old1(),get_velocity_temp_const(),
                         get_density_old_const(),GetVecOfConstPtrs(vel_eta1));
+        {
+            amrex::Print() << "second order corrector"  << std::endl;
+        }
     }
     //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
     //    compute_divtau2(get_divtau_old3(),get_velocity_temp_const(),
@@ -382,8 +385,9 @@ void incflo::ApplyCorrector (bool incremental_projection)
         for (MFIter mfi(ld.velocity,TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             Box const& bx = mfi.tilebox();
-            Array4<Real> const& vel = ld.velocity_o.array(mfi);
-            Array4<Real const> const& dvdt = ld.conv_velocity_o.const_array(mfi);
+            Array4<Real> const& vel_o = ld.velocity_o.array(mfi);
+            Array4<Real> const& vel = ld.velocity.array(mfi);
+            Array4<Real const> const& dvdt = ld.conv_velocity_temp.const_array(mfi);
             Array4<Real const> const& vel_f = vel_forces[lev].const_array(mfi);
             Array4<Real const> const& rho_old  = ld.density_o.const_array(mfi);
             Array4<Real const> const& rho_new  = ld.density.const_array(mfi);
@@ -415,9 +419,9 @@ void incflo::ApplyCorrector (bool incremental_projection)
                                      vel(i,j,k,1) *= rho_old(i,j,k);,
                                      vel(i,j,k,2) *= rho_old(i,j,k););
 
-			            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
-                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
-                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+			            AMREX_D_TERM(vel(i,j,k,0) += vel_o(i,j,k,0) + l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
+                                     vel(i,j,k,1) += vel_o(i,j,k,0) + l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
+                                     vel(i,j,k,2) += vel_o(i,j,k,0) + l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
 
 
                         if (m_do_second_rheology_1) {
@@ -437,14 +441,14 @@ void incflo::ApplyCorrector (bool incremental_projection)
                 } else {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
-                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
-                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
-                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+                        AMREX_D_TERM(vel(i,j,k,0) = vel_o(i,j,k,0) + l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
+                                     vel(i,j,k,1) = vel_o(i,j,k,1) + l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
+                                     vel(i,j,k,2) = vel_o(i,j,k,2) + l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
                                      
                         if (m_do_second_rheology_1) {
-                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
-                                         vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
-                                         vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                            AMREX_D_TERM(vel(i,j,k,0) = l_dt*(divtau_o1(i,j,k,0));,
+                                         vel(i,j,k,1) = l_dt*(divtau_o1(i,j,k,1));,
+                                         vel(i,j,k,2) = l_dt*(divtau_o1(i,j,k,2)););
                         }
                         //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
                         //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,

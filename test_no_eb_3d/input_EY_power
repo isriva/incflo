@@ -1,0 +1,112 @@
+amrex.fpe_trap_invalid=1                # have a trap to catch a bug 
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            SIMULATION STOP            #
+#.......................................#
+stop_time               =   .5         # Max (simulated) time to evolve
+max_step                =   -1          # Max number of time steps
+steady_state            =   0           # Steady-state solver? 
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#         TIME STEP COMPUTATION         #
+#.......................................#
+incflo.fixed_dt         =     5e-4      # Use this constant dt if > 0
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#            INPUT AND OUTPUT           #
+#.......................................#
+amr.plot_per_exact      =   0.1         # Steps between plot files
+#amr.plot_int            =    10         # Steps between plot files
+amr.check_int           =   -1          # Steps between checkpoint files
+amr.restart             =   ""          # Checkpoint to restart from 
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#               PHYSICS                 #
+#.......................................#
+incflo.gravity          =   0   0   0   # Gravitational force (3D)
+incflo.ro_0             =   1.          # Reference density 
+
+incflo.fluid_model      =   "powerlaw"  # Fluid model (rheology)
+incflo.do_second_rheology_1 = 1
+incflo.mu               =   1.0         # Dynamic viscosity coefficient
+incflo.mu_1             =   1.0         # Dynamic viscosity coefficient
+incflo.n                =   2.0
+incflo.n_1              =   1.5
+
+#ADD MORE PARAMETERS-------------------#
+#incflo.tau_0            =   1.0    f    # Dynamic viscosity coefficient
+#incflo.papa_reg         =   1.0e-3     # Dynamic viscosity coefficient
+#incflo.A_0              =   0.528
+#incflo.alpha_0          =   0.4
+
+
+
+incflo.diffusion_type    =    3          # Defualt is 2 (Implicit); 1 is CN, 0 is Explicit, 3 is RK2-Explicit
+#incflo.convection_type       = "BDS"
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#        ADAPTIVE MESH REFINEMENT       #
+#.......................................#
+amr.n_cell              =   16 32 16  # Grid cells at coarsest AMRlevel
+amr.max_grid_size       =   8 16 8
+#amr.max_grid_size       =   32 32 32
+amr.max_level           =   0           # Max AMR level in hierarchy 
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              GEOMETRY                 #
+#.......................................#
+geometry.prob_lo        =   0.  0.  0.  # Lo corner coordinates
+geometry.prob_hi        =   1.  2.  1.  # Hi corner coordinates
+geometry.is_periodic    =   0   1   0   # Periodicity x y z (0/1)
+
+incflo.delp             =   0.  2.  0.  # Prescribed (cyclic) pressure gradient
+
+# Boundary conditions
+zlo.type                =   "nsw"
+zlo.velocity            =   0.  0.  0.
+zhi.type                =   "nsw"
+zhi.velocity            =   0.  .01  0.
+
+xlo.type                =   "nsw"
+xlo.velocity            =   0.  0.  0.
+xhi.type                =   "nsw"
+xhi.velocity            =   0. 0. 0.
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#          NUMERICAL PARAMETERS         #
+#.......................................#
+incflo.steady_state_tol   = 1.e-5       # Tolerance for steady-state
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              VERBOSITY                #
+#.......................................#
+incflo.verbose              =  2        # incflo_level
+mac_proj.verbose            =  2        # MAC Projector
+nodal_proj.verbose          =  2        # Nodal Projector
+
+scalar_diffusion.verbose    =  2        # Scalar Diffusion
+scalar_diffusion.mg_verbose =  2        # Scalar Diffusion
+
+tensor_diffusion.verbose    =  2        # Tensor Diffusion
+tensor_diffusion.mg_verbose =  2        # Tensor Diffusion
+
+tensor_diffusion.num_pre_smooth  = 2    # How many relaxations going down the V-cycle
+tensor_diffusion.num_post_smooth = 2    # How many relaxations going   up the V-cycle
+
+#¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
+#              OUTPUT                   #
+#.......................................#
+amr.plt_velx            =  1
+amr.plt_vely            =  1
+amr.plt_velz            =  1
+amr.plt_gpx             =  1
+amr.plt_gpy             =  1
+amr.plt_gpz             =  1
+amr.plt_p_nd            =  1
+amr.plt_p_cc            =  1
+amr.plt_vort            =  1
+amr.plt_strainrate      =  1
+amr.plt_divtau         =  1
+amr.plt_divtau_1         =  1
+amr.plt_eta             =  1
+amr.plt_eta_1            =  1
+#amr.plt_ccse_regtest    =   1
+

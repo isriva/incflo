@@ -71,6 +71,8 @@ void incflo::ApplyPredictor (bool incremental_projection)
 
     // We use the new time value for things computed on the "*" state
     Real new_time = m_cur_time + m_dt;
+    //EY for RK2
+    Real half_time = m_cur_time + m_half*m_dt;
 
     // *************************************************************************************
     // Allocate space for the MAC velocities
@@ -703,7 +705,13 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // Project velocity field, update pressure
     //
     // **********************************************************************************************
-    if (m_diff_type != DiffusionType::Exp_RK2)
+    // ApplyProjection(GetVecOfConstPtrs(density_nph),new_time,m_dt,incremental_projection);
+    if (m_diff_type == DiffusionType::Exp_RK2)
+    {
+        // ApplyProjection(GetVecOfConstPtrs(density_nph),half_time,m_dt,incremental_projection);
+        amrex::Print() << "Skip the projection in the predictor step"  << std::endl;
+    }
+    else 
     {
         ApplyProjection(GetVecOfConstPtrs(density_nph),new_time,m_dt,incremental_projection);
     }

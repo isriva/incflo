@@ -19,6 +19,7 @@ void incflo::Advance()
     {
         m_t_old[lev] = m_cur_time;
         m_t_new[lev] = m_cur_time + m_dt;
+        m_t_temp[lev] = m_cur_time + Real(0.5)*m_dt;
     }
 
     if (m_verbose > 0)
@@ -53,32 +54,15 @@ void incflo::Advance()
 #endif
 
     ApplyPredictor();
+    {
+        amrex::Print() << "after predictor"  << std::endl;
+    }
 
-    //if (m_advection_type == "MOL") {
-    //    for (int lev = 0; lev <= finest_level; ++lev) {
-    //        fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity, ng);
-    //        fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density, ng);
-    //        if (m_advect_tracer) {
-    //            fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer, ng);
-    //        }
-    //    }
 
     // EY: for RK2 method (explicit)
     if (m_diff_type == DiffusionType::Exp_RK2)
     {
 
-        // But dt should be doubled this time. -- TODO
-        // label the new "vel" as velocity_temp
-        copy_from_new_to_temp_velocity();
-        // int ng = nghost_state();
-        // for (int lev = 0; lev <= finest_level; ++lev) {
-        //     fillpatch_velocity(lev, m_t_old[lev], m_leveldata[lev]->velocity_temp, ng);
-        //     fillpatch_density(lev, m_t_old[lev], m_leveldata[lev]->density_o, ng);
-        //     if (m_advect_tracer) {
-        //         fillpatch_tracer(lev, m_t_old[lev], m_leveldata[lev]->tracer_o, ng);
-        //     }
-        // }
-        
 
         // if (m_verbose > 0)
         // {
@@ -87,22 +71,35 @@ void incflo::Advance()
         //                 << " to new time " << m_cur_time 
         //                 << " with dt = " << m_dt << ".\n" << std::endl;
         // }
+            // Set new and old time to correctly use in fillpatching
 
-        // copy_from_new_to_old_velocity();
-        // copy_from_new_to_old_density();
-        // copy_from_new_to_old_tracer();
-
+            
+           
+        copy_from_new_to_temp_velocity();
+        // m_cur_time = m_cur_time + Real(0.5)*m_dt;
         int ng = nghost_state();
         for (int lev = 0; lev <= finest_level; ++lev) {
-            fillpatch_velocity(lev, m_t_old[lev], m_leveldata[lev]->velocity_temp, ng);
-            fillpatch_density(lev, m_t_old[lev], m_leveldata[lev]->density_o, ng);
+            fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity_temp, ng);
+            fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density_o, ng);
             if (m_advect_tracer) {
-                fillpatch_tracer(lev, m_t_old[lev], m_leveldata[lev]->tracer_o, ng);
+                fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer_o, ng);
             }
         }
-        m_cur_time = 1;
+
         ApplyCorrector();
-        copy_from_old_to_new_velocity();
+        // if (m_advection_type == "MOL") {
+        // {
+        //     amrex::Print() << "after corrector - MOL?"  << std::endl;
+        // }
+        // for (int lev = 0; lev <= finest_level; ++lev) 
+        // {
+        //     fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity, ng);
+        //     fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density, ng);
+        //     if (m_advect_tracer) {
+        //         fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer, ng);
+        //     }
+        // }
+        // }
     }
 
 #if 0
