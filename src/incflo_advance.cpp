@@ -19,7 +19,7 @@ void incflo::Advance()
     {
         m_t_old[lev] = m_cur_time;
         m_t_new[lev] = m_cur_time + m_dt;
-        m_t_temp[lev] = m_cur_time + Real(0.5)*m_dt;
+        m_t_temp[lev] = m_cur_time;
     }
 
     if (m_verbose > 0)
@@ -62,45 +62,21 @@ void incflo::Advance()
     // EY: for RK2 method (explicit)
     if (m_diff_type == DiffusionType::Exp_RK2)
     {
-
-
-        // if (m_verbose > 0)
-        // {
-        //     amrex::Print() << "\nStep " << m_nstep + 1
-        //                 << ": from old_time " << m_cur_time
-        //                 << " to new time " << m_cur_time 
-        //                 << " with dt = " << m_dt << ".\n" << std::endl;
-        // }
-            // Set new and old time to correctly use in fillpatching
-
-            
-           
         copy_from_new_to_temp_velocity();
-        // m_cur_time = m_cur_time + Real(0.5)*m_dt;
+
+        copy_from_new_to_old_velocity();
+        copy_from_new_to_old_density();
+
         int ng = nghost_state();
         for (int lev = 0; lev <= finest_level; ++lev) {
-            fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity_temp, ng);
-            fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density_o, ng);
-            if (m_advect_tracer) {
-                fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer_o, ng);
-            }
+            fillpatch_velocity(lev, m_t_old[lev], m_leveldata[lev]->velocity_o, ng);
+            fillpatch_density(lev, m_t_old[lev], m_leveldata[lev]->density_o, ng);
+            // no tracer
         }
 
         ApplyCorrector();
-        // if (m_advection_type == "MOL") {
-        // {
-        //     amrex::Print() << "after corrector - MOL?"  << std::endl;
-        // }
-        // for (int lev = 0; lev <= finest_level; ++lev) 
-        // {
-        //     fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity, ng);
-        //     fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density, ng);
-        //     if (m_advect_tracer) {
-        //         fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer, ng);
-        //     }
-        // }
-        // }
     }
+
 
 #if 0
     // This sums over all levels

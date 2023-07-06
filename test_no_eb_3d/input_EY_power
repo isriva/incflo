@@ -46,7 +46,7 @@ incflo.diffusion_type    =    3          # Defualt is 2 (Implicit); 1 is CN, 0 i
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
-amr.n_cell              =   16 32 16  # Grid cells at coarsest AMRlevel
+amr.n_cell              =   8 16 8  # Grid cells at coarsest AMRlevel
 amr.max_grid_size       =   8 16 8
 #amr.max_grid_size       =   32 32 32
 amr.max_level           =   0           # Max AMR level in hierarchy 
@@ -55,7 +55,7 @@ amr.max_level           =   0           # Max AMR level in hierarchy
 #              GEOMETRY                 #
 #.......................................#
 geometry.prob_lo        =   0.  0.  0.  # Lo corner coordinates
-geometry.prob_hi        =   1.  2.  1.  # Hi corner coordinates
+geometry.prob_hi        =   .5  1.  .5  # Hi corner coordinates
 geometry.is_periodic    =   0   1   0   # Periodicity x y z (0/1)
 
 incflo.delp             =   0.  2.  0.  # Prescribed (cyclic) pressure gradient
