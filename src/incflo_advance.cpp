@@ -54,9 +54,7 @@ void incflo::Advance()
 #endif
 
     ApplyPredictor();
-    {
-        amrex::Print() << "after predictor"  << std::endl;
-    }
+
 
 
     // EY: for RK2 method (explicit)
@@ -67,12 +65,12 @@ void incflo::Advance()
         copy_from_new_to_old_velocity();
         copy_from_new_to_old_density();
 
-        int ng = nghost_state();
-        for (int lev = 0; lev <= finest_level; ++lev) {
-            fillpatch_velocity(lev, m_t_old[lev], m_leveldata[lev]->velocity_o, ng);
-            fillpatch_density(lev, m_t_old[lev], m_leveldata[lev]->density_o, ng);
-            // no tracer
-        }
+        // int ng = nghost_state();
+        // for (int lev = 0; lev <= finest_level; ++lev) {
+        //     fillpatch_velocity(lev, m_t_old[lev], m_leveldata[lev]->velocity_o, ng);
+        //     fillpatch_density(lev, m_t_old[lev], m_leveldata[lev]->density_o, ng);
+        //     // no tracer
+        // }
 
         ApplyCorrector();
     }

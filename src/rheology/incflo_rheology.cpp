@@ -72,17 +72,22 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
     else if (fluid.fluid_model == incflo::FluidModel::Granular) {
         if (order == 0) {
             // amrex::Real hyd_press_reg = 0.5*(hyd_press + sqrt(hyd_press*hyd_press + fluid.papa_reg_press*fluid.papa_reg_press)); // regularized pressure (always positive)
-            amrex::Real hyd_press_reg = 0.1;
+            amrex::Real hyd_press_reg = 1;
             amrex::Real min_visc = Real(0.0);
-            amrex::Real compute_visc = (fluid.tau_0*hyd_press_reg + fluid.A_0*std::pow(fluid.diam,fluid.alpha_0)*std::pow(fluid.rho,0.5*fluid.alpha_0)*std::pow(hyd_press_reg,1.0-0.5*fluid.alpha_0)*std::pow(sr,fluid.alpha_0))*expterm(sr/fluid.papa_reg)/fluid.papa_reg;
+            amrex::Real compute_visc = (fluid.tau_0*hyd_press_reg + fluid.A_0*std::pow(fluid.diam,fluid.alpha_0)*std::pow(fluid.rho,0.5*fluid.alpha_0)*std::pow(hyd_press_reg, 1.0-0.5*fluid.alpha_0)*std::pow(sr,fluid.alpha_0))*expterm(sr/fluid.papa_reg)/fluid.papa_reg;
             visc = std::max(min_visc, compute_visc);
             include = true;
 
         }
         else if (order == 1) {
             // amrex::Real hyd_press_reg = 0.5*(hyd_press + sqrt(hyd_press*hyd_press + fluid.papa_reg_press*fluid.papa_reg_press)); // regularized pressure (always positive)
-            amrex::Real hyd_press_reg = 0.1;
-            visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(hyd_press_reg)*inertialNum(sr,hyd_press_reg, fluid.rho, fluid.diam, fluid.tau_0, fluid.A_1, 2*fluid.alpha_1);
+            // amrex::Real hyd_press_reg = 0.1;
+            // visc = std::pow(2*(expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1),2)*(hyd_press_reg)*inertialNum(sr,hyd_press_reg, fluid.rho, fluid.diam, fluid.tau_0, fluid.A_1, 2*fluid.alpha_1);
+            amrex::Real hyd_press_reg = 1;
+            amrex::Real min_visc = Real(0.0);
+            amrex::Real compute_visc = (fluid.tau_1*hyd_press_reg + fluid.A_1*std::pow(fluid.diam,2*fluid.alpha_1)*std::pow(fluid.rho, fluid.alpha_1)*std::pow(hyd_press_reg, 1.0-fluid.alpha_1)*std::pow(sr,2*fluid.alpha_1))*expterm(std::pow(sr/fluid.papa_reg,2))/std::pow(fluid.papa_reg,2);
+            include = true;
+            visc = std::max(min_visc, compute_visc);
         }
         //else if (order == 2) {
         //    visc = -1*std::pow(2*(expterm(sr/papa_reg) / papa_reg),2)*(p_bg)*inertialNum(sr, p_bg, ro_0, diam, mu_3, A_3, 2*alpha_3);

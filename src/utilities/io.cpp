@@ -588,31 +588,53 @@ void incflo::WritePlotFile()
                                        &m_leveldata[lev]->velocity,
                                        &m_leveldata[lev]->p_nd,
                                        Geom(lev),
-                                       m_cur_time, 0, 0);
+                                       m_cur_time, 1, 0);
             amrex::average_node_to_cellcenter(vel_eta,0,viscosity_nodal,0,1,0);
         }
         pltscaVarsName.push_back("eta");
         ++icomp;
     }
 
+    // if (m_plt_eta_1) {
+    //     if (m_do_second_rheology_1) {
+    //         for (int lev = 0; lev <= finest_level; ++lev) {
+    //             MultiFab vel_eta1(mf[lev], amrex::make_alias, icomp, 1);
+    //             compute_viscosity_at_level(lev,
+    //                                        &vel_eta1,
+    //                                        &m_leveldata[lev]->density,
+    //                                        &m_leveldata[lev]->velocity,
+    //                                        &m_leveldata[lev]->p_nd,
+    //                                        Geom(lev),
+    //                                        m_cur_time, 1, 1);
+    //         }
+    //         pltscaVarsName.push_back("eta1");
+    //         ++icomp;
+    //     }
+    //     else {
+    //         amrex::Error("2nd viscosity output only for when m_do_second_rheology_1 = 1");
+    //     }
+    // }
+
+    
     if (m_plt_eta_1) {
-        if (m_do_second_rheology_1) {
-            for (int lev = 0; lev <= finest_level; ++lev) {
-                MultiFab vel_eta1(mf[lev], amrex::make_alias, icomp, 1);
-                compute_viscosity_at_level(lev,
-                                           &vel_eta1,
-                                           &m_leveldata[lev]->density,
-                                           &m_leveldata[lev]->velocity,
-                                           &m_leveldata[lev]->p_nd,
-                                           Geom(lev),
-                                           m_cur_time, 0, 1);
-            }
-            pltscaVarsName.push_back("eta2");
-            ++icomp;
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            MultiFab vel_eta1(mf[lev], amrex::make_alias, icomp, 1);
+            const auto& ba = mf[lev].boxArray();
+            const auto& dm = mf[lev].DistributionMap();
+            const auto& fact = mf[lev].Factory();
+            MultiFab viscosity_nodal1(amrex::convert(ba,IntVect::TheNodeVector()), 
+                                     dm, 1, 0, MFInfo(), fact);
+            compute_viscosity_at_level(lev,
+                                       &viscosity_nodal1,
+                                       &m_leveldata[lev]->density,
+                                       &m_leveldata[lev]->velocity,
+                                       &m_leveldata[lev]->p_nd,
+                                       Geom(lev),
+                                       m_cur_time, 1, 1);
+            amrex::average_node_to_cellcenter(vel_eta1,0,viscosity_nodal1,0,1,0);
         }
-        else {
-            amrex::Error("2nd viscosity output only for when m_do_second_rheology_1 = 1");
-        }
+        pltscaVarsName.push_back("eta1");
+        ++icomp;
     }
 
     if (m_plt_eta_2) {
@@ -625,7 +647,7 @@ void incflo::WritePlotFile()
                                            &m_leveldata[lev]->velocity,
                                            &m_leveldata[lev]->p_nd,
                                            Geom(lev),
-                                           m_cur_time, 0, 2);
+                                           m_cur_time, 1, 2);
             }
             pltscaVarsName.push_back("eta3");
             ++icomp;

@@ -136,13 +136,7 @@ void incflo::Evolve()
         // Advance to time t + dt
         Advance();
         m_nstep++;
-
-        if (m_diff_type == DiffusionType::Exp_RK2)
-        {
-            m_cur_time += Real(0.5)*m_dt;
-        } else {
-            m_cur_time += m_dt;
-        }
+        m_cur_time += m_dt;
 
         if (writeNow())
         {

@@ -71,8 +71,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
 
     // We use the new time value for things computed on the "*" state
     Real new_time = m_cur_time + m_dt;
-    //EY for RK2
-    Real half_time = m_cur_time + m_half*m_dt;
+
 
     // *************************************************************************************
     // Allocate space for the MAC velocities
