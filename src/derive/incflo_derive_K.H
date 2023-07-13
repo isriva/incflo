@@ -535,6 +535,43 @@ amrex::Real incflo_cc_to_nodal (int i, int j, int k, amrex::Array4<amrex::Real c
 #endif
 }
 
+// get nodal concentration from cell centered densities
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+amrex::Real incflo_nodal_conc (int i, int j, int k, amrex::Array4<amrex::Real const> const& rho, amrex::Real rho0, amrex::Real rho1) noexcept
+{
+    using namespace amrex;
+    
+    Real nodal_conc;
+
+#if (AMREX_SPACEDIM == 3)
+    
+    Real c_ppp = ((rho1/rho(i,j,k)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_ppm = ((rho1/rho(i,j,k-1)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_pmp = ((rho1/rho(i,j-1,k)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_pmm = ((rho1/rho(i,j-1,k-1)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_mpp = ((rho1/rho(i-1,j,k)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_mpm = ((rho1/rho(i-1,j,k-1)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_mmp = ((rho1/rho(i-1,j-1,k)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_mmm = ((rho1/rho(i-1,j-1,k-1)) - 1.0)/((rho1/rho0) - 1.0);
+
+    nodal_conc = Real(0.125)*(c_ppp+c_ppm+c_pmp+c_pmm+c_mpp+c_mpm+c_mmp+c_mmm);
+
+    return nodal_conc;
+
+#elif (AMREX_SPACEDIM == 2)
+
+    Real c_pp = ((rho1/rho(i,j,k)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_pm = ((rho1/rho(i,j-1,k)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_mp = ((rho1/rho(i-1,j,k)) - 1.0)/((rho1/rho0) - 1.0);
+    Real c_mm = ((rho1/rho(i-1,j-1,k)) - 1.0)/((rho1/rho0) - 1.0);
+
+    nodal_conc = Real(0.25)*(c_pp+c_pm+c_mp+c_mm);
+
+    return nodal_conc;
+    
+#endif
+}
+
 // average cc to edge parallel to y (in 2D) and z in 3D)
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 amrex::Real incflo_cc_to_edge (int i, int j, int k, amrex::Array4<amrex::Real const> const& rho) noexcept
