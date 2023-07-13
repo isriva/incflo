@@ -39,12 +39,65 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
         else {visc = 0.0; include = false;}
     }
     else if (fluid.fluid_model == incflo::FluidModel::Powerlaw) {
-        if (order == 0) {visc = (fluid.mu * std::pow(sr,fluid.n_0-1.0)); include = true;}
-        else if (order == 1) {visc = (fluid.mu_1 * std::pow(sr,fluid.n_1-1.0)); include = true;}
+        if (order == 0) {
+            if (sr > Real(1.0e-13)) {
+                visc = (fluid.mu * std::pow(sr,fluid.n_0-1.0));
+            }
+            else {
+                visc = fluid.mu;
+            }
+            include = true;
+        }
+        else if (order == 1) {
+            if (sr > Real(1.0e-13)) {
+                visc = (fluid.mu_1 * std::pow(sr,fluid.n_1-1.0));
+            }
+            else {
+                visc = fluid.mu;
+            }
+            include = true;
+        }
     }
     else if (fluid.fluid_model == incflo::FluidModel::Bingham) {
-        if (order == 0) {visc = fluid.mu + fluid.tau_0 * expterm(sr/fluid.papa_reg) / fluid.papa_reg; include = true;}
-        else if (order == 1) {visc = fluid.mu_1 + fluid.tau_1 * expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1; include = true;}
+        
+        if (order == 0) {
+            amrex::Real compute_visc;
+            if ((fluid.papa_reg > Real(0.0)) and (fluid.max_visc > Real(0.0))) amrex::Abort("can not prescribe both regularization parameter and maximum viscosity");
+            
+            if (fluid.papa_reg > Real(0.0)) { // Papanastasiou regularization
+                visc = fluid.mu + fluid.tau_0 * expterm(sr/fluid.papa_reg) / fluid.papa_reg;
+            }
+            else if (fluid.max_visc > Real(0.0)) { // ceiling viscosity regularization
+                if (sr > Real(1.0e-13)) {
+                    compute_visc = fluid.mu + fluid.tau_0/sr;
+                    visc = std::min(compute_visc, fluid.max_visc);
+                }
+                else {
+                    visc = fluid.max_visc;
+                }
+            }
+            include = true;
+        }
+        else if (order == 1) {
+            amrex::Real compute_visc;
+            if ((fluid.papa_reg_1 > Real(0.0)) and (fluid.max_visc_1 > Real(0.0))) amrex::Abort("can not prescribe both regularization parameter and maximum viscosity");
+            
+            if (fluid.papa_reg_1 > Real(0.0)) { // Papanastasiou regularization
+                visc = fluid.mu_1 + fluid.tau_1 * expterm(sr/fluid.papa_reg_1) / fluid.papa_reg_1;
+            }
+            else if (fluid.max_visc_1 > Real(0.0)) { // ceiling viscosity regularization
+                if (sr > Real(1.0e-13)) {
+                    compute_visc = fluid.mu_1 + fluid.tau_1/sr;
+                    visc = std::min(compute_visc, fluid.max_visc_1);
+                }
+                else {
+                    visc = fluid.max_visc_1;
+                }
+            }
+            include = true;
+        }
+        return {visc, include};
+
     }
     else if (fluid.fluid_model == incflo::FluidModel::HerschelBulkley) {
         if (order == 0) {
@@ -99,6 +152,7 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
                 }
                 visc = std::max(fluid.min_visc, compute_visc); // floor viscosity
                 include = true;
+
             }
 
         }
@@ -106,8 +160,8 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
 
             amrex::Real compute_visc;
 
-            if ((fluid.max_visc_1 < Real(0.0)) or (fluid.min_visc_1 < Real(0.0)))
-                amrex::Abort("need positive max and min firs notmal viscosity");
+//            if ((fluid.max_visc_1 < Real(0.0)) or (fluid.min_visc_1 < Real(0.0)))
+//                amrex::Abort("need positive max and min firs notmal viscosity");
 
             if (press < 0.0) { // negative pressure
                 visc = fluid.min_visc_1;
@@ -119,6 +173,7 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
                         (1.0/sr/sr)*(fluid.tau_1*press +
                         fluid.A_1*std::pow(fluid.diam,2.0*fluid.alpha_1)*std::pow(fluid.rho,fluid.alpha_1)*
                         std::pow(press,1.0-fluid.alpha_1)*std::pow(sr,2.0*fluid.alpha_1)); // unregularized viscosity
+
                     compute_visc = std::min(compute_visc_org, fluid.max_visc_1);
                 }
                 else {
@@ -136,9 +191,9 @@ std::tuple<amrex::Real, bool> Viscosity_Single(const amrex::Real sr, const int o
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real dens, const int order, const amrex::Vector<incflo::FLUID_t>& fluid_vof, const amrex::Real press, bool slip_surface) 
+amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real conc, const int order, const amrex::Vector<incflo::FLUID_t>& fluid_vof, const amrex::Real press, bool slip_surface) 
 {
-    amrex::Real conc = get_concentration(dens,fluid_vof[0].rho,fluid_vof[1].rho);
+//    amrex::Real conc = get_concentration(dens,fluid_vof[0].rho,fluid_vof[1].rho);
     auto [visc0, include0] = Viscosity_Single(sr,order,fluid_vof[0],press,slip_surface);
     auto [visc1, include1] = Viscosity_Single(sr,order,fluid_vof[1],press,slip_surface);
 
@@ -315,10 +370,12 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                                                   vel_arr,domlo,domhi,bc_type);
                 }
 
-                // Get Density (nodal)
-                Real dens = m_ro_0;
+                // Get concentration (nodal)
+                Real conc;
+//                Real dens = m_ro_0;                
                 if (m_do_vof) {
-                    dens = incflo_cc_to_nodal(i,j,k,rho_arr,true);
+                    conc = incflo_nodal_conc(i,j,k,rho_arr,m_fluid_vof[0].rho,m_fluid_vof[1].rho);
+                    //dens = incflo_cc_to_nodal(i,j,k,rho_arr,true);
                 }
 
                 // Get Pressure (nodal)
@@ -347,7 +404,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 
                 // Compute viscosity (nodal)
                 if (m_do_vof) {
-                    eta_arr(i,j,k,order) = Viscosity_VOF(sr,dens,order,m_fluid_vof,pressure,slip_surface);
+                    eta_arr(i,j,k,order) = Viscosity_VOF(sr,conc,order,m_fluid_vof,pressure,slip_surface);
                 }
                 else {
                     auto [visc, include] = Viscosity_Single(sr,order,m_fluid,pressure,slip_surface);
