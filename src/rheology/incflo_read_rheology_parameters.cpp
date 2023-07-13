@@ -67,13 +67,13 @@ void incflo::ReadRheologyParameters()
                     "No point in using Bingham rheology with tau_0 = 0");
 
             pp.query("papa_reg", m_fluid.papa_reg);
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(m_fluid.papa_reg > 0.0,
-                    "Papanastasiou regularisation parameter must be positive");
 
+            pp.query("max_visc", m_fluid.max_visc);
 
             amrex::Print() << "Bingham fluid with"
                             << " mu = " << m_fluid.mu
                             << ", tau_0 = " << m_fluid.tau_0
+                            << ", max_visc = " << m_fluid.max_visc
                             << ", papa_reg = " << m_fluid.papa_reg << std::endl;
          }
 
@@ -354,15 +354,15 @@ void incflo::ReadRheologyParameters()
              
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[0] > 0.0,
                      "No point in using Bingham rheology with tau_0 = 0");
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[0] > 0.0,
-                        "Papanastasiou regularisation parameter must be positive");
              
-             fluid0.mu = mu[0];
-             fluid0.tau_0 = tau_0[0];
-             fluid0.papa_reg = papa_reg[0];
+             if (mu.size() == 2) fluid0.mu = mu[0];
+             if (tau_0.size() == 2) fluid0.tau_0 = tau_0[0];
+             if (papa_reg.size() == 2) fluid0.papa_reg = papa_reg[0];
+             if (max_visc.size() == 2) fluid0.max_visc = max_visc[0];
              amrex::Print() << "Bingham fluid0 with"
                             << " mu = " << fluid0.mu
                             << ", tau_0 = " << fluid0.tau_0
+                            << ", max_visc = " << fluid0.max_visc
                             << ", papa_reg = " << fluid0.papa_reg << " and rho = " << fluid0.rho << std::endl;
          }
          else if(fluid_model[0] == "hb")
@@ -463,8 +463,8 @@ void incflo::ReadRheologyParameters()
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.alpha_0 >= 0.0,
                          "Fitting parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.tau_1 > 0.0,
-                     "Papanastasiou regularisation parameter must be positive");
+//             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.tau_1 > 0.0,
+//                     "Papanastasiou regularisation parameter must be positive");
 
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid0.papa_reg_1 > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
@@ -538,15 +538,15 @@ void incflo::ReadRheologyParameters()
 
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(tau_0[1] > 0.0,
                      "No point in using Bingham rheology with tau_0 = 0");
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(papa_reg[1] > 0.0,
-                        "Papanastasiou regularisation parameter must be positive");
              
-             fluid1.mu = mu[1];
-             fluid1.tau_0 = tau_0[1];
-             fluid1.papa_reg = papa_reg[1];
+             if (mu.size() == 2) fluid1.mu = mu[1];
+             if (tau_0.size() == 2) fluid1.tau_0 = tau_0[1];
+             if (papa_reg.size() == 2) fluid1.papa_reg = papa_reg[1];
+             if (max_visc.size() == 2) fluid1.max_visc = max_visc[1];
              amrex::Print() << "Bingham fluid1 with"
                             << " mu = " << fluid1.mu
                             << ", tau_0 = " << fluid1.tau_0
+                            << ", max_visc = " << fluid1.max_visc
                             << ", papa_reg = " << fluid1.papa_reg << " and rho = " << fluid1.rho << std::endl;
          }
          else if(fluid_model[1] == "hb")
@@ -647,8 +647,8 @@ void incflo::ReadRheologyParameters()
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.alpha_0 >= 0.0,
                          "Fitting parameter must be positive");
 
-             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.tau_1 > 0.0,
-                     "Papanastasiou regularisation parameter must be positive");
+//             AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.tau_1 > 0.0,
+//                     "Papanastasiou regularisation parameter must be positive");
 
              AMREX_ALWAYS_ASSERT_WITH_MESSAGE(fluid1.papa_reg_1 > 0.0,
                      "Papanastasiou regularisation parameter must be positive");
