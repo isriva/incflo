@@ -173,15 +173,6 @@ void incflo::prob_init_fluid (int lev)
         }
         else if (521 == m_probtype)
         {
-            //if (!m_do_vof) {
-            //    if (m_fluid.fluid_model != incflo::FluidModel::Granular) amrex::Abort("probtype=521 works for granular only");
-            //}
-            //else {
-            //    if ((m_fluid_vof[0].fluid_model != incflo::FluidModel::Granular) &&
-            //            (m_fluid_vof[1].fluid_model != incflo::FluidModel::Granular))
-            //        amrex::Abort("probtype=521 works for granular only");
-            //}
-            //if (!m_use_base_gradp) amrex::Abort("probtype=521 requires incflo.use_base_gradp = true");
             inclined_channel_granular(vbx, gbx, nbx, 
                                       ld.velocity.array(mfi),
                                       ld.density.array(mfi),
@@ -192,7 +183,21 @@ void incflo::prob_init_fluid (int lev)
                                       ld.gp.array(mfi),
                                       ld.gp0.array(mfi),
                                       ld.density0.array(mfi),
-                                      domain, dx, problo, probhi);
+                                      domain, dx, problo, probhi,0);
+        }
+        else if (522 == m_probtype)
+        {
+            inclined_channel_granular(vbx, gbx, nbx, 
+                                      ld.velocity.array(mfi),
+                                      ld.density.array(mfi),
+                                      ld.tracer.array(mfi),
+                                      ld.p_nd.array(mfi),
+                                      ld.p0.array(mfi),
+                                      ld.p_visc.array(mfi),
+                                      ld.gp.array(mfi),
+                                      ld.gp0.array(mfi),
+                                      ld.density0.array(mfi),
+                                      domain, dx, problo, probhi,1);
         }
         else if (53 == m_probtype)
         {
@@ -1068,7 +1073,8 @@ void incflo::inclined_channel_granular (Box const& vbx, Box const& /*gbx*/, Box 
                                         Box const& /*domain*/,
                                         GpuArray<Real, AMREX_SPACEDIM> const& dx,
                                         GpuArray<Real, AMREX_SPACEDIM> const& problo,
-                                        GpuArray<Real, AMREX_SPACEDIM> const& probhi)
+                                        GpuArray<Real, AMREX_SPACEDIM> const& probhi,
+                                        bool half_cell)
 {
     Real rho_1, rho_2, rho;
     Real nu_1, nu_2, nu;
@@ -1104,23 +1110,99 @@ void incflo::inclined_channel_granular (Box const& vbx, Box const& /*gbx*/, Box 
         if (m_do_vof) {
             if (m_smoothing_width < 0.0) { // discontinuous transition
 #if (AMREX_SPACEDIM == 3)
-                if (z > split) {
-                    density(i,j,k) = rho_1;
-                    tracer(i,j,k) = 0.0;
+                if (!half_cell) {
+                    if (z > split) {
+                        density(i,j,k) = rho_1;
+                        tracer(i,j,k) = 0.0;
+                    }
+                    else {
+                        density(i,j,k) = rho_2;
+                        tracer(i,j,k) = 1.0;
+                    }
                 }
                 else {
-                    density(i,j,k) = rho_2;
-                    tracer(i,j,k) = 1.0;
+                    if (z > split) {
+                        if (z-split > 0.5*dx[2]) {
+                            density(i,j,k) = rho_1;
+                            tracer(i,j,k) = 0.0;
+                        }
+                        else if (z-split < 0.5*dx[2]) {
+                            Real fac = (z+0.5*dx[2]-split)/dx[2];
+                            density(i,j,k) = fac*rho_1 + (1.0-fac)*rho_2;
+                            tracer(i,j,k) = 1.0 - fac;
+                        }
+                        else {
+                            density(i,j,k) = 0.5*(rho_1 + rho_2);
+                            tracer(i,j,k) = 0.5;
+                        }
+                    }
+                    else if (z < split) {
+                        if (split-z > 0.5*dx[2]) {
+                            density(i,j,k) = rho_2;
+                            tracer(i,j,k) = 1.0;
+                        }
+                        else if (split-z < 0.5*dx[2]) {
+                            Real fac = (split-z+0.5*dx[2])/dx[2];
+                            density(i,j,k) = fac*rho_2 + (1.0-fac)*rho_1;
+                            tracer(i,j,k) = fac;
+                        }
+                        else {
+                            density(i,j,k) = 0.5*(rho_1 + rho_2);
+                            tracer(i,j,k) = 0.5;
+                        }
+                    }
+                    else if (z == split) {
+                        density(i,j,k) = 0.5*(rho_1+rho_2);
+                        tracer(i,j,k) = 0.5;
+                    }
                 }
 #endif
 #if (AMREX_SPACEDIM == 2)
-                if (y > split) {
-                    density(i,j,k) = rho_1;
-                    tracer(i,j,k) = 0.0;
+                if (!half_cell) {
+                    if (y > split) {
+                        density(i,j,k) = rho_1;
+                        tracer(i,j,k) = 0.0;
+                    }
+                    else {
+                        density(i,j,k) = rho_2;
+                        tracer(i,j,k) = 1.0;
+                    }
                 }
                 else {
-                    density(i,j,k) = rho_2;
-                    tracer(i,j,k) = 1.0;
+                    if (y > split) {
+                        if (y-split > 0.5*dx[1]) {
+                            density(i,j,k) = rho_1;
+                            tracer(i,j,k) = 0.0;
+                        }
+                        else if (y-split < 0.5*dx[1]) {
+                            Real fac = (y+0.5*dx[1]-split)/dx[1];
+                            density(i,j,k) = fac*rho_1 + (1.0-fac)*rho_2;
+                            tracer(i,j,k) = 1.0 - fac;
+                        }
+                        else {
+                            density(i,j,k) = 0.5*(rho_1 + rho_2);
+                            tracer(i,j,k) = 0.5;
+                        }
+                    }
+                    else if (y < split) {
+                        if (split-y > 0.5*dx[1]) {
+                            density(i,j,k) = rho_2;
+                            tracer(i,j,k) = 1.0;
+                        }
+                        else if (split-y < 0.5*dx[1]) {
+                            Real fac = (split-y+0.5*dx[1])/dx[1];
+                            density(i,j,k) = fac*rho_2 + (1.0-fac)*rho_1;
+                            tracer(i,j,k) = fac;
+                        }
+                        else {
+                            density(i,j,k) = 0.5*(rho_1 + rho_2);
+                            tracer(i,j,k) = 0.5;
+                        }
+                    }
+                    else if (y == split) {
+                        density(i,j,k) = 0.5*(rho_1+rho_2);
+                        tracer(i,j,k) = 0.5;
+                    }
                 }
 #endif
                 density0(i,j,k) = density(i,j,k);
