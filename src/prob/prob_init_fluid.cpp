@@ -764,8 +764,8 @@ void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/, Box const& nb
             density(i,j,k) = rho_1;
             tracer(i,j,k) = 0.0;
         }
-        gp(i,j,k,0) = 0.0;
-        gp(i,j,k,1) = 0.0; 
+        gp(i,j,k,0) = m_gravity[0] * density(i,j,k);
+        gp(i,j,k,1) = 0.0;
         gp(i,j,k,2) = m_gravity[2] * density(i,j,k);
 
         vel(i,j,k,0) = 0.0;
@@ -780,9 +780,8 @@ void incflo::column_collapse  (Box const& vbx, Box const& /*gbx*/, Box const& nb
             density(i,j,k) = rho_1;
             tracer(i,j,k) = 0.0;
         }
-        gp(i,j,k,0) = 0.0;
-        gp(i,j,k,1) = 0.0;
-//        gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
+        gp(i,j,k,0) = m_gravity[0] * density(i,j,k);
+        gp(i,j,k,1) = m_gravity[1] * density(i,j,k);
 
         vel(i,j,k,0) = 0.0;
         vel(i,j,k,1) = 0.0;
