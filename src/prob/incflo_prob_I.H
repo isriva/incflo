@@ -117,7 +117,7 @@
                                          amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
                                          amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
                                          amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi,
-                                         bool half_cell);
+                                         amrex::Real rough);
 
     void init_tuscan (amrex::Box const& vbx, amrex::Box const& gbx,
                       amrex::Array4<amrex::Real> const& vel,

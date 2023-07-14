@@ -185,10 +185,12 @@ void incflo::prob_init_fluid (int lev)
                                       ld.gp.array(mfi),
                                       ld.gp0.array(mfi),
                                       ld.density0.array(mfi),
-                                      domain, dx, problo, probhi,0);
+                                      domain, dx, problo, probhi,-1.0);
         }
         else if (522 == m_probtype)
         {
+            if (m_interface_roughness < Real(0.0)) amrex::Abort("probtype=522 requires interface roughness amplitude via incflo.interface_roughness");
+            Real rough = m_interface_roughness;
             inclined_channel_granular(vbx, gbx, nbx, 
                                       ld.velocity.array(mfi),
                                       ld.density.array(mfi),
@@ -199,7 +201,7 @@ void incflo::prob_init_fluid (int lev)
                                       ld.gp.array(mfi),
                                       ld.gp0.array(mfi),
                                       ld.density0.array(mfi),
-                                      domain, dx, problo, probhi,1);
+                                      domain, dx, problo, probhi,rough);
         }
         else if (53 == m_probtype)
         {
@@ -1076,7 +1078,7 @@ void incflo::inclined_channel_granular (Box const& vbx, Box const& /*gbx*/, Box 
                                         GpuArray<Real, AMREX_SPACEDIM> const& dx,
                                         GpuArray<Real, AMREX_SPACEDIM> const& problo,
                                         GpuArray<Real, AMREX_SPACEDIM> const& probhi,
-                                        bool half_cell)
+                                        Real rough)
 {
     Real rho_1, rho_2, rho;
     Real nu_1, nu_2, nu;
@@ -1103,7 +1105,7 @@ void incflo::inclined_channel_granular (Box const& vbx, Box const& /*gbx*/, Box 
         amrex::Print() << "rho during single_fluid incline channel setup: " << rho << std::endl;
     }
 
-    amrex::ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    amrex::ParallelForRNG(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k, RandomEngine const& engine) noexcept
     {
         Real y = problo[1] + (j+0.5)*dx[1];
 #if (AMREX_SPACEDIM == 3)
@@ -1112,7 +1114,7 @@ void incflo::inclined_channel_granular (Box const& vbx, Box const& /*gbx*/, Box 
         if (m_do_vof) {
             if (m_smoothing_width < 0.0) { // discontinuous transition
 #if (AMREX_SPACEDIM == 3)
-                if (!half_cell) {
+                if (rough<Real(0.0)) { // sharp interface
                     if (z > split) {
                         density(i,j,k) = rho_1;
                         tracer(i,j,k) = 0.0;
@@ -1123,44 +1125,32 @@ void incflo::inclined_channel_granular (Box const& vbx, Box const& /*gbx*/, Box 
                     }
                 }
                 else {
-                    if (z > split) {
-                        if (z-split > 0.5*dx[2]) {
+                    if (z > split) { // rough interface
+                        if (z-split > dx[2]) {
                             density(i,j,k) = rho_1;
                             tracer(i,j,k) = 0.0;
                         }
-                        else if (z-split < 0.5*dx[2]) {
-                            Real fac = (z+0.5*dx[2]-split)/dx[2];
-                            density(i,j,k) = fac*rho_1 + (1.0-fac)*rho_2;
-                            tracer(i,j,k) = 1.0 - fac;
-                        }
                         else {
-                            density(i,j,k) = 0.5*(rho_1 + rho_2);
-                            tracer(i,j,k) = 0.5;
+                            Real fac = rough*Random(engine);
+                            density(i,j,k) = (1.0-fac)*rho_1 + fac*rho_2;
+                            tracer(i,j,k) = fac;
                         }
                     }
                     else if (z < split) {
-                        if (split-z > 0.5*dx[2]) {
+                        if (split-z > dx[2]) {
                             density(i,j,k) = rho_2;
                             tracer(i,j,k) = 1.0;
                         }
-                        else if (split-z < 0.5*dx[2]) {
-                            Real fac = (split-z+0.5*dx[2])/dx[2];
-                            density(i,j,k) = fac*rho_2 + (1.0-fac)*rho_1;
-                            tracer(i,j,k) = fac;
-                        }
                         else {
-                            density(i,j,k) = 0.5*(rho_1 + rho_2);
-                            tracer(i,j,k) = 0.5;
+                            Real fac = rough*Random(engine);
+                            density(i,j,k) = fac*rho_1 + (1.0-fac)*rho_2;
+                            tracer(i,j,k) = 1.0-fac;
                         }
-                    }
-                    else if (z == split) {
-                        density(i,j,k) = 0.5*(rho_1+rho_2);
-                        tracer(i,j,k) = 0.5;
                     }
                 }
 #endif
 #if (AMREX_SPACEDIM == 2)
-                if (!half_cell) {
+                if (rough<Real(0.0)) {
                     if (y > split) {
                         density(i,j,k) = rho_1;
                         tracer(i,j,k) = 0.0;
@@ -1172,39 +1162,26 @@ void incflo::inclined_channel_granular (Box const& vbx, Box const& /*gbx*/, Box 
                 }
                 else {
                     if (y > split) {
-                        if (y-split > 0.5*dx[1]) {
+                        if (y-split > dx[1]) {
                             density(i,j,k) = rho_1;
                             tracer(i,j,k) = 0.0;
                         }
-                        else if (y-split < 0.5*dx[1]) {
-                            Real fac = (y+0.5*dx[1]-split)/dx[1];
-                            density(i,j,k) = fac*rho_1 + (1.0-fac)*rho_2;
-                            tracer(i,j,k) = 1.0 - fac;
-                        }
                         else {
-                            density(i,j,k) = 0.5*(rho_1 + rho_2);
-                            tracer(i,j,k) = 0.5;
+                            Real fac = rough*Random(engine);
+                            density(i,j,k) = (1.0-fac)*rho_1 + fac*rho_2;
+                            tracer(i,j,k) = fac;
                         }
                     }
                     else if (y < split) {
-                        if (split-y > 0.5*dx[1]) {
+                        if (split-y > dx[1]) {
                             density(i,j,k) = rho_2;
                             tracer(i,j,k) = 1.0;
                         }
-                        else if (split-y < 0.5*dx[1]) {
-                            Real fac = (split-y+0.5*dx[1])/dx[1];
-                            density(i,j,k) = fac*rho_2 + (1.0-fac)*rho_1;
-                            tracer(i,j,k) = fac;
-                        }
                         else {
-                            density(i,j,k) = 0.5*(rho_1 + rho_2);
-                            tracer(i,j,k) = 0.5;
+                            Real fac = rough*Random(engine);
+                            density(i,j,k) = fac*rho_1 + (1.0-fac)*rho_2;
+                            tracer(i,j,k) = 1.0-fac;
                         }
-                    }
-                    else if (y == split) {
-                        density(i,j,k) = 0.5*(rho_1+rho_2);
-                        tracer(i,j,k) = 0.5;
-                    }
                 }
 #endif
                 density0(i,j,k) = density(i,j,k);

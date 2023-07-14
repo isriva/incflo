@@ -138,8 +138,11 @@ void incflo::ReadParameters ()
         pp.query("ro_0", m_ro_0);
         AMREX_ALWAYS_ASSERT(m_ro_0 >= 0.0);
 
-        // Smoothing width (for inclined flows)
+        // Smoothing width (for inclined flow interface)
         pp.query("smoothing_width",m_smoothing_width);
+
+        // Roughness amplitude (for inclined flow interface)
+        pp.query("interface_roughness",m_interface_roughness);
 
         pp.query("ntrac", m_ntrac);
 

@@ -530,8 +530,11 @@ private:
     // Density (if constant)
     amrex::Real m_ro_0 = 1.0;
 
-    // smoothing width for inclined flows
+    // smoothing width for inclined flow interface
     amrex::Real m_smoothing_width = -1.0; // default no smoothing
+
+    // roughness amplitude for inclined flow interface
+    amrex::Real m_interface_roughness = -1.0; // default no roughness
 
     bool m_constant_density = true;
     bool m_advect_tracer    = false;
