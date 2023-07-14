@@ -348,12 +348,12 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 Real sr = incflo_strainrate_eb(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,flag_arr(i,j,k));
                 Real dens = rho_arr(i,j,k);
                 if (m_do_vof) {
-                    eta_arr(i,j,k,order) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
+                    eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
                 }
                 else {
                     auto [visc, include] = Viscosity_Single(sr,order,m_fluid);
-                    if (include) eta_arr(i,j,k,order) = visc;
-                    else eta_arr(i,j,k,order) = 0.0;
+                    if (include) eta_arr(i,j,k) = visc;
+                    else eta_arr(i,j,k) = 0.0;
                 }
             });
         }
@@ -404,12 +404,12 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 
                 // Compute viscosity (nodal)
                 if (m_do_vof) {
-                    eta_arr(i,j,k,order) = Viscosity_VOF(sr,conc,order,m_fluid_vof,pressure,slip_surface);
+                    eta_arr(i,j,k) = Viscosity_VOF(sr,conc,order,m_fluid_vof,pressure,slip_surface);
                 }
                 else {
                     auto [visc, include] = Viscosity_Single(sr,order,m_fluid,pressure,slip_surface);
-                    if (include) eta_arr(i,j,k,order) = visc;
-                    else eta_arr(i,j,k,order) = 0.0;
+                    if (include) eta_arr(i,j,k) = visc;
+                    else eta_arr(i,j,k) = 0.0;
                 }
             });
         }

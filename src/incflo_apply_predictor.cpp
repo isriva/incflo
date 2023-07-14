@@ -128,17 +128,17 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     // Compute viscosity / diffusive coefficients
     // *************************************************************************************
-    compute_viscosity(get_vel_eta(), get_density_old_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
+    compute_viscosity(get_vel_eta(0), get_density_old_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
                       m_cur_time, 1, 0);
 #if (AMREX_SPACEDIM == 3)
     if (m_do_second_rheology_1) 
     {
-        compute_viscosity(get_vel_eta(), get_density_old_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
+        compute_viscosity(get_vel_eta(1), get_density_old_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
                           m_cur_time, 1, 1);
     }
     if (m_do_second_rheology_2) // TODO: add the second RE tensor
     {
-        compute_viscosity(get_vel_eta(), get_density_old_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
+        compute_viscosity(get_vel_eta(2), get_density_old_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
                           m_cur_time, 1, 2);
     }
 #endif    
@@ -149,17 +149,17 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     if (need_divtau() || use_tensor_correction)
     {
-        compute_divtau(get_divtau_old(),get_velocity_old_const(),
-                       get_density_old_const(),get_vel_eta_const());
+        compute_divtau(get_divtau_old(0),get_velocity_old_const(),
+                       get_density_old_const(),get_vel_eta_const(0));
     }
 #if (AMREX_SPACEDIM == 3)
     if (m_do_second_rheology_1) {
-        compute_divtau1(get_divtau_old1(),get_velocity_old_const(),
-                        get_density_old_const(),get_vel_eta_const());
+        compute_divtau1(get_divtau_old(1),get_velocity_old_const(),
+                        get_density_old_const(),get_vel_eta_const(1));
     }
     //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
-    //    compute_divtau2(get_divtau_old3(),get_velocity_old_const(),
-    //                    get_density_old_const(),get_vel_eta_const());
+    //    compute_divtau2(get_divtau_old(2),get_velocity_old_const(),
+    //                    get_density_old_const(),get_vel_eta_const(2));
     //}
 #endif
     // *************************************************************************************
@@ -387,17 +387,17 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // Recompute viscosity based on new density (for VoF): required for Implicit and Crank-Nicholson
     // *********************************************************************************************
     if (m_do_vof) {
-        compute_viscosity(get_vel_eta(), get_density_new_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
+        compute_viscosity(get_vel_eta(0), get_density_new_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
                           m_cur_time, 1, 0);
 #if (AMREX_SPACEDIM == 3)
         if (m_do_second_rheology_1) 
         {
-            compute_viscosity(get_vel_eta(), get_density_new_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
+            compute_viscosity(get_vel_eta(1), get_density_new_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
                               m_cur_time, 1, 1);
         }
         if (m_do_second_rheology_2) //TODO: add the second RE tensor 
         {
-            compute_viscosity(get_vel_eta(), get_density_new_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
+            compute_viscosity(get_vel_eta(2), get_density_new_const(), get_velocity_old_const(), get_p_nd_const(), get_p0_const(), get_p_visc(),
                               m_cur_time, 1, 2);
         }
 #endif
@@ -647,7 +647,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
         }
 
         Real dt_diff = (m_diff_type == DiffusionType::Implicit) ? m_dt : m_half*m_dt;
-        diffuse_velocity(get_velocity_new(), get_density_new(), get_vel_eta_const(), dt_diff);
+        diffuse_velocity(get_velocity_new(), get_density_new(), get_vel_eta_const(0), dt_diff);
     }
 
     // **********************************************************************************************

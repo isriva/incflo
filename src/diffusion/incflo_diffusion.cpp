@@ -294,7 +294,7 @@ incflo::average_velocity_eta_to_faces (int lev, MultiFab const& cc_eta) const
 }
 
 Array<MultiFab,AMREX_SPACEDIM>
-incflo::average_nodal_velocity_eta_to_faces (int lev, MultiFab const& nodal_eta, int order, bool use_harmonic) const
+incflo::average_nodal_velocity_eta_to_faces (int lev, MultiFab const& nodal_eta, bool use_harmonic) const
 {
     const auto& ba = nodal_eta.boxArray();
     const auto& dm = nodal_eta.DistributionMap();
@@ -313,7 +313,7 @@ incflo::average_nodal_velocity_eta_to_faces (int lev, MultiFab const& nodal_eta,
                                             get_tracer_bcrec()); // IS -- need to fix for EB
     // amrex::average_cellcenter_to_face(GetArrOfPtrs(r), cc_eta, Geom(lev));
 #else
-    average_nodal_to_face(r, nodal_eta, order, use_harmonic);
+    average_nodal_to_face(r, nodal_eta, use_harmonic);
 #endif
 
     //fixup_eta_on_domain_faces(lev, r, cc_eta);
@@ -421,7 +421,7 @@ incflo::fixup_eta_on_domain_faces (int lev, Array<MultiFab,AMREX_SPACEDIM>& fc,
 }
 
 void
-incflo::average_nodal_to_face (Array<MultiFab,AMREX_SPACEDIM>& fc, MultiFab const& nodal, int order, bool use_harmonic) const
+incflo::average_nodal_to_face (Array<MultiFab,AMREX_SPACEDIM>& fc, MultiFab const& nodal, bool use_harmonic) const
 {
 
     MFItInfo mfi_info{};
@@ -444,32 +444,20 @@ incflo::average_nodal_to_face (Array<MultiFab,AMREX_SPACEDIM>& fc, MultiFab cons
 
         amrex::ParallelFor(xbx, ybx, zbx, 
         [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-            if (!use_harmonic) {
-                facex(i,j,k) = amrex::Real(0.25)*(node(i,j,k,order) + node(i,j+1,k,order) + node(i,j,k+1,order) + node(i,j+1,k+1,order));
-            }
-            else {
-                facex(i,j,k) = amrex::Real(4.0)/((amrex::Real(1.0)/node(i,j,k,order)) + (amrex::Real(1.0)/node(i,j+1,k,order))
-                                                + (amrex::Real(1.0)/node(i,j,k+1,order)) + (amrex::Real(1.0)/node(i,j+1,k+1,order)));
-            }
+            if (!use_harmonic) facex(i,j,k) = amrex::Real(0.25)*(node(i,j,k) + node(i,j+1,k) + node(i,j,k+1) + node(i,j+1,k+1));
+            else facex(i,j,k) = amrex::Real(4.0)/((amrex::Real(1.0)/node(i,j,k)) + (amrex::Real(1.0)/node(i,j+1,k))
+                                                + (amrex::Real(1.0)/node(i,j,k+1)) + (amrex::Real(1.0)/node(i,j+1,k+1)));
         },
         [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-            if (!use_harmonic) {
-                facey(i,j,k) = amrex::Real(0.25)*(node(i,j,k,order) + node(i+1,j,k,order) + node(i,j,k+1,order) + node(i+1,j,k+1,order));
-            }
-            else {
-                facey(i,j,k) = amrex::Real(4.0)/((amrex::Real(1.0)/node(i,j,k,order)) + (amrex::Real(1.0)/node(i+1,j,k,order))
-                                                + (amrex::Real(1.0)/node(i,j,k+1,order)) + (amrex::Real(1.0)/node(i+1,j,k+1,order)));
-            }
+            if (!use_harmonic) facey(i,j,k) = amrex::Real(0.25)*(node(i,j,k) + node(i+1,j,k) + node(i,j,k+1) + node(i+1,j,k+1));
+            else facey(i,j,k) = amrex::Real(4.0)/((amrex::Real(1.0)/node(i,j,k)) + (amrex::Real(1.0)/node(i+1,j,k))
+                                                + (amrex::Real(1.0)/node(i,j,k+1)) + (amrex::Real(1.0)/node(i+1,j,k+1)));
 
         },
         [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-            if (!use_harmonic) {
-                facez(i,j,k) = amrex::Real(0.25)*(node(i,j,k,order) + node(i+1,j,k,order) + node(i,j+1,k,order) + node(i+1,j+1,k,order));
-            }
-            else {
-                facez(i,j,k) = amrex::Real(4.0)/((amrex::Real(1.0)/node(i,j,k,order)) + (amrex::Real(1.0)/node(i+1,j,k,order))
-                                                + (amrex::Real(1.0)/node(i,j+1,k,order)) + (amrex::Real(1.0)/node(i+1,j+1,k,order)));
-            }
+            if (!use_harmonic) facez(i,j,k) = amrex::Real(0.25)*(node(i,j,k) + node(i+1,j,k) + node(i,j+1,k) + node(i+1,j+1,k));
+            else facez(i,j,k) = amrex::Real(4.0)/((amrex::Real(1.0)/node(i,j,k)) + (amrex::Real(1.0)/node(i+1,j,k))
+                                                + (amrex::Real(1.0)/node(i,j+1,k)) + (amrex::Real(1.0)/node(i+1,j+1,k)));
 
         });
     }
@@ -486,12 +474,12 @@ incflo::average_nodal_to_face (Array<MultiFab,AMREX_SPACEDIM>& fc, MultiFab cons
 
         amrex::ParallelFor(xbx, ybx, 
         [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-            if (!use_harmonic) facex(i,j,k) = amrex::Real(0.5)*(node(i,j,k,order) + node(i,j+1,k,order));
-            else facex(i,j,k) = amrex::Real(2.0)/((amrex::Real(1.0)/node(i,j,k,order)) + (amrex::Real(1.0)/node(i,j+1,k,order)));
+            if (!use_harmonic) facex(i,j,k) = amrex::Real(0.5)*(node(i,j,k) + node(i,j+1,k));
+            else facex(i,j,k) = amrex::Real(2.0)/((amrex::Real(1.0)/node(i,j,k)) + (amrex::Real(1.0)/node(i,j+1,k)));
         },
         [=] AMREX_GPU_DEVICE (int i, int j, int k) {
-            if (!use_harmonic) facey(i,j,k) = amrex::Real(0.5)*(node(i,j,k,order) + node(i+1,j,k,order));
-            else facey(i,j,k) = amrex::Real(2.0)/((amrex::Real(1.0)/node(i,j,k,order)) + (amrex::Real(1.0)/node(i+1,j,k,order)));
+            if (!use_harmonic) facey(i,j,k) = amrex::Real(0.5)*(node(i,j,k) + node(i+1,j,k));
+            else facey(i,j,k) = amrex::Real(2.0)/((amrex::Real(1.0)/node(i,j,k)) + (amrex::Real(1.0)/node(i+1,j,k)));
         });
     }
 #endif

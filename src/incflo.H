@@ -200,9 +200,9 @@ public:
     //                      amrex::Vector<amrex::MultiFab const*> const& eta);
 #endif
     amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
-    average_nodal_velocity_eta_to_faces (int lev, amrex::MultiFab const& nodal_eta, int order, bool use_harmonic = false) const;
+    average_nodal_velocity_eta_to_faces (int lev, amrex::MultiFab const& nodal_eta, bool use_harmonic = false) const;
 
-    void average_nodal_to_face (amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>& fc, amrex::MultiFab const& nodal, int order, bool use_harmonic) const;
+    void average_nodal_to_face (amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>& fc, amrex::MultiFab const& nodal, bool use_harmonic) const;
 
 
     void diffuse_velocity (amrex::Vector<amrex::MultiFab      *> const&  velocity,
@@ -345,7 +345,7 @@ public:
                                     amrex::Vector<amrex::MultiFab const*> const& press,
                                     amrex::Vector<amrex::MultiFab const*> const& press0,
                                     amrex::Vector<amrex::MultiFab      *> const& press_visc,
-                                    amrex::Real time, int nghost, int order=1);
+                                    amrex::Real time, int nghost, int order=0);
 
     virtual void compute_viscosity_at_level (int lev,
                                              amrex::MultiFab      * eta,
@@ -698,7 +698,10 @@ private:
         amrex::MultiFab divtau;
         amrex::MultiFab divtau_o;
 #if (AMREX_SPACEDIM == 3)
+        amrex::MultiFab divtau1;
+        amrex::MultiFab divtau2;
         amrex::MultiFab divtau_o1;
+        amrex::MultiFab divtau_o2;
 #endif
         amrex::MultiFab laps;
         amrex::MultiFab laps_o;
@@ -711,6 +714,8 @@ private:
 
         // viscosity
         amrex::MultiFab vel_eta;
+        amrex::MultiFab vel_eta1;
+        amrex::MultiFab vel_eta2;
 
         // pressure for viscosity
         amrex::MultiFab p_visc;
@@ -865,12 +870,11 @@ private:
     amrex::Vector<amrex::MultiFab*> get_conv_density_new () noexcept;
     amrex::Vector<amrex::MultiFab*> get_conv_tracer_old () noexcept;
     amrex::Vector<amrex::MultiFab*> get_conv_tracer_new () noexcept;
-    amrex::Vector<amrex::MultiFab*> get_divtau_old () noexcept;
-    amrex::Vector<amrex::MultiFab*> get_divtau_old1 () noexcept;
-    amrex::Vector<amrex::MultiFab*> get_divtau_new () noexcept;
+    amrex::Vector<amrex::MultiFab*> get_divtau_old (int order=0) noexcept;
+    amrex::Vector<amrex::MultiFab*> get_divtau_new (int order=0) noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_old () noexcept;
     amrex::Vector<amrex::MultiFab*> get_laps_new () noexcept;
-    amrex::Vector<amrex::MultiFab*> get_vel_eta () noexcept;
+    amrex::Vector<amrex::MultiFab*> get_vel_eta (int order=0) noexcept;
     amrex::Vector<amrex::MultiFab*> get_p_visc () noexcept;
     //
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_velocity_old_const () const noexcept;
@@ -887,7 +891,7 @@ private:
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_p_visc_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_vel_forces_const () const noexcept;
     [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_tra_forces_const () const noexcept;
-    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_vel_eta_const () const noexcept;
+    [[nodiscard]] amrex::Vector<amrex::MultiFab const*> get_vel_eta_const (int order=0) const noexcept;
 
     [[nodiscard]] amrex::Vector<int> const& get_velocity_iconserv () const noexcept { return m_iconserv_velocity; }
     [[nodiscard]] amrex::Vector<int> const& get_density_iconserv () const noexcept { return m_iconserv_density; }

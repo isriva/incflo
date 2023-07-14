@@ -463,33 +463,28 @@ Vector<MultiFab*> incflo::get_conv_tracer_new () noexcept
     return r;
 }
 
-Vector<MultiFab*> incflo::get_divtau_old () noexcept
+Vector<MultiFab*> incflo::get_divtau_old (int order) noexcept
 {
     Vector<MultiFab*> r;
     r.reserve(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev) {
-        r.push_back(&(m_leveldata[lev]->divtau_o));
+        if (order == 0) r.push_back(&(m_leveldata[lev]->divtau_o));
+        else if (order == 1) r.push_back(&(m_leveldata[lev]->divtau_o1));
+        else if (order == 2) r.push_back(&(m_leveldata[lev]->divtau_o2));
+        else amrex::Abort("order = 0,1,2 required");
     }
     return r;
 }
-#if (AMREX_SPACEDIM == 3)
-Vector<MultiFab*> incflo::get_divtau_old1 () noexcept
-{
-    Vector<MultiFab*> r;
-    r.reserve(finest_level+1);
-    for (int lev = 0; lev <= finest_level; ++lev) {
-        r.push_back(&(m_leveldata[lev]->divtau_o1));
-    }
-    return r;
-}
-#endif
 
-Vector<MultiFab*> incflo::get_divtau_new () noexcept
+Vector<MultiFab*> incflo::get_divtau_new (int order) noexcept
 {
     Vector<MultiFab*> r;
     r.reserve(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev) {
-        r.push_back(&(m_leveldata[lev]->divtau));
+        if (order == 0) r.push_back(&(m_leveldata[lev]->divtau));
+        else if (order == 1) r.push_back(&(m_leveldata[lev]->divtau1));
+        else if (order == 2) r.push_back(&(m_leveldata[lev]->divtau2));
+        else amrex::Abort("order = 0,1,2 required");
     }
     return r;
 }
@@ -514,12 +509,15 @@ Vector<MultiFab*> incflo::get_laps_new () noexcept
     return r;
 }
 
-Vector<MultiFab*> incflo::get_vel_eta () noexcept
+Vector<MultiFab*> incflo::get_vel_eta (int order) noexcept
 {
     Vector<MultiFab*> r;
     r.reserve(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev) {
-        r.push_back(&(m_leveldata[lev]->vel_eta));
+        if (order == 0) r.push_back(&(m_leveldata[lev]->vel_eta));
+        else if (order == 1) r.push_back(&(m_leveldata[lev]->vel_eta1));
+        else if (order == 2) r.push_back(&(m_leveldata[lev]->vel_eta2));
+        else amrex::Abort("order = 0,1,2 required");
     }
     return r;
 }
@@ -624,12 +622,15 @@ Vector<MultiFab const*> incflo::get_p_visc_const () const noexcept
     return r;
 }
 
-Vector<MultiFab const*> incflo::get_vel_eta_const () const noexcept
+Vector<MultiFab const*> incflo::get_vel_eta_const (int order) const noexcept
 {
     Vector<MultiFab const*> r;
     r.reserve(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev) {
-        r.push_back(&(m_leveldata[lev]->vel_eta));
+        if (order == 0) r.push_back(&(m_leveldata[lev]->vel_eta));
+        else if (order == 1) r.push_back(&(m_leveldata[lev]->vel_eta1));
+        else if (order == 2) r.push_back(&(m_leveldata[lev]->vel_eta2));
+        else amrex::Abort("order = 0,1,2 required");
     }
     return r;
 }

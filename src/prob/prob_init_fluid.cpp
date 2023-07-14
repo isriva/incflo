@@ -13,6 +13,8 @@ void incflo::prob_init_fluid (int lev)
     ld.p_nd.setVal(0.0);
     ld.gp.setVal(0.0);
     ld.vel_eta.setVal(1.0);
+    ld.vel_eta1.setVal(1.0);
+    ld.vel_eta2.setVal(1.0);
 
     ld.density.setVal(m_ro_0);
     ld.density_o.setVal(m_ro_0);

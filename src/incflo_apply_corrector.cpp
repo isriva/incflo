@@ -151,8 +151,12 @@ void incflo::ApplyCorrector()
     //      we use this laps only if DiffusionType::Explicit
     if ( (m_diff_type == DiffusionType::Explicit) || use_tensor_correction )
     {
-        compute_divtau(get_divtau_new(), get_velocity_new_const(),
-                       get_density_new_const(), get_vel_eta_const());
+        compute_divtau(get_divtau_new(0), get_velocity_new_const(),
+                       get_density_new_const(), get_vel_eta_const(0));
+        compute_divtau1(get_divtau_new(1), get_velocity_new_const(),
+                       get_density_new_const(), get_vel_eta_const(1));
+//        compute_divtau2(get_divtau_new(2), get_velocity_new_const(),
+//                       get_density_new_const(), get_vel_eta_const(2));
     }
 
     if (m_advect_tracer && m_diff_type == DiffusionType::Explicit) {

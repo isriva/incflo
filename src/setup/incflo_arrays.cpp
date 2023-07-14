@@ -31,12 +31,17 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
       p_visc    (amrex::convert(ba,IntVect::TheNodeVector()),
                      dm, 1             , 0 , MFInfo(), fact),
       vel_eta   (amrex::convert(ba,IntVect::TheNodeVector()),
-                     dm, 3             , 0 , MFInfo(), fact)
+                     dm, 1             , 0 , MFInfo(), fact),
+      vel_eta1   (amrex::convert(ba,IntVect::TheNodeVector()),
+                     dm, 1             , 0 , MFInfo(), fact),
+      vel_eta2   (amrex::convert(ba,IntVect::TheNodeVector()),
+                     dm, 1             , 0 , MFInfo(), fact)
 {
     if (advection_type != "MOL") {
         divtau_o.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
 #if (AMREX_SPACEDIM == 3)
         divtau_o1.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+        divtau_o2.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
 #endif
         if (advect_tracer) {
             laps_o.define(ba, dm, ntrac, 0, MFInfo(), fact);
@@ -51,7 +56,10 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
             divtau.define  (ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
             divtau_o.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
 #if (AMREX_SPACEDIM == 3)
+            divtau1.define  (ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+            divtau2.define  (ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
             divtau_o1.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+            divtau_o2.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
 #endif
         }
         if (!implicit_diffusion && advect_tracer)

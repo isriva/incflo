@@ -603,7 +603,7 @@ void incflo::WritePlotFile()
     if (m_plt_eta_1) {
         if (m_do_second_rheology_1) {
             for (int lev = 0; lev <= finest_level; ++lev)
-                amrex::average_node_to_cellcenter(mf[lev], icomp, m_leveldata[lev]->vel_eta, 1, 1);
+                amrex::average_node_to_cellcenter(mf[lev], icomp, m_leveldata[lev]->vel_eta1, 0, 1);
             pltscaVarsName.push_back("eta2");
             ++icomp;
         }
@@ -615,7 +615,7 @@ void incflo::WritePlotFile()
     if (m_plt_eta_2) {
         if (m_do_second_rheology_2) {
             for (int lev = 0; lev <= finest_level; ++lev)
-                amrex::average_node_to_cellcenter(mf[lev], icomp, m_leveldata[lev]->vel_eta, 2, 1);
+                amrex::average_node_to_cellcenter(mf[lev], icomp, m_leveldata[lev]->vel_eta2, 0, 1);
             pltscaVarsName.push_back("eta3");
             ++icomp;
         }
