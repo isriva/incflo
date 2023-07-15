@@ -226,7 +226,7 @@ MyTensorOp::apply (int amrlev, int mglev, MultiFab& out, MultiFab& in, BCMode bc
 //        ofs.close();
 //    }
    {
-       std::string plotfilename = "vel_after_apply_granular_euler";
+       std::string plotfilename = "vel_after_apply_granular_flat_RK1e-4_T2p5";
        std::ofstream ofs(plotfilename, std::ofstream::out);
        for (MFIter mfi(in); mfi.isValid(); ++mfi) {
            ofs<<std::setprecision(16)<< (in[mfi])<<std::endl;

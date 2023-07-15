@@ -1,11 +1,8 @@
 #include <incflo.H>
-#include <memory>
-#include <AMReX_BC_TYPES.H>
-#include <utility>
 
 using namespace amrex;
 //
-// Apply predictor:
+// Apply corrector: -- EY: This is only for RK2 with constant density 
 //
 //  1. Use u = vel_old to compute
 //
@@ -66,15 +63,14 @@ using namespace amrex;
 // It is assumed that the ghost cels of the old data have been filled and
 // the old and new data are the same in valid region.
 //
-void incflo::ApplyPredictor (bool incremental_projection)
+void incflo::ApplyCorrector (bool incremental_projection)
 {
-    BL_PROFILE("incflo::ApplyPredictor");
+    BL_PROFILE("incflo::ApplyCorrector");
 
     constexpr Real m_half = Real(0.5);
 
     // We use the new time value for things computed on the "*" state
     Real new_time = m_cur_time + m_dt;
-
 
     // *************************************************************************************
     // Allocate space for the MAC velocities
@@ -102,16 +98,14 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     Vector<MultiFab> density_nph;
     for (int lev = 0; lev <= finest_level; ++lev)
-        density_nph.emplace_back(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
-
-    // Forcing terms
+        density_nph.emplace_back(grids[lev], dmap[lev], 1, 0, MFInfo(), Factory(lev));
+   // **********************************************************************************************
+    // We only reach the corrector if advection_type == MOL which means we don't use the forces
+    //    in constructing the advection term
+    // **********************************************************************************************
     Vector<MultiFab> vel_forces, tra_forces;
-
     Vector<MultiFab> vel_eta, vel_eta1, vel_eta2, tra_eta;
 
-    // *************************************************************************************
-    // Allocate space for the forcing terms
-    // *************************************************************************************
     for (int lev = 0; lev <= finest_level; ++lev) {
         vel_forces.emplace_back(grids[lev], dmap[lev], AMREX_SPACEDIM, nghost_force(),
                                 MFInfo(), Factory(lev));
@@ -428,6 +422,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
         {
             Box const& bx = mfi.tilebox();
             Array4<Real> const& vel = ld.velocity.array(mfi);
+            Array4<Real> const& vel_old = ld.velocity_temp.array(mfi);
             Array4<Real const> const& dvdt = ld.conv_velocity_o.const_array(mfi);
             Array4<Real const> const& vel_f = vel_forces[lev].const_array(mfi);
             Array4<Real const> const& rho_old  = ld.density_o.const_array(mfi);
@@ -627,27 +622,24 @@ void incflo::ApplyPredictor (bool incremental_projection)
                 }
             }
             else if (m_diff_type == DiffusionType::Exp_RK2)
-            {  
+            {
+                
                 Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
                 Array4<Real const> const& divtau_o1 = ld.divtau_o1.const_array(mfi);
-                // Array4<Real> const& vel_temp = ld.velocity.array(mfi);
+
                 if (m_advect_momentum) {
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
-                        AMREX_D_TERM(vel(i,j,k,0) *= rho_old(i,j,k);,
-                                     vel(i,j,k,1) *= rho_old(i,j,k);,
-                                     vel(i,j,k,2) *= rho_old(i,j,k););
- 
-
-			            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+rho_nph(i,j,k)*vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
-                                    vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+rho_nph(i,j,k)*vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
-                                    vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+rho_nph(i,j,k)*vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+                        AMREX_D_TERM(vel(i,j,k,0) = vel_old(i,j,k,0) + l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
+                                     vel(i,j,k,1) = vel_old(i,j,k,1) + l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
+                                     vel(i,j,k,2) = vel_old(i,j,k,2) + l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
 
                         if (m_do_second_rheology_1) {
-                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
-                                         vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
-                                         vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                            AMREX_D_TERM(vel(i,j,k,0) = vel_old(i,j,k,0) + l_dt*(divtau_o1(i,j,k,0));,
+                                         vel(i,j,k,1) = vel_old(i,j,k,1) + l_dt*(divtau_o1(i,j,k,1));,
+                                         vel(i,j,k,2) = vel_old(i,j,k,2) + l_dt*(divtau_o1(i,j,k,2)););
                         }
+
                         //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
                         //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
                         //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
@@ -658,23 +650,89 @@ void incflo::ApplyPredictor (bool incremental_projection)
                                      vel(i,j,k,2) /= rho_new(i,j,k););
                     });
                 } else {
+                    
                     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                     {
-                        AMREX_D_TERM(vel(i,j,k,0) += l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
-                                     vel(i,j,k,1) += l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
-                                     vel(i,j,k,2) += l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+                        AMREX_D_TERM(vel(i,j,k,0) = vel_old(i,j,k,0) + l_dt*(dvdt(i,j,k,0)+vel_f(i,j,k,0)+divtau_o(i,j,k,0));,
+                                     vel(i,j,k,1) = vel_old(i,j,k,1) + l_dt*(dvdt(i,j,k,1)+vel_f(i,j,k,1)+divtau_o(i,j,k,1));,
+                                     vel(i,j,k,2) = vel_old(i,j,k,2) + l_dt*(dvdt(i,j,k,2)+vel_f(i,j,k,2)+divtau_o(i,j,k,2)););
+
                         if (m_do_second_rheology_1) {
-                            AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o1(i,j,k,0));,
-                                         vel(i,j,k,1) += l_dt*(divtau_o1(i,j,k,1));,
-                                         vel(i,j,k,2) += l_dt*(divtau_o1(i,j,k,2)););
+                            AMREX_D_TERM(vel(i,j,k,0) = vel_old(i,j,k,0) + l_dt*(divtau_o1(i,j,k,0));,
+                                         vel(i,j,k,1) = vel_old(i,j,k,1) + l_dt*(divtau_o1(i,j,k,1));,
+                                         vel(i,j,k,2) = vel_old(i,j,k,2) + l_dt*(divtau_o1(i,j,k,2)););
                         }
+                        
                         //if (m_do_second_rheology_2) { // TODO: add the second RE tensor
                         //    AMREX_D_TERM(vel(i,j,k,0) += l_dt*(divtau_o2(i,j,k,0));,
                         //                 vel(i,j,k,1) += l_dt*(divtau_o2(i,j,k,1));,
                         //                 vel(i,j,k,2) += l_dt*(divtau_o2(i,j,k,2)););
                         //}
+
+                        // Implement the temporary to the actual u* stage
+                        // Use velocity_new
+
+                        // velocity allocation
+                        // Vector<MultiFab> u_mac(finest_level+1), v_mac(finest_level+1), w_mac(finest_level+1);
+                        // int ngmac = nghost_mac();
+
+                        // for (int lev = 0; lev <= finest_level; ++lev) {
+                        //     AMREX_D_TERM(u_mac[lev].define(amrex::convert(grids[lev],IntVect::TheDimensionVector(0)), dmap[lev],
+                        //                     1, ngmac, MFInfo(), Factory(lev));,
+                        //                 v_mac[lev].define(amrex::convert(grids[lev],IntVect::TheDimensionVector(1)), dmap[lev],
+                        //                     1, ngmac, MFInfo(), Factory(lev));,
+                        //                 w_mac[lev].define(amrex::convert(grids[lev],IntVect::TheDimensionVector(2)), dmap[lev],
+                        //                     1, ngmac, MFInfo(), Factory(lev)););
+                        //     // do we still want to do this now that we always call a FillPatch (afnd all ghost cells get filled)?
+                        //     if (ngmac > 0) {
+                        //         AMREX_D_TERM(u_mac[lev].setBndry(0.0);,
+                        //                     v_mac[lev].setBndry(0.0);,
+                        //                     w_mac[lev].setBndry(0.0););
+                        //     }
+                        // }
+                        // update viscosity
+                        // compute_viscosity(GetVecOfPtrs(vel_eta), get_density_old(), get_velocity_new(), get_pressure_const(),m_cur_time, 1, 0);
+                        // if (m_do_second_rheology_1) 
+                        // {
+                        //     compute_viscosity(GetVecOfPtrs(vel_eta1),get_density_old(), 
+                        //             get_velocity_new(),get_pressure_const(),m_cur_time, 1, 1);
+                        // }
+                        // // if (m_do_second_rheology_2) // TODO: add the second RE tensor
+                        // // {
+                        // //     compute_viscosity(GetVecOfPtrs(vel_eta2),get_density_old(), 
+                        // //             get_velocity_old(), get_pressure_const(), m_cur_time, 1, 2);
+                        // // }
+
+                        // // update divtau 
+                        // if (need_divtau() || use_tensor_correction)
+                        // {
+                        //     compute_divtau(get_divtau_old(),get_velocity_new_const(),
+                        //                 get_density_old_const(),GetVecOfConstPtrs(vel_eta));
+                        // }
+                        // if (m_do_second_rheology_1) {
+                        //     compute_divtau1(get_divtau_old1(),get_velocity_new_const(),
+                        //                     get_density_old_const(),GetVecOfConstPtrs(vel_eta1));
+                        // }
+                        // // if (m_do_second_rheology_2) { // TODO: add the second RE tensor
+                        // //    compute_divtau2(get_divtau_old2(),get_velocity_old_const(),
+                        // //                    get_density_old_const(),GetVecOfConstPtrs(vel_eta2));
+                        // // }
+
+                        // // update convection term 
+                        // compute_convective_term(get_conv_velocity_new(), get_conv_density_old(), get_conv_tracer_old(),
+                        // get_velocity_new_const(), get_density_old_const(), get_tracer_old_const(),
+                        // AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+                        // GetVecOfPtrs(w_mac)),
+                        // GetVecOfPtrs(vel_forces), GetVecOfPtrs(tra_forces),
+                        // m_cur_time);
+                        // stay with forces
+
+
+
                     });
-                }             
+                }
+
+                
             }
         } // mfi
     } // lev
@@ -700,27 +758,17 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // Project velocity field, update pressure
     //
     // **********************************************************************************************
-    // Vector<MultiFab*> incflo::get_velocity_old () noexcept
-
-    
+    ApplyProjection(GetVecOfConstPtrs(density_nph),new_time,m_dt,incremental_projection);
     // if (m_diff_type == DiffusionType::Exp_RK2)
     // {
-    //     // Real new_time = m_cur_time;
-    //     // ApplyProjection(GetVecOfConstPtrs(density_nph),new_time,m_dt,incremental_projection);
-    //     amrex::Print() << "Skip the projection in the predictor step"  << std::endl;
-        // {
-        // Vector<MultiFab*> vel;
-        // for (int lev = 0; lev <= finest_level; ++lev) {
-        //     // r.push_back(&(m_leveldata[lev]->velocity_o));
-        //     vel.push_back(&(m_leveldata[lev]->velocity));
-        // }
-    // // }
+    //     Real new_time = m_cur_time + (0.5)*m_dt;
+    //     ApplyProjection(GetVecOfConstPtrs(density_nph),new_time,m_dt,m_cur_time);
+    //     // amrex::Print() << "Skip the projection in the predictor step"  << std::endl;
     // }
     // else 
     // {
-    ApplyProjection(GetVecOfConstPtrs(density_nph),new_time,m_dt,incremental_projection);
+    //     ApplyProjection(GetVecOfConstPtrs(density_nph),new_time,m_dt,incremental_projection);
     // }
-
     
 #ifdef AMREX_USE_EB
     // **********************************************************************************************
