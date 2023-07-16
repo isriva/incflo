@@ -332,11 +332,6 @@ public:
     };
     
     FLUID_t m_fluid;
-    bool m_do_second_rheology_1 = false; // first Rivlin-Ericksen (RE) tensor
-    bool m_do_second_rheology_2 = false; // second Rivlin-Ericksen (RE) tensor
-    bool m_do_vof = false; // do VoF?
-    bool m_include_perturb_pressure = false; // include perturbational pressure when computing granular rheology
-    amrex::Real m_p_amb_surface = amrex::Real(0.0); // set pressure at the free surface
     amrex::Vector<FLUID_t> m_fluid_vof;
     
     virtual void compute_viscosity (amrex::Vector<amrex::MultiFab      *> const& eta,
@@ -551,6 +546,13 @@ private:
 
     // pressure at top surface
     amrex::Real m_p_top_surface = 0.0; // pressure at top surface
+    
+    // rheology (second-order)
+    bool m_do_second_rheology_1 = false; // first Rivlin-Ericksen (RE) tensor
+    bool m_do_second_rheology_2 = false; // second Rivlin-Ericksen (RE) tensor
+    
+    // two-component?
+    bool m_do_vof = false; // do VoF?
 
     // If false then we update velocity using the convective   form, u dot grad u
     // If  true then we update velocity using the conservative form, del dot (u u)
@@ -841,6 +843,18 @@ private:
 
     [[nodiscard]] bool useTensorCorrection () const {
         return use_tensor_correction;
+    }
+
+    [[nodiscard]] bool useBaseGradP () const {
+        return m_use_base_gradp;
+    }
+
+    [[nodiscard]] bool doSecondRheology1  () const {
+        return m_do_second_rheology_1;
+    }
+
+    [[nodiscard]] bool doSecondRheology2 () const {
+        return m_do_second_rheology_2;
     }
 
 #ifdef AMREX_USE_EB

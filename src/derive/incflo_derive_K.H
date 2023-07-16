@@ -159,7 +159,7 @@ AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 amrex::Real incflo_strainrate_nodal (int i, int j, int k,
                                      AMREX_D_DECL(amrex::Real idx, amrex::Real idy, amrex::Real idz),
                                      amrex::Array4<amrex::Real const> const& vel, const amrex::Dim3& domlo, const amrex::Dim3& domhi,
-                                     amrex::Vector<amrex::Array<int,2>> bc_type) noexcept
+                                     amrex::GpuArray<amrex::GpuArray<int,2>,AMREX_SPACEDIM> bc_type) noexcept
 {
     using namespace amrex;
 

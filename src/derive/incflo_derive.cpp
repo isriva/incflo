@@ -69,7 +69,8 @@ void incflo::compute_strainrate_at_level (int /*lev*/,
         const Box& domain = lev_geom.Domain();
         const Dim3 domlo = amrex::lbound(domain);
         const Dim3 domhi = amrex::ubound(domain);
-        Vector<Array<int,2>> bc_type(AMREX_SPACEDIM);
+        GpuArray<GpuArray<int,2>,AMREX_SPACEDIM> bc_type;
+//        Vector<Array<int,2>> bc_type(AMREX_SPACEDIM);
         for (OrientationIter oit; oit; ++oit) {
             Orientation ori = oit();
             int dir = ori.coordDir();

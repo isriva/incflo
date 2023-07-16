@@ -221,7 +221,7 @@ amrex::Real Viscosity_VOF(const amrex::Real sr, const amrex::Real conc, const in
 
 bool is_slip_surface(const int i, const int j, const int k, 
                      const amrex::Dim3& domlo, const amrex::Dim3& domhi,
-                     amrex::Vector<amrex::Array<int,2>> bc_type)
+                     GpuArray<GpuArray<int,2>,AMREX_SPACEDIM> bc_type)
 {
     bool slip_surface = false;
     if ((i<=domlo.x) && (bc_type[0][0] == 1)) slip_surface = true;
@@ -268,16 +268,29 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                                          amrex::Real /*time*/, int /*nghost*/, int order)
 {
 
+    bool need_strainrate = m_need_strainrate;
+    bool do_vof = m_do_vof;
+    int p_dep_visc = m_p_dep_visc;
+    amrex::GpuArray<int,3> n_cells;
+    n_cells[0] = m_n_cells[0];
+    n_cells[1] = m_n_cells[1];
+#if (AMREX_SPACEDIM == 3)
+    n_cells[2] = m_n_cells[2];
+#endif
+
+    // copy m_fluid_vof object to device and pass device pointer
+
+
     // Get pressure at the top of the domain
     amrex::Gpu::DeviceVector<Real> press_surface;
 #if (AMREX_SPACEDIM == 3)
-        press_surface.resize((m_n_cells[0]+1)*(m_n_cells[1]+1), -1.0e99);
-        getsurfacepressure(press,press_surface,lev_geom);
-        ParallelDescriptor::ReduceRealMax(press_surface.data(),(m_n_cells[0]+1)*(m_n_cells[1]+1));
+     press_surface.resize((n_cells[0]+1)*(n_cells[1]+1), -1.0e99);
+     getsurfacepressure(press,press_surface,lev_geom);
+     ParallelDescriptor::ReduceRealMax(press_surface.data(),(n_cells[0]+1)*(n_cells[1]+1));
 #elif (AMREX_SPACEDIM == 2)
-        press_surface.resize(m_n_cells[0]+1, -1.0e99);
-        getsurfacepressure(press,press_surface,lev_geom);
-        ParallelDescriptor::ReduceRealMax(press_surface.data(),m_n_cells[0]+1);
+     press_surface.resize(n_cells[0]+1, -1.0e99);
+     getsurfacepressure(press,press_surface,lev_geom);
+     ParallelDescriptor::ReduceRealMax(press_surface.data(),n_cells[0]+1);
 #endif
 
 #ifdef AMREX_USE_EB
@@ -292,7 +305,8 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
     const Box& domain = lev_geom.Domain();
     const Dim3 domlo = amrex::lbound(domain);
     const Dim3 domhi = amrex::ubound(domain);
-    Vector<Array<int,2>> bc_type(AMREX_SPACEDIM);
+    GpuArray<GpuArray<int,2>,AMREX_SPACEDIM> bc_type;
+//    Vector<Array<int,2>> bc_type(AMREX_SPACEDIM);
     for (OrientationIter oit; oit; ++oit) {
         Orientation ori = oit();
         int dir = ori.coordDir();
@@ -347,7 +361,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
             {
                 Real sr = incflo_strainrate_eb(i,j,k,AMREX_D_DECL(idx,idy,idz),vel_arr,flag_arr(i,j,k));
                 Real dens = rho_arr(i,j,k);
-                if (m_do_vof) {
+                if (do_vof) {
                     eta_arr(i,j,k) = Viscosity_VOF(sr,dens,order,m_fluid_vof);
                 }
                 else {
@@ -365,7 +379,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
 
                 // Get Strain Rate (nodal)
                 Real sr = 0.0;
-                if (m_need_strainrate) {
+                if (need_strainrate) {
                     sr = incflo_strainrate_nodal(i,j,k,AMREX_D_DECL(idx,idy,idz),
                                                   vel_arr,domlo,domhi,bc_type);
                 }
@@ -373,16 +387,16 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 // Get concentration (nodal)
                 Real conc;
 //                Real dens = m_ro_0;                
-                if (m_do_vof) {
+                if (do_vof) {
                     conc = incflo_nodal_conc(i,j,k,rho_arr,m_fluid_vof[0].rho,m_fluid_vof[1].rho);
                     //dens = incflo_cc_to_nodal(i,j,k,rho_arr,true);
                 }
 
                 // Get Pressure (nodal)
                 Real pressure = 0.0;
-                if (m_p_dep_visc == 1) {
+                if (p_dep_visc == 1) {
 #if (AMREX_SPACEDIM == 3)
-                    int index = j*(m_n_cells[0]+1) + i;
+                    int index = j*(n_cells[0]+1) + i;
                     Real p_surface_ij = p_surface[index];
                     pressure = p_arr(i,j,k) - p_surface_ij + m_p_top_surface;
 #elif (AMREX_SPACEDIM == 2)
@@ -391,7 +405,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                     pressure = p_arr(i,j,k) - p_surface_i + m_p_top_surface;
 #endif
                 }
-                else if (m_p_dep_visc == 0) {
+                else if (p_dep_visc == 0) {
                     pressure = p0_arr(i,j,k);
                 }
                 else {
@@ -403,7 +417,7 @@ void incflo::compute_viscosity_at_level (int /*lev*/,
                 bool slip_surface = is_slip_surface(i,j,k,domlo,domhi,bc_type);
 
                 // Compute viscosity (nodal)
-                if (m_do_vof) {
+                if (do_vof) {
                     eta_arr(i,j,k) = Viscosity_VOF(sr,conc,order,m_fluid_vof,pressure,slip_surface);
                 }
                 else {
@@ -428,6 +442,13 @@ void incflo::compute_tracer_diff_coeff (Vector<MultiFab*> const& tra_eta, int ng
 
 void incflo::getsurfacepressure(amrex::MultiFab const* press, amrex::Gpu::DeviceVector<Real>& p_surface_in, amrex::Geometry& geom)
 {
+    amrex::GpuArray<int,3> n_cells;
+    n_cells[0] = m_n_cells[0];
+    n_cells[1] = m_n_cells[1];
+#if (AMREX_SPACEDIM == 3)
+    n_cells[2] = m_n_cells[2];
+#endif
+    
     auto const& problo = geom.ProbLoArray();
     auto const& probhi = geom.ProbHiArray();
     AMREX_D_TERM(const Real l_dx = geom.CellSize(0);,
@@ -444,7 +465,7 @@ void incflo::getsurfacepressure(amrex::MultiFab const* press, amrex::Gpu::Device
 #if (AMREX_SPACEDIM == 3)
             Real z = problo[2] + k*l_dz;
             if ((z<probhi[2]+Real(0.01)*l_dz) && (z>probhi[2]-Real(0.01)*l_dz)) { // top surface
-                int index = j*(m_n_cells[0]+1) + i;
+                int index = j*(n_cells[0]+1) + i;
                 p_surface[index] = p_arr(i,j,k);
             }
 #elif (AMREX_SPACEDIM == 2)

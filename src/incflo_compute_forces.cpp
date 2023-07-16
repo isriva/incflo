@@ -54,6 +54,8 @@ void incflo::compute_vel_forces_on_level (int lev,
     GpuArray<Real,3> l_gravity{m_gravity[0],m_gravity[1],m_gravity[2]};
     GpuArray<Real,3> l_gp0{m_gp0[0], m_gp0[1], m_gp0[2]};
 
+    bool use_base_gradp = useBaseGradP(); 
+
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -97,7 +99,7 @@ void incflo::compute_vel_forces_on_level (int lev,
 
                     if (include_pressure_gradient)
                     {
-                        if (!m_use_base_gradp) {
+                        if (!use_base_gradp) {
                             AMREX_D_TERM(vel_f(i,j,k,0) = -(gradp(i,j,k,0)+l_gp0[0])*rhoinv + l_gravity[0];,
                                          vel_f(i,j,k,1) = -(gradp(i,j,k,1)+l_gp0[1])*rhoinv + l_gravity[1];,
                                          vel_f(i,j,k,2) = -(gradp(i,j,k,2)+l_gp0[2])*rhoinv + l_gravity[2];);
