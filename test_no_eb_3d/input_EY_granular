@@ -2,14 +2,14 @@ amrex.fpe_trap_invalid=1                # have a trap to catch a bug
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            SIMULATION STOP            #
 #.......................................#
-stop_time               =   5         # Max (simulated) time to evolve
+stop_time               =   1.0         # Max (simulated) time to evolve
 max_step                =   -1          # Max number of time steps
 steady_state            =   0           # Steady-state solver? 
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #         TIME STEP COMPUTATION         #
 #.......................................#
-incflo.fixed_dt         =   -5e-4        # Use this constant dt if > 0
+incflo.fixed_dt         =  5e-5        # Use this constant dt if > 0
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #            INPUT AND OUTPUT           #
@@ -44,14 +44,14 @@ incflo.alpha_1          =   0.31
 incflo.papa_reg_1       =   1.0e-3     # 
 
 
-incflo.diffusion_type    =    3          # Defualt is 2 (Implicit); 1 is CN, 0 is Explicit, 3 is RK2-Explicit
+incflo.diffusion_type    =    0          # Defualt is 2 (Implicit); 1 is CN, 0 is Explicit, 3 is RK2-Explicit
 #incflo.convection_type      = "BDS"
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
 #        ADAPTIVE MESH REFINEMENT       #
 #.......................................#
 amr.n_cell              =   8    8    8  # Grid cells at coarsest AMRlevel
-amr.max_grid_size       =   8     8    8
+amr.max_grid_size       =   8    8    8
 amr.max_level           =   0           # Max AMR level in hierarchy 
 
 #¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨¨#
@@ -67,7 +67,7 @@ incflo.delp             =   0.  0.  0.     # Prescribed (cyclic) pressure gradie
 zlo.type                =   "nsw"
 zlo.velocity            =   0.  0.  0.
 zhi.type                =   "nsw"
-zhi.velocity            =   0.  2.   0.
+zhi.velocity            =   0.  1.   0.
 
 xlo.type                =   "nsw"
 xlo.velocity            =   0.  0.  0.

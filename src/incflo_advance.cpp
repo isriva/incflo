@@ -55,27 +55,8 @@ void incflo::Advance()
     // EY: for RK2 method (explicit)
     if (m_diff_type == DiffusionType::Exp_RK2)
     {   
-        copy_from_new_to_temp_velocity();
-        int ng = nghost_state();
-        for (int lev = 0; lev <= finest_level; ++lev) {
-            fillpatch_velocity(lev, m_t_temp[lev], m_leveldata[lev]->velocity_o, ng);
-            fillpatch_density(lev, m_t_temp[lev], m_leveldata[lev]->density_o, ng);
-            fillpatch_tracer(lev, m_t_temp[lev], m_leveldata[lev]->tracer_o, ng);
-        }
-
-
         ApplyPredictor();
-        // copy_from_new_to_old_velocity();
-        // copy_from_new_to_old_density();
-        // copy_from_new_to_old_tracer();
-
-        // // int ng = nghost_state();
-        // for (int lev = 0; lev <= finest_level; ++lev) {
-        //     fillpatch_velocity(lev, m_t_old[lev], m_leveldata[lev]->velocity_o, ng);
-        //     fillpatch_density(lev, m_t_old[lev], m_leveldata[lev]->density_o, ng);
-        //     fillpatch_tracer(lev, m_t_old[lev], m_leveldata[lev]->tracer_o, ng);
-        // }
-        // ApplyCorrector();
+        ApplyCorrector();
     }
     else{
         ApplyPredictor();
