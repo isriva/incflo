@@ -190,6 +190,7 @@
 <li><p>‘po’  or ‘pressure_outflow’</p></li>
 <li><p>‘mi’  or ‘mass_inflow’</p></li>
 <li><p>‘nsw’ or ‘no_slip_wall’</p></li>
+<li><p>‘sw’ or ‘slip_wall’</p></li>
 <li><p>‘mixed’</p></li>
 </ul>
 </td>
@@ -202,19 +203,24 @@
 <td><p>None</p></td>
 </tr>
 <tr class="row-even"><td><p>velocity</p></td>
-<td><p>Sets boundary velocity for mass inflows</p></td>
+<td><p>Sets Dirichlet boundary condition for velocity</p></td>
 <td><p>Reals</p></td>
 <td><p>(0, 0, 0)</p></td>
 </tr>
 <tr class="row-odd"><td><p>density</p></td>
-<td><p>Sets boundary density for mass inflows</p></td>
+<td><p>Sets Dirichlet boundary condition for density</p></td>
 <td><p>Real</p></td>
 <td><p>1.0</p></td>
 </tr>
 <tr class="row-even"><td><p>tracer</p></td>
-<td><p>Sets boundary tracer for mass inflows</p></td>
+<td><p>Sets Dirichlet boundary condition for tracer</p></td>
 <td><p>Real</p></td>
 <td><p>0.0</p></td>
+</tr>
+<tr class="row-odd"><td><p>temperature</p></td>
+<td><p>Sets Dirichlet boundary condition for temperature</p></td>
+<td><p>Real</p></td>
+<td><p>1.0</p></td>
 </tr>
 </tbody>
 </table>

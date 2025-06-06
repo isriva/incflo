@@ -107,14 +107,20 @@
 <tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(\mu_s\)</span></p></td>
 <td><p>scalar diffusivity</p></td>
 </tr>
-<tr class="row-even"><td><p><span class="math notranslate nohighlight">\({\bf g}\)</span></p></td>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(\mu_T\)</span></p></td>
+<td><p>thermal conductivity</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\({\bf g}\)</span></p></td>
 <td><p>Gravitational acceleration</p></td>
 </tr>
-<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\({\bf H}_U\)</span></p></td>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\({\bf H}_U\)</span></p></td>
 <td><p><span class="math notranslate nohighlight">\(= (H_x , H_y , H_z )\)</span>, External Forces</p></td>
 </tr>
-<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(H_s\)</span></p></td>
+<tr class="row-odd"><td><p><span class="math notranslate nohighlight">\(H_s\)</span></p></td>
 <td><p>External sources</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="math notranslate nohighlight">\(H_T\)</span></p></td>
+<td><p>External heat sources</p></td>
 </tr>
 </tbody>
 </table>
@@ -138,7 +144,10 @@
 <p>or, for non-conservative,</p>
 <div class="math notranslate nohighlight">
 \[\frac{\partial s}{\partial t} + U \cdot \nabla s  =  \nabla \cdot \mu_s \nabla s + H_s\]</div>
-<p>By default, <span class="math notranslate nohighlight">\(H_s = 0\)</span> and <span class="math notranslate nohighlight">\({\bf H}_U = {\bf 0}\)</span>.
+<p>Optional temperature:</p>
+<div class="math notranslate nohighlight">
+\[\rho c_p \left( \frac{\partial T}{\partial t} + U \cdot \nabla T \right)  =  \nabla \cdot \mu_T \nabla T + H_T\]</div>
+<p>By default, <span class="math notranslate nohighlight">\(H_s = 0\)</span>,  <span class="math notranslate nohighlight">\(H_T = 0\)</span>, and <span class="math notranslate nohighlight">\({\bf H}_U = {\bf 0}\)</span>.
 If gravity is set during runtime, then <span class="math notranslate nohighlight">\({\bf H}_U\)</span> defaults to <span class="math notranslate nohighlight">\(\rho {\bf g}\)</span>.</p>
 </section>
 
