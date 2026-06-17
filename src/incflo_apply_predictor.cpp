@@ -138,6 +138,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
     compute_viscosity(GetVecOfPtrs(vel_eta),
                       get_density_old(), get_velocity_old(),
                       m_cur_time, nghost_eta);
+    compute_stochastic_velocity_force(get_density_old_const(), GetVecOfConstPtrs(vel_eta));
 
     // *************************************************************************************
     // Compute explicit viscous term
@@ -174,6 +175,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
     compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_old_const(),
                        get_density_old_const(), get_tracer_old_const(), get_tracer_old_const(),
                        include_pressure_gradient);
+    add_stochastic_velocity_force(GetVecOfPtrs(vel_forces));
 
     // **********************************************************************************************
     // Compute the MAC-projected velocities at all levels

@@ -164,4 +164,25 @@
                     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
                     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
                     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi) const;
+    
+    void init_KH_2d (amrex::Box const& vbx, amrex::Box const& gbx,
+                     amrex::Array4<amrex::Real> const& vel,
+                     amrex::Array4<amrex::Real> const& density,
+                     amrex::Array4<amrex::Real> const& tracer,
+                     amrex::Box const& domain,
+                     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
+                     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
+                     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi);
+
+    void init_KH_2d_pertubed (amrex::Box const& vbx, amrex::Box const& gbx,
+                              amrex::Array4<amrex::Real> const& vel,
+                              amrex::Array4<amrex::Real> const& density,
+                              amrex::Array4<amrex::Real> const& tracer,
+                              amrex::Box const& domain,
+                              amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
+                              amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
+                              amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi,
+                              amrex::Real const* eta,
+                              amrex::Real sigma,
+                              amrex::Real eps);
 #endif

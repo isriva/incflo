@@ -242,6 +242,10 @@ public:
                            amrex::Vector<amrex::MultiFab const*> const& eta,
                            amrex::Real dt_diff);
 
+    void compute_stochastic_velocity_force (amrex::Vector<amrex::MultiFab const*> const& density,
+                                            amrex::Vector<amrex::MultiFab const*> const& eta);
+    void add_stochastic_velocity_force (amrex::Vector<amrex::MultiFab*> const& vel_forces) const;
+
     [[nodiscard]] amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
     average_scalar_eta_to_faces (int lev, int comp, amrex::MultiFab const& cc_eta) const;
 
@@ -579,6 +583,12 @@ private:
 
     // If true use CC projection; if false use nodal projection
     bool m_use_cc_proj = false;
+
+    bool m_use_stochastic_velocity_fluxes = false;
+    amrex::Real m_stochastic_k_B = 0.0;
+    amrex::Real m_stochastic_temperature = 0.0;
+    amrex::Real m_stochastic_cell_depth  = 1.0;
+    amrex::Vector<amrex::MultiFab> m_stochastic_vel_force;
 
     enum struct DiffusionType : std::uint8_t {
         Invalid, Explicit, Crank_Nicolson, Implicit

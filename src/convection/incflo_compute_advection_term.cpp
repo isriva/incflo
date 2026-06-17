@@ -186,6 +186,8 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 
         } // end m_godunov_include_diff_in_forcing
 
+        add_stochastic_velocity_force(vel_forces);
+
         if (nghost_force() > 0)
             fillpatch_force(m_cur_time, vel_forces, nghost_force());
 

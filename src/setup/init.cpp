@@ -73,6 +73,10 @@ void incflo::ReadParameters ()
         pp.query("godunov_include_diff_in_forcing"  , m_godunov_include_diff_in_forcing);
         pp.query("use_mac_phi_in_godunov"           , m_use_mac_phi_in_godunov);
         pp.query("use_cc_proj"                      , m_use_cc_proj);
+        pp.query("use_stochastic_velocity_fluxes"   , m_use_stochastic_velocity_fluxes);
+        pp.query("stochastic_k_B"                   , m_stochastic_k_B);
+        pp.query("stochastic_temperature"           , m_stochastic_temperature);
+        pp.query("stochastic_cell_depth"            , m_stochastic_cell_depth);
 
         // What type of redistribution algorithm;
         // {NoRedist, FluxRedist, StateRedist}
@@ -169,6 +173,32 @@ void incflo::ReadParameters ()
         std::string geom_type = "all_regular";
         pp.query("geometry", geom_type);
 #endif
+
+        if (m_use_stochastic_velocity_fluxes) {
+            if (m_advection_type != "Godunov") {
+                amrex::Abort("stochastic velocity fluxes require incflo.advection_type = Godunov");
+            }
+            if (max_level > 0) {
+                amrex::Abort("stochastic velocity fluxes require max_level = 0");
+            }
+            if (!m_constant_density) {
+                amrex::Abort("stochastic velocity fluxes require incflo.constant_density = 1");
+            }
+            if (m_stochastic_k_B <= 0.0) {
+                amrex::Abort("stochastic velocity fluxes require incflo.stochastic_k_B > 0");
+            }
+            if (m_stochastic_temperature <= 0.0) {
+                amrex::Abort("stochastic velocity fluxes require incflo.stochastic_temperature > 0");
+            }
+            if (m_stochastic_cell_depth <= 0.0) {
+                amrex::Abort("stochastic velocity fluxes require incflo.stochastic_cell_depth > 0");
+            }
+            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+                if (!geom[0].isPeriodic(dir)) {
+                    amrex::Abort("stochastic velocity fluxes require a fully periodic domain");
+                }
+            }
+        }
 
         // Thermal diffusivity (if constant)
         pp.query("mu_T", m_mu_T);

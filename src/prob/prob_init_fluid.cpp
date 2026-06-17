@@ -1,4 +1,6 @@
 #include <incflo.H>
+#include <AMReX_Random.H>
+#include <AMReX_Reduce.H>
 
 using namespace amrex;
 
@@ -31,6 +33,32 @@ void incflo::prob_init_fluid (int lev)
 
     if (m_use_temperature) {
         ld.temperature.setVal(m_ic_tem);
+    }
+
+    Real kh_sigma = Real(0);
+    Real kh_eps = Real(0);
+    Gpu::DeviceVector<Real> eta;
+
+    if (3001 == m_probtype) {
+        ParmParse pp("kh");
+        pp.get("sigma", kh_sigma);
+        pp.get("eps", kh_eps);
+
+        const int nx = domain.length(0);
+        eta.resize(nx);
+        Real* eta_ptr = eta.dataPtr();
+
+        ParallelForRNG(nx, [=] AMREX_GPU_DEVICE (int i, RandomEngine const& engine) noexcept
+        {
+            eta_ptr[i] = RandomNormal(Real(0), Real(1), engine);
+        });
+
+        const Real eta_mean = Reduce::Sum(nx, eta_ptr, Real(0)) / Real(nx);
+
+        ParallelFor(nx, [=] AMREX_GPU_DEVICE (int i) noexcept
+        {
+            eta_ptr[i] -= eta_mean;
+        });
     }
 
     for (MFIter mfi(ld.density); mfi.isValid(); ++mfi)
@@ -195,6 +223,23 @@ void incflo::prob_init_fluid (int lev)
                                ld.tracer.array(mfi),
                                domain, dx, problo, probhi);
 
+        }
+        else if (3000 == m_probtype)
+        {
+            init_KH_2d(vbx, gbx,
+                       ld.velocity.array(mfi),
+                       ld.density.array(mfi),
+                       ld.tracer.array(mfi),
+                       domain, dx, problo, probhi);
+        }
+        else if (3001 == m_probtype)
+        {
+            init_KH_2d_pertubed(vbx, gbx,
+                                ld.velocity.array(mfi),
+                                ld.density.array(mfi),
+                                ld.tracer.array(mfi),
+                                domain, dx, problo, probhi,
+                                eta.dataPtr(), kh_sigma, kh_eps);
         }
         else
         {
@@ -1142,3 +1187,66 @@ void incflo::init_burggraf (Box const& vbx, Box const& /*gbx*/,
 #endif
     });
 }
+
+void incflo::init_KH_2d (Box const& vbx, Box const& /*gbx*/,
+                         Array4<Real> const& vel,
+                         Array4<Real> const& /*density*/,
+                         Array4<Real> const& /*tracer*/,
+                         Box const& /*domain*/,
+                         GpuArray<Real, AMREX_SPACEDIM> const& dx,
+                         GpuArray<Real, AMREX_SPACEDIM> const& problo,
+                         GpuArray<Real, AMREX_SPACEDIM> const& probhi)
+{
+    ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        Real quarter = problo[1] + 0.25*(probhi[1]-problo[1]);
+        Real threequarter = problo[1] + 0.75*(probhi[1]-problo[1]);
+        Real y = problo[1] + (Real(j)+Real(0.5))*dx[1];
+        if (y < quarter || y > threequarter) {
+            AMREX_D_TERM(vel(i,j,k,0) = -1.0;,
+                         vel(i,j,k,1) = 0.0;,
+                         vel(i,j,k,2) = 0.0;);
+        } else {
+            AMREX_D_TERM(vel(i,j,k,0) = 1.0;,
+                         vel(i,j,k,1) = 0.0;,
+                         vel(i,j,k,2) = 0.0;);
+        }
+    });
+}
+
+void incflo::init_KH_2d_pertubed (Box const& vbx, Box const& /*gbx*/,
+                                  Array4<Real> const& vel,
+                                  Array4<Real> const& /*density*/,
+                                  Array4<Real> const& /*tracer*/,
+                                  Box const& domain,
+                                  GpuArray<Real, AMREX_SPACEDIM> const& dx,
+                                  GpuArray<Real, AMREX_SPACEDIM> const& problo,
+                                  GpuArray<Real, AMREX_SPACEDIM> const& probhi,
+                                  Real const* eta,
+                                  Real sigma,
+                                  Real eps)
+{
+    const int domlo_x = domain.smallEnd(0);
+
+    ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        const Real Ly = probhi[1] - problo[1];
+        const Real y_rel = problo[1] + (Real(j) + Real(0.5)) * dx[1];
+        const Real y_low = problo[1] + Real(0.25) * Ly;
+        const Real y_high = problo[1] + Real(0.75) * Ly;
+        const Real inv_sqrt2_sigma = Real(1) / (std::sqrt(Real(2)) * sigma);
+
+        const Real h_low =
+            Real(0.5) * (Real(1) + std::erf((y_rel - y_low) * inv_sqrt2_sigma));
+        const Real h_high =
+            Real(0.5) * (Real(1) + std::erf((y_rel - y_high) * inv_sqrt2_sigma));
+        const Real s = h_low - h_high;
+
+        const int ii = i - domlo_x;
+        const Real a = Real(1) + eps * eta[ii];
+
+        vel(i,j,k,0) = a * (Real(2) * s - Real(1));
+        vel(i,j,k,1) = Real(0);
+    });
+}
+
