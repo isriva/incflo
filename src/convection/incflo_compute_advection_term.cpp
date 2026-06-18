@@ -684,7 +684,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 #endif
                                                      m_godunov_ppm, m_godunov_use_forces_in_trans,
                                                      is_velocity, fluxes_are_area_weighted,
-                                                     m_advection_type, PPM::default_limiter,
+                                                     m_advection_type, m_PPM_flux_limiter ? PPM::default_limiter : PPM::NoLimiter,
                                                      allow_inflow_on_outflow, velbc_arr);
 
             // ************************************************************************
@@ -722,7 +722,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 #endif
                                                          m_godunov_ppm, m_godunov_use_forces_in_trans,
                                                          is_velocity, fluxes_are_area_weighted,
-                                                         m_advection_type, PPM::default_limiter,
+                                                         m_advection_type, m_PPM_flux_limiter ? PPM::default_limiter : PPM::NoLimiter,
                                                          allow_inflow_on_outflow, densbc_arr);
             }
 
@@ -790,7 +790,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 #endif
                                           m_godunov_ppm, m_godunov_use_forces_in_trans,
                                           is_velocity, fluxes_are_area_weighted,
-                                          m_advection_type, PPM::default_limiter,
+                                          m_advection_type, m_PPM_flux_limiter ? PPM::default_limiter : PPM::NoLimiter,
                                           allow_inflow_on_outflow, tracbc_arr);
             }
 
@@ -832,7 +832,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 #endif
                                           m_godunov_ppm, m_godunov_use_forces_in_trans,
                                           is_velocity, fluxes_are_area_weighted,
-                                          m_advection_type, PPM::default_limiter,
+                                          m_advection_type, m_PPM_flux_limiter ? PPM::default_limiter : PPM::NoLimiter,
                                           allow_inflow_on_outflow, tempbc_arr);
             }
         } // mfi

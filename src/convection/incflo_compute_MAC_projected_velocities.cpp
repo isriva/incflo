@@ -174,7 +174,7 @@ incflo::compute_MAC_projected_velocities (
                                       m_eb_flow.enabled ? get_velocity_eb()[lev] : nullptr,
 #endif
                                       m_godunov_ppm, m_godunov_use_forces_in_trans,
-                                      l_advection_type, PPM::default_limiter,
+                                      l_advection_type, m_PPM_flux_limiter ? PPM::default_limiter : PPM::NoLimiter,
                                       allow_inflow_on_outflow, BC_MF.get());
     }
 
