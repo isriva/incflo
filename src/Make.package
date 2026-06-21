@@ -13,6 +13,7 @@ CEXE_sources += incflo_update_velocity.cpp
 CEXE_sources += incflo_update_temperature.cpp
 CEXE_sources += incflo_specific_heat.cpp
 CEXE_sources += incflo_stochastic.cpp
+CEXE_sources += incflo_struct_fact.cpp
 CEXE_sources += incflo_utils.cpp
 CEXE_sources += main.cpp
 

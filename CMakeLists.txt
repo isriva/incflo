@@ -56,6 +56,7 @@ option( INCFLO_SYCL   "Enable SYCL"   NO )
 option( INCFLO_EB     "Build Embedded Boundary support" NO )
 option( INCFLO_PARTICLES "Build particle support" NO )
 option( INCFLO_HYPRE  "Enable HYPRE"  NO )
+option( INCFLO_FFT    "Enable FFT-based analysis" NO )
 option( INCFLO_FPE    "Enable Floating Point Exceptions checks" NO )
 
 if ((INCFLO_CUDA AND INCFLO_HIP) OR
@@ -110,6 +111,7 @@ if (AMREX_HOME)  # SUPERBUILD MODE
   endif ()
   set(AMReX_EB                ${INCFLO_EB}  CACHE INTERNAL "")
   set(AMReX_PARTICLES         ${INCFLO_PARTICLES}  CACHE INTERNAL "")
+  set(AMReX_FFT               ${INCFLO_FFT}  CACHE INTERNAL "")
   set(AMREX_FORTRAN           OFF           CACHE INTERNAL "")
   set(AMReX_LINEAR_SOLVERS    ON            CACHE INTERNAL "")
   set(AMReX_BUILD_TUTORIALS   OFF           CACHE INTERNAL "")
@@ -131,6 +133,9 @@ else ()  # STANDALONE MODE
 
    if (INCFLO_EB)
       list(APPEND AMREX_REQUIRED_COMPONENTS EB)
+   endif ()
+   if (INCFLO_FFT)
+      list(APPEND AMREX_REQUIRED_COMPONENTS FFT)
    endif ()
    if (INCFLO_MPI)
       list(APPEND AMREX_REQUIRED_COMPONENTS MPI)
@@ -180,6 +185,10 @@ else ()
 endif ()
 
 add_executable(incflo)
+
+if (INCFLO_FFT)
+   target_compile_definitions(incflo PUBLIC INCFLO_USE_FFT)
+endif ()
 
 #target_link_libraries(incflo PUBLIC AMReX::amrex amrex_hydro)
 target_link_libraries(incflo PUBLIC amrex_hydro) #link to amrex through amrex_hydro

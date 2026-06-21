@@ -71,12 +71,23 @@ void incflo::ReadParameters ()
         pp.query("use_ppm"                          , m_godunov_ppm);
         pp.query("godunov_use_forces_in_trans"      , m_godunov_use_forces_in_trans);
         pp.query("godunov_include_diff_in_forcing"  , m_godunov_include_diff_in_forcing);
+        pp.query("PPM_flux_limiter"                 , m_PPM_flux_limiter);
         pp.query("use_mac_phi_in_godunov"           , m_use_mac_phi_in_godunov);
         pp.query("use_cc_proj"                      , m_use_cc_proj);
         pp.query("use_stochastic_velocity_fluxes"   , m_use_stochastic_velocity_fluxes);
         pp.query("stochastic_k_B"                   , m_stochastic_k_B);
         pp.query("stochastic_temperature"           , m_stochastic_temperature);
         pp.query("stochastic_cell_depth"            , m_stochastic_cell_depth);
+
+        pp.query("struct_fact_int"                 , m_struct_fact_int);
+        pp.query("struct_fact_skip"                , m_struct_fact_skip);
+        pp.query("struct_fact_write_int"           , m_struct_fact_write_int);
+        pp.query("struct_fact_file"                , m_struct_fact_file);
+        pp.query("turb_spectrum_int"               , m_turb_spectrum_int);
+        pp.query("turb_spectrum_file"              , m_turb_spectrum_file);
+        pp.query("struct_fact_zero_mode"           , m_struct_fact_zero_mode);
+        pp.query("struct_fact_verbosity"           , m_struct_fact_verbosity);
+        pp.query("struct_fact_cell_depth"          , m_struct_fact_cell_depth);
 
         // What type of redistribution algorithm;
         // {NoRedist, FluxRedist, StateRedist}
@@ -206,8 +217,29 @@ void incflo::ReadParameters ()
 
     } // end prefix incflo
 
+    if (m_struct_fact_cell_depth <= 0.0) {
+        m_struct_fact_cell_depth = m_stochastic_cell_depth;
+    }
+
+    if (m_struct_fact_skip < 0) {
+        amrex::Abort("incflo.struct_fact_skip must be >= 0");
+    }
+    if (m_struct_fact_zero_mode != 0 && m_struct_fact_zero_mode != 1) {
+        amrex::Abort("incflo.struct_fact_zero_mode must be 0 or 1");
+    }
+
     ReadIOParameters();
     ReadRheologyParameters();
+
+    if (m_struct_fact_write_int <= 0 && m_struct_fact_int > 0) {
+        m_struct_fact_write_int = (m_plot_int > 0) ? m_plot_int : m_struct_fact_int;
+    }
+
+#if !defined(INCFLO_USE_FFT) || !defined(AMREX_USE_FFT)
+    if (structFactEnabled()) {
+        amrex::Abort("incflo structure-factor or turbulent-spectrum analysis requires an FFT-enabled incflo build");
+    }
+#endif
 
     { // Prefix mac
         ParmParse pp_mac("mac_proj");

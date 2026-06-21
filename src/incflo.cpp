@@ -1,4 +1,7 @@
 #include <incflo.H>
+#ifdef INCFLO_USE_FFT
+#include "analysis/IncfloStructFact.H"
+#endif
 
 // Need this for TagCutCells
 #ifdef AMREX_USE_EB
@@ -74,6 +77,11 @@ void incflo::InitData ()
         // Set m_nstep to 0 before entering time loop
         m_nstep = 0;
 
+        InitStructFact(false);
+        SampleStructFact();
+        WriteStructFact();
+        WriteTurbulentSpectrum();
+
         // xxxxx TODO averagedown ???
 
         if (m_check_int > 0) { WriteCheckPointFile(); }
@@ -99,6 +107,8 @@ void incflo::InitData ()
     {
         // Read starting configuration from chk file.
         ReadCheckpointFile();
+
+        InitStructFact(true);
 
 #ifdef INCFLO_USE_PARTICLES
         particleData.Redistribute();
@@ -159,6 +169,10 @@ void incflo::Evolve()
         m_nstep++;
         m_cur_time += m_dt;
 
+        SampleStructFact();
+        WriteStructFact();
+        WriteTurbulentSpectrum();
+
         if (writeNow())
         {
             WritePlotFile();
@@ -196,6 +210,7 @@ void incflo::Evolve()
     {
         WritePlotFile();
     }
+    WriteStructFact(true);
 }
 
 void

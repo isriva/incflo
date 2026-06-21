@@ -25,6 +25,11 @@ ifeq ($(USE_EB), TRUE)
   USERSuffix += .EB
 endif
 
+ifeq ($(USE_FFT), TRUE)
+  DEFINES += -DINCFLO_USE_FFT
+  Bdirs += src/analysis
+endif
+
 Bpack += $(foreach dir, $(Bdirs), $(TOP)/$(dir)/Make.package)
 Blocs += $(foreach dir, $(Bdirs), $(TOP)/$(dir))
 

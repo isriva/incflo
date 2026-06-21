@@ -1,0 +1,46 @@
+  # Problem specification
+  amr.max_level           =   0
+  geometry.prob_lo        = 0.0 0.0       # physical lo coordinate
+  geometry.prob_hi        = 0.25 0.25   # physical hi coordinate
+  geometry.is_periodic    =   1   1       # Periodicity x y z (0/1)
+
+  incflo.probtype         = 0
+  
+  incflo.mu               = 1.0e-4 
+  
+  amr.n_cell              = 128 128
+  amr.max_grid_size       = 32  32
+
+  incflo.fixed_dt         = 3.9e-4
+
+  # Controls for number of steps between actions
+  max_step = 150000
+  amr.plot_int = 15000
+  incflo.struct_fact_int = 10
+  incflo.struct_fact_skip = 30000
+  incflo.struct_fact_write_int = 15000
+  incflo.struct_fact_file = plt_SF
+  incflo.struct_fact_verbosity = 1
+
+  visc_type = 1
+  incflo.use_stochastic_velocity_fluxes = 1
+  incflo.stochastic_k_B = 1.380649e-16
+  incflo.stochastic_temperature = 294.0
+  incflo.stochastic_cell_depth  = 1.0e-5
+
+  incflo.constant_density = true
+  incflo.use_tensor_solve = true
+  incflo.use_tensor_correction = false
+
+  incflo.advection_type   = "Godunov"
+  incflo.diffusion_type   = 1             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
+
+  incflo.verbose          =   2           # incflo_level
+  mac_proj.verbose        =   1           # MAC Projector
+  nodal_proj.verbose      =   1           # Nodal Projector
+
+  scalar_diffusion.verbose       =   1           # Diffusion
+  scalar_diffusion.mg_verbose    =   0           # Diffusion
+
+  tensor_diffusion.verbose       =   1           # Diffusion
+  tensor_diffusion.mg_verbose    =   0           # Diffusion

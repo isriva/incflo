@@ -19,6 +19,7 @@ target_sources(incflo
    incflo_update_temperature.cpp
    incflo_specific_heat.cpp
    incflo_stochastic.cpp
+   incflo_struct_fact.cpp
    incflo_utils.cpp
    main.cpp
    )
@@ -32,6 +33,10 @@ add_subdirectory(projection)
 add_subdirectory(rheology)
 add_subdirectory(setup)
 add_subdirectory(utilities)
+
+if (INCFLO_FFT)
+   add_subdirectory(analysis)
+endif ()
 
 if (INCFLO_EB)
    add_subdirectory(embedded_boundaries)

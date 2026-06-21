@@ -21,6 +21,8 @@
 #include <DiffusionTensorOp.H>
 #include <DiffusionScalarOp.H>
 
+class IncfloStructFact;
+
 enum struct StepType : std::uint8_t {
     Predictor, Corrector
 };
@@ -571,6 +573,7 @@ private:
     // If using Godunov, default to including viscous/diffusive
     //    terms in the forcing terms
     bool m_godunov_include_diff_in_forcing = true;
+    bool m_PPM_flux_limiter = true;
 
     // If using Godunov, when to add the forcing terms in
     //    the construction of the "trans" velocities
@@ -589,6 +592,23 @@ private:
     amrex::Real m_stochastic_temperature = 0.0;
     amrex::Real m_stochastic_cell_depth  = 1.0;
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force;
+
+    int m_struct_fact_int = -1;
+    int m_struct_fact_skip = 0;
+    int m_struct_fact_write_int = -1;
+    std::string m_struct_fact_file{"plt_SF"};
+    int m_turb_spectrum_int = -1;
+    std::string m_turb_spectrum_file{"turb_vel"};
+    int m_struct_fact_zero_mode = 1;
+    int m_struct_fact_verbosity = 0;
+    amrex::Real m_struct_fact_cell_depth = -1.0;
+    int m_last_struct_fact_sample = -1;
+    int m_last_struct_fact_write = -1;
+    bool m_struct_fact_needs_write = false;
+#ifdef INCFLO_USE_FFT
+    std::unique_ptr<IncfloStructFact> m_struct_fact;
+    std::unique_ptr<IncfloStructFact> m_turb_spectrum;
+#endif
 
     enum struct DiffusionType : std::uint8_t {
         Invalid, Explicit, Crank_Nicolson, Implicit
@@ -1027,6 +1047,22 @@ private:
     ///////////////////////////////////////////////////////////////////////////
 
     void ReadRheologyParameters ();
+
+    ///////////////////////////////////////////////////////////////////////////
+    //
+    // analysis
+    //
+    ///////////////////////////////////////////////////////////////////////////
+
+    [[nodiscard]] bool structFactEnabled () const;
+    [[nodiscard]] bool structFactSampleNow () const;
+    [[nodiscard]] bool structFactWriteNow () const;
+    [[nodiscard]] bool turbSpectrumWriteNow () const;
+    void InitStructFact (bool restarted);
+    void SampleStructFact ();
+    void WriteStructFact (bool force = false);
+    void WriteTurbulentSpectrum ();
+    void WriteStructFactCheckpoint (const std::string& checkpointname) const;
 
     ///////////////////////////////////////////////////////////////////////////
     //

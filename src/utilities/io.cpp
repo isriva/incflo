@@ -110,6 +110,8 @@ void incflo::WriteCheckPointFile() const
         }
     }
 
+    WriteStructFactCheckpoint(checkpointname);
+
 #ifdef INCFLO_USE_PARTICLES
    particleData.Checkpoint(checkpointname);
 #endif

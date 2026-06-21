@@ -1,0 +1,3 @@
+ifeq ($(USE_FFT), TRUE)
+CEXE_sources += IncfloStructFact.cpp
+endif
