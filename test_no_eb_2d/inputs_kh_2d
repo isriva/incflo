@@ -17,8 +17,10 @@
   #incflo.cfl             = 0.1
 
   # Controls for number of steps between actions
-  max_step = 100000
-  amr.plot_int = 50
+  # max_step = 100000
+  max_step = 6000
+  amr.plot_int = 200
+  incflo.turb_spectrum_int = 200
 
   visc_type = 1
   incflo.use_stochastic_velocity_fluxes = 1
@@ -27,8 +29,10 @@
   incflo.stochastic_cell_depth  = 1.0e-5
 
   incflo.constant_density = true
-  incflo.use_tensor_solve = true
+  # incflo.use_tensor_solve = true
+  incflo.use_tensor_solve = false
   incflo.use_tensor_correction = false
+  incflo.PPM_flux_limiter = false
 
   incflo.advection_type   = "Godunov"
   incflo.diffusion_type   = 1             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit

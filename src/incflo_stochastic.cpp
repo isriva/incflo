@@ -66,8 +66,10 @@ incflo::compute_stochastic_velocity_force (Vector<MultiFab const*> const& densit
                 });
             }
 
-            stochastic_flux[dir].EnforcePeriodicity(0, AMREX_SPACEDIM,
-                                                    geom[lev].periodicity());
+            stochastic_flux[dir].OverrideSync(geom[lev].periodicity());
+            
+            // stochastic_flux[dir].EnforcePeriodicity(0, AMREX_SPACEDIM,
+            //                                         geom[lev].periodicity());
         }
 
         Array<MultiFab const*, AMREX_SPACEDIM> flux_ptrs;
