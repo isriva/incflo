@@ -387,6 +387,10 @@ public:
 
     void InitialPressureProjection ();
 
+    bool is_restart_run() {return m_restart_run;}
+
+    int get_seed() {return m_seed;}
+
 private:
 
     //
@@ -591,6 +595,7 @@ private:
     amrex::Real m_stochastic_k_B = 0.0;
     amrex::Real m_stochastic_temperature = 0.0;
     amrex::Real m_stochastic_cell_depth  = 1.0;
+    int  m_seed                          = 0;
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force;
 
     int m_struct_fact_int = -1;
@@ -639,6 +644,7 @@ private:
     int m_KE_int = -1;
     std::string m_check_file{"chk"};
     std::string m_restart_file;
+    bool m_restart_run = false;
     std::string m_tag_file;
 
     bool m_plotfile_on_restart = false;

@@ -75,6 +75,7 @@ void incflo::ReadParameters ()
         pp.query("use_mac_phi_in_godunov"           , m_use_mac_phi_in_godunov);
         pp.query("use_cc_proj"                      , m_use_cc_proj);
         pp.query("use_stochastic_velocity_fluxes"   , m_use_stochastic_velocity_fluxes);
+        pp.query("seed"                             , m_seed);
         pp.query("stochastic_k_B"                   , m_stochastic_k_B);
         pp.query("stochastic_temperature"           , m_stochastic_temperature);
         pp.query("stochastic_cell_depth"            , m_stochastic_cell_depth);

@@ -1,9 +1,11 @@
 #include <incflo.H>
 #include <AMReX_buildInfo.H>
+#include "chrono"
 
 void writeBuildInfo();
 
 using namespace amrex;
+using namespace std::chrono;
 
 void add_par () {
    ParmParse pp("eb2");
@@ -46,6 +48,27 @@ int main(int argc, char* argv[])
 
         // Initialize data, parameters, arrays and derived internals
         my_incflo.InitData();
+        
+        if (my_incflo.is_restart_run()) {
+
+            if (my_incflo.get_seed() > 0) {
+                // initializes the seed for C++ random number calls
+                InitRandom(my_incflo.get_seed()+ParallelDescriptor::MyProc(),
+                           ParallelDescriptor::NProcs(),
+                           my_incflo.get_seed()+ParallelDescriptor::MyProc());
+            } else if (my_incflo.get_seed() == 0) {
+                // initializes the seed for C++ random number calls based on the clock
+                auto now = time_point_cast<nanoseconds>(system_clock::now());
+                int randSeed = now.time_since_epoch().count();
+                // broadcast the same root seed to all processors
+                ParallelDescriptor::Bcast(&randSeed,1,ParallelDescriptor::IOProcessorNumber());
+                InitRandom(randSeed+ParallelDescriptor::MyProc(),
+                           ParallelDescriptor::NProcs(),
+                           randSeed+ParallelDescriptor::MyProc());
+            } else {
+                Abort("Must supply non-negative seed");
+            }
+        }
 
         // Time spent on initialization
         Real init_time = Real(ParallelDescriptor::second()) - start_time;

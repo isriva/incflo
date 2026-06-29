@@ -49,6 +49,7 @@ void incflo::InitData ()
         // This tells the AmrMesh class not to iterate when creating the initial
         // grid hierarchy
         // SetIterateToFalse();
+        m_restart_run = false;
 
         // This tells the Cluster routine to use the new chopping routine which
         // rejects cuts if they don't improve the efficiency
@@ -107,6 +108,7 @@ void incflo::InitData ()
     {
         // Read starting configuration from chk file.
         ReadCheckpointFile();
+        m_restart_run = true;
 
         InitStructFact(true);
 
