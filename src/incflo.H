@@ -577,7 +577,7 @@ private:
     // If using Godunov, default to including viscous/diffusive
     //    terms in the forcing terms
     bool m_godunov_include_diff_in_forcing = true;
-    bool m_PPM_flux_limiter = true;
+    int m_PPM_flux_limiter = 1; // 0: no limiter; 1: default_limiter; 2: weno_js
 
     // If using Godunov, when to add the forcing terms in
     //    the construction of the "trans" velocities

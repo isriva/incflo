@@ -165,6 +165,16 @@ incflo::compute_MAC_projected_velocities (
         // Predict normal velocity to faces -- note that the {u_mac, v_mac, w_mac}
         //    returned from this call are on face CENTROIDS
         bool allow_inflow_on_outflow = false;
+        int l_limiter_type;
+        if (m_PPM_flux_limiter == 0) {
+            l_limiter_type = PPM::NoLimiter;
+        }
+        else if (m_PPM_flux_limiter == 1) {
+            l_limiter_type = PPM::default_limiter;
+        }
+        else if (m_PPM_flux_limiter == 2) {
+            l_limiter_type = PPM::WENO_JS;
+        }
         HydroUtils::ExtrapVelToFaces(*vel[lev], *vel_forces[lev],
                                       AMREX_D_DECL(*u_mac[lev], *v_mac[lev], *w_mac[lev]),
                                       get_velocity_bcrec(), get_velocity_bcrec_device_ptr(),
@@ -174,7 +184,7 @@ incflo::compute_MAC_projected_velocities (
                                       m_eb_flow.enabled ? get_velocity_eb()[lev] : nullptr,
 #endif
                                       m_godunov_ppm, m_godunov_use_forces_in_trans,
-                                      l_advection_type, m_PPM_flux_limiter ? PPM::default_limiter : PPM::NoLimiter,
+                                      l_advection_type, l_limiter_type,
                                       allow_inflow_on_outflow, BC_MF.get());
     }
 
