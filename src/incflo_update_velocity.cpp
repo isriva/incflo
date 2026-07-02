@@ -19,6 +19,7 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         // *************************************************************************************
         compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_old_const(),
                            get_density_nph_const(), get_tracer_old_const(), get_tracer_new_const());
+        compute_stochastic_velocity_force(get_density_nph_const(), GetVecOfConstPtrs(vel_eta));
         add_stochastic_velocity_force(GetVecOfPtrs(vel_forces));
 
         // *************************************************************************************
@@ -152,6 +153,8 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         // *************************************************************************************
         compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_new_const(),
                            get_density_nph_const(), get_tracer_old_const(), get_tracer_new_const());
+        compute_stochastic_velocity_force(get_density_nph_const(), GetVecOfConstPtrs(vel_eta));
+        add_stochastic_velocity_force(GetVecOfPtrs(vel_forces));
 
         for (int lev = 0; lev <= finest_level; lev++)
         {
