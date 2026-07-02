@@ -1,2 +1,4 @@
 CEXE_sources += incflo_compute_advection_term.cpp
 CEXE_sources += incflo_compute_MAC_projected_velocities.cpp
+CEXE_sources += hydro_weno5_edge_state.cpp
+CEXE_sources += hydro_weno5_extrap_vel_to_faces.cpp

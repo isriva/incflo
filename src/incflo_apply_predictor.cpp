@@ -231,7 +231,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // **************************************************************************************
     // Update the particle positions
     // **************************************************************************************
-    if (m_advection_type != "MOL") {
+    if (!uses_predictor_corrector_advection()) {
         evolveTracerParticles(AMREX_D_DECL(GetVecOfConstPtrs(u_mac), GetVecOfConstPtrs(v_mac),
                                            GetVecOfConstPtrs(w_mac)));
     }
@@ -241,7 +241,7 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // **********************************************************************************************
     // Over-write velocity in cells with vfrac < 1e-4
     // **********************************************************************************************
-    if (m_advection_type == "MOL")
+    if (uses_predictor_corrector_advection())
         incflo_correct_small_cells(get_velocity_new(),
                                    AMREX_D_DECL(GetVecOfConstPtrs(u_mac), GetVecOfConstPtrs(v_mac),
                                    GetVecOfConstPtrs(w_mac)));

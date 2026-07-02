@@ -809,6 +809,14 @@ private:
 #endif
 
     // Number of ghost cells for field arrays.
+    [[nodiscard]] bool uses_predictor_corrector_advection () const noexcept {
+        return (m_advection_type == "MOL" || m_advection_type == "WENO5");
+    }
+
+    [[nodiscard]] bool uses_godunov_forcing () const noexcept {
+        return (m_advection_type == "Godunov" || m_advection_type == "BDS");
+    }
+
     [[nodiscard]] int nghost_state () const {
 #ifdef AMREX_USE_EB
         if (!EBFactory(0).isAllRegular())
@@ -817,7 +825,7 @@ private:
         }
 #endif
         {
-            return (m_advection_type != "MOL") ? 3 : 2;
+            return (m_advection_type == "MOL") ? 2 : 3;
         }
     }
 
@@ -825,7 +833,7 @@ private:
     // For MOL    , we need 0 ghost cells
     [[nodiscard]] int nghost_force () const
     {
-       if (m_advection_type == "MOL")
+       if (uses_predictor_corrector_advection())
            return 0;
        else
            return 1;
@@ -833,9 +841,9 @@ private:
 
     [[nodiscard]] int nghost_mac () const {
 #ifdef AMREX_USE_EB
-        if (!EBFactory(0).isAllRegular()) return (m_advection_type == "MOL") ? 3 : 4;
+        if (!EBFactory(0).isAllRegular()) return uses_predictor_corrector_advection() ? 3 : 4;
 #endif
-        return (m_advection_type == "MOL") ? 0 : 1;
+        return uses_predictor_corrector_advection() ? 0 : 1;
     }
 
 #ifdef AMREX_USE_EB

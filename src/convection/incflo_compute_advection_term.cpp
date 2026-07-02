@@ -2,6 +2,7 @@
 #include <prob_bc.H>
 #include <hydro_godunov.H>
 #include <hydro_mol.H>
+#include <hydro_weno5.H>
 #include <hydro_utils.H>
 #include <AMReX_FillPatchUtil.H>
 
@@ -12,6 +13,80 @@
 #endif
 
 using namespace amrex;
+
+namespace {
+void incflo_compute_fluxes_on_box_from_state(Box const& bx, int ncomp, MFIter& mfi,
+                                             Array4<Real const> const& q,
+                                             Array4<Real const> const& qnph,
+                                             AMREX_D_DECL(Array4<Real> const& flux_x,
+                                                          Array4<Real> const& flux_y,
+                                                          Array4<Real> const& flux_z),
+                                             AMREX_D_DECL(Array4<Real> const& face_x,
+                                                          Array4<Real> const& face_y,
+                                                          Array4<Real> const& face_z),
+                                             bool knownFaceStates,
+                                             AMREX_D_DECL(Array4<Real const> const& u_mac,
+                                                          Array4<Real const> const& v_mac,
+                                                          Array4<Real const> const& w_mac),
+                                             Array4<Real const> const& divu,
+                                             Array4<Real const> const& fq,
+                                             Geometry const& geom,
+                                             Real l_dt,
+                                             Vector<BCRec> const& h_bcrec,
+                                             BCRec const* d_bcrec,
+                                             int const* iconserv,
+#ifdef AMREX_USE_EB
+                                             EBFArrayBoxFactory const& ebfact,
+                                             Array4<Real const> const& values_on_eb_inflow,
+#endif
+                                             bool godunov_use_ppm,
+                                             bool godunov_use_forces_in_trans,
+                                             bool is_velocity,
+                                             bool fluxes_are_area_weighted,
+                                             std::string const& advection_type,
+                                             int limiter_type,
+                                             bool allow_inflow_on_outflow,
+                                             Array4<int const> const& bc_arr)
+{
+    if (advection_type == "WENO5") {
+        if (!knownFaceStates) {
+#ifdef AMREX_USE_EB
+            EBCellFlagFab const& flagfab = ebfact.getMultiEBCellFlagFab()[mfi];
+            if (flagfab.getType(amrex::grow(bx, 3)) != FabType::regular) {
+                amrex::Abort("incflo.advection_type = WENO5 requires regular cells");
+            }
+#endif
+            WENO5::ComputeEdgeState(bx,
+                                    AMREX_D_DECL(face_x, face_y, face_z),
+                                    q, ncomp,
+                                    AMREX_D_DECL(u_mac, v_mac, w_mac),
+                                    geom.Domain(), h_bcrec, d_bcrec,
+                                    is_velocity, bc_arr);
+        }
+        HydroUtils::ComputeFluxes(bx,
+                                  AMREX_D_DECL(flux_x, flux_y, flux_z),
+                                  AMREX_D_DECL(u_mac, v_mac, w_mac),
+                                  AMREX_D_DECL(face_x, face_y, face_z),
+                                  geom, ncomp, fluxes_are_area_weighted,
+                                  iconserv);
+    } else {
+        HydroUtils::ComputeFluxesOnBoxFromState(bx, ncomp, mfi, q, qnph,
+                                                AMREX_D_DECL(flux_x, flux_y, flux_z),
+                                                AMREX_D_DECL(face_x, face_y, face_z),
+                                                knownFaceStates,
+                                                AMREX_D_DECL(u_mac, v_mac, w_mac),
+                                                divu, fq, geom, l_dt,
+                                                h_bcrec, d_bcrec, iconserv,
+#ifdef AMREX_USE_EB
+                                                ebfact, values_on_eb_inflow,
+#endif
+                                                godunov_use_ppm, godunov_use_forces_in_trans,
+                                                is_velocity, fluxes_are_area_weighted,
+                                                advection_type, limiter_type,
+                                                allow_inflow_on_outflow, bc_arr);
+    }
+}
+}
 
 void incflo::init_advection ()
 {
@@ -66,6 +141,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 {
     bool fluxes_are_area_weighted = false;
     bool knownFaceStates          = false; // HydroUtils always recompute face states
+    std::string const convective_advection_type = uses_predictor_corrector_advection() ? "MOL" : m_advection_type;
 
 #ifdef AMREX_USE_EB
     if ( m_verbose ) {
@@ -147,7 +223,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 
     // We now re-compute the velocity forcing terms including the pressure gradient,
     //    and compute the tracer forcing terms for the first time
-    if (m_advection_type != "MOL") {
+    if (uses_godunov_forcing()) {
 
         compute_vel_forces(vel_forces, vel, density, tracer, tracer);
 
@@ -536,7 +612,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
             temp_nph.define(temperature[lev]->boxArray(),temperature[lev]->DistributionMap(),1,1);
         }
 
-        if (m_advection_type != "MOL") {
+        if (uses_godunov_forcing()) {
             vel_nph.setVal(0.);
             fillphysbc_velocity(lev, time_nph, vel_nph, 1);
 
@@ -655,7 +731,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
             bool allow_inflow_on_outflow = false;
             Array4<int const> const& velbc_arr = velBC_MF ? (*velBC_MF).const_array(mfi)
                                                           : Array4<int const>{};
-            HydroUtils::ComputeFluxesOnBoxFromState( bx, ncomp, mfi,
+            incflo_compute_fluxes_on_box_from_state( bx, ncomp, mfi,
                                                      (m_advect_momentum) ? rhovel[lev].array(mfi) : vel[lev]->const_array(mfi),
                                                      vel_nph.const_array(mfi),
                                                      AMREX_D_DECL(flux_x[lev].array(mfi,face_comp),
@@ -698,7 +774,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
                 allow_inflow_on_outflow = false;
                 Array4<int const> const& densbc_arr = densBC_MF ? (*densBC_MF).const_array(mfi)
                                                                 : Array4<int const>{};
-                HydroUtils::ComputeFluxesOnBoxFromState( bx, ncomp, mfi,
+                incflo_compute_fluxes_on_box_from_state( bx, ncomp, mfi,
                                                          density[lev]->const_array(mfi),
                                                          rho_nph.const_array(mfi),
                                                          AMREX_D_DECL(flux_x[lev].array(mfi,face_comp),
@@ -765,7 +841,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
                 allow_inflow_on_outflow = false;
                 Array4<int const> const& tracbc_arr = tracBC_MF ? (*tracBC_MF).const_array(mfi)
                                                                 : Array4<int const>{};
-                HydroUtils::ComputeFluxesOnBoxFromState( bx, ncomp, mfi,
+                incflo_compute_fluxes_on_box_from_state( bx, ncomp, mfi,
                                           any_conserv_trac ? trac_tmp : tracer[lev]->const_array(mfi),
                                           trac_nph.const_array(mfi),
                                           AMREX_D_DECL(flux_x[lev].array(mfi,face_comp),
@@ -807,7 +883,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
                 allow_inflow_on_outflow = false;
                 Array4<int const> const& tempbc_arr = tempBC_MF ? (*tempBC_MF).const_array(mfi)
                                                                 : Array4<int const>{};
-                HydroUtils::ComputeFluxesOnBoxFromState( bx, ncomp, mfi,
+                incflo_compute_fluxes_on_box_from_state( bx, ncomp, mfi,
                                           temperature[lev]->const_array(mfi),
                                           temp_nph.const_array(mfi),
                                           AMREX_D_DECL(flux_x[lev].array(mfi,face_comp),
@@ -945,7 +1021,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 #ifdef AMREX_USE_EB
                                                   *ebfact,
 #endif
-                                                  m_advection_type);
+                                                  convective_advection_type);
             }
         } // end mfi
 
@@ -1045,7 +1121,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 #ifdef AMREX_USE_EB
                                                   *ebfact,
 #endif
-                                                  m_advection_type);
+                                                  convective_advection_type);
             }
           } // mfi
         } // advect tracer
@@ -1103,7 +1179,7 @@ incflo::compute_convective_term (Vector<MultiFab*> const& conv_u,
 #ifdef AMREX_USE_EB
                                               *ebfact,
 #endif
-                                              m_advection_type);
+                                              convective_advection_type);
           } // mfi
         } // advect temperature
 

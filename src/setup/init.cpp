@@ -103,10 +103,16 @@ void incflo::ReadParameters ()
         pp.query("write_geom_chk", m_write_geom_chk);
 #endif
 
-        if (m_advection_type == "MOL") m_godunov_include_diff_in_forcing = false;
+        if (uses_predictor_corrector_advection()) m_godunov_include_diff_in_forcing = false;
 
-        if (m_advection_type != "MOL" && m_advection_type != "Godunov" && m_advection_type != "BDS")
-            amrex::Abort("advection type must be MOL, Godunov, or BDS");
+        if (m_advection_type != "MOL" && m_advection_type != "WENO5" &&
+            m_advection_type != "Godunov" && m_advection_type != "BDS") {
+            amrex::Abort("advection type must be MOL, WENO5, Godunov, or BDS");
+        }
+
+        if (m_advection_type == "WENO5" && max_level > 0) {
+            amrex::Abort("incflo.advection_type = WENO5 requires max_level = 0");
+        }
 
         // The default for diffusion_type is 2, i.e. the default m_diff_type is DiffusionType::Implicit
         int diffusion_type = 2;
@@ -133,10 +139,10 @@ void incflo::ReadParameters ()
             amrex::Abort("We cannot have use_tensor_correction be true and diffusion type not Implicit");
         }
 
-        if (m_advection_type == "MOL" && m_cfl > 0.5) {
-            amrex::Abort("We currently require cfl <= 0.5 when using the MOL advection scheme");
+        if (uses_predictor_corrector_advection() && m_cfl > 0.5) {
+            amrex::Abort("We currently require cfl <= 0.5 when using the MOL or WENO5 advection scheme");
         }
-        if (m_advection_type != "MOL" && m_cfl > 1.0) {
+        if (!uses_predictor_corrector_advection() && m_cfl > 1.0) {
             amrex::Abort("We currently require cfl <= 1.0 when using this advection scheme");
         }
 
@@ -177,18 +183,21 @@ void incflo::ReadParameters ()
 
         pp.query("use_temperature", m_use_temperature);
         // Checks for things not yet implemented/checked
-        if (m_use_temperature && m_advection_type == "MOL") {
+        if (m_use_temperature && uses_predictor_corrector_advection()) {
             // temperature equation not added to the corrector
-            amrex::Abort("Temperature equation not yet implemented with MOL option");
+            amrex::Abort("Temperature equation not yet implemented with MOL or WENO5 option");
         }
 #ifdef AMREX_USE_EB
         std::string geom_type = "all_regular";
         pp.query("geometry", geom_type);
+        if (m_advection_type == "WENO5" && geom_type != "all_regular" && geom_type != "null") {
+            amrex::Abort("incflo.advection_type = WENO5 requires all_regular EB geometry");
+        }
 #endif
 
         if (m_use_stochastic_velocity_fluxes) {
             if (m_advection_type != "Godunov") {
-                amrex::Abort("stochastic velocity fluxes require incflo.advection_type = Godunov");
+                //amrex::Abort("stochastic velocity fluxes require incflo.advection_type = Godunov");
             }
             if (max_level > 0) {
                 amrex::Abort("stochastic velocity fluxes require max_level = 0");

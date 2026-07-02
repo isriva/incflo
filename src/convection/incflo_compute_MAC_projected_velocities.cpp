@@ -1,4 +1,5 @@
 #include <hydro_utils.H>
+#include <hydro_weno5.H>
 #include <hydro_bcs_K.H>
 #include <incflo.H>
 #include <AMReX_MultiFabUtil.H>
@@ -22,7 +23,7 @@ incflo::compute_MAC_projected_velocities (
 
     // We first compute the velocity forcing terms to be used in predicting
     //    to faces before the MAC projection
-    if (m_advection_type != "MOL") {
+    if (uses_godunov_forcing()) {
 
         if (m_godunov_include_diff_in_forcing) {
 
@@ -175,17 +176,24 @@ incflo::compute_MAC_projected_velocities (
         else if (m_PPM_flux_limiter == 2) {
             l_limiter_type = PPM::WENO_JS;
         }
-        HydroUtils::ExtrapVelToFaces(*vel[lev], *vel_forces[lev],
-                                      AMREX_D_DECL(*u_mac[lev], *v_mac[lev], *w_mac[lev]),
-                                      get_velocity_bcrec(), get_velocity_bcrec_device_ptr(),
-                                      geom[lev], l_dt,
+        if (l_advection_type == "WENO5") {
+            WENO5::ExtrapVelToFaces(*vel[lev],
+                                    AMREX_D_DECL(*u_mac[lev], *v_mac[lev], *w_mac[lev]),
+                                    geom[lev], get_velocity_bcrec(), get_velocity_bcrec_device_ptr(),
+                                    allow_inflow_on_outflow);
+        } else {
+            HydroUtils::ExtrapVelToFaces(*vel[lev], *vel_forces[lev],
+                                         AMREX_D_DECL(*u_mac[lev], *v_mac[lev], *w_mac[lev]),
+                                         get_velocity_bcrec(), get_velocity_bcrec_device_ptr(),
+                                         geom[lev], l_dt,
 #ifdef AMREX_USE_EB
-                                      *ebfact,
-                                      m_eb_flow.enabled ? get_velocity_eb()[lev] : nullptr,
+                                         *ebfact,
+                                         m_eb_flow.enabled ? get_velocity_eb()[lev] : nullptr,
 #endif
-                                      m_godunov_ppm, m_godunov_use_forces_in_trans,
-                                      l_advection_type, l_limiter_type,
-                                      allow_inflow_on_outflow, BC_MF.get());
+                                         m_godunov_ppm, m_godunov_use_forces_in_trans,
+                                         l_advection_type, l_limiter_type,
+                                         allow_inflow_on_outflow, BC_MF.get());
+        }
     }
 
     Vector<Array<MultiFab*,AMREX_SPACEDIM> > mac_vec(finest_level+1);

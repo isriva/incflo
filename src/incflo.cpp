@@ -272,6 +272,9 @@ void incflo::MakeNewLevelFromScratch (int lev, Real time, const BoxArray& new_gr
                                        nghost_eb_volume(),
                                        nghost_eb_full()},
                                        EBSupport::full);
+    if (m_advection_type == "WENO5" && !EBFactory(lev).isAllRegular()) {
+        amrex::Abort("incflo.advection_type = WENO5 requires all_regular EB geometry");
+    }
 #else
     m_factory[lev] = std::make_unique<FArrayBoxFactory>();
 #endif
