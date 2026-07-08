@@ -10,27 +10,62 @@
   # incflo.mu               = 1.0e-2
 
   # amr.n_cell              = 128 128
-  amr.n_cell              = 32 32
+  # amr.n_cell              = 32 32
+  amr.n_cell              = 64 64
 
   # amr.max_grid_size       = 32  32
   amr.max_grid_size       = 16  16
 
   # incflo.fixed_dt         = 3.9e-4
-  incflo.fixed_dt         = 7.8e-4
+  incflo.fixed_dt         = 7.8e-3
+  # incflo.fixed_dt         = 1.56e-3
+  # incflo.fixed_dt         = 1.56e-2
+  # incflo.fixed_dt         = 1.56e-1
+  # incflo.fixed_dt         = 1.56
+  # incflo.fixed_dt         = 7.8e-1
 
-  # Seeds need to be spaced larger than the number of CPU
-  incflo.seed = 100
 
   # Controls for number of steps between actions
   # max_step = 3000000
-  max_step = 1500000
+  # max_step = 1500000
+  # max_step = 750000
+  # max_step = 75000
+  # max_step = 7500
+  # max_step = 15000
   # max_step = 150000
-  amr.plot_int = 50000
-  incflo.turb_spectrum_int = 50000
+  max_step = 300000
+  # max_step = 750
+  # max_step = 1500
+  # amr.plot_int = 50000
+  # amr.plot_int = 25000
+  # amr.plot_int = 2500
+  amr.plot_int = 5000
+  # amr.plot_int = 250
+  # amr.plot_int = 25
+  # amr.plot_int = 50
+  # incflo.turb_spectrum_int = 50000
+  # incflo.turb_spectrum_int = 25000
+  # incflo.turb_spectrum_int = 2500
+  incflo.turb_spectrum_int = 5000
+  # incflo.turb_spectrum_int = 250
+  # incflo.turb_spectrum_int = 25
+  # incflo.turb_spectrum_int = 50
   incflo.struct_fact_int = 10
   # incflo.struct_fact_skip = 30000
-  incflo.struct_fact_skip = 100000
-  incflo.struct_fact_write_int = 50000
+  # incflo.struct_fact_skip = 100000
+  # incflo.struct_fact_skip = 50000
+  # incflo.struct_fact_skip = 5000
+  incflo.struct_fact_skip = 10000
+  # incflo.struct_fact_skip = 500
+  # incflo.struct_fact_skip = 50
+  # incflo.struct_fact_skip = 100
+  # incflo.struct_fact_write_int = 50000
+  # incflo.struct_fact_write_int = 25000
+  # incflo.struct_fact_write_int = 2500
+  incflo.struct_fact_write_int = 5000
+  # incflo.struct_fact_write_int = 250
+  # incflo.struct_fact_write_int = 25
+  # incflo.struct_fact_write_int = 50
   incflo.struct_fact_file = plt_SF
   incflo.struct_fact_verbosity = 1
 
@@ -42,9 +77,9 @@
   incflo.use_stochastic_velocity_fluxes = 1
   incflo.stochastic_k_B = 1.380649e-16
   incflo.stochastic_temperature = 294.0
-  # incflo.stochastic_cell_depth  = 1.0e-5
   # incflo.stochastic_cell_depth  = 3.0e-9
-  incflo.stochastic_cell_depth  = 1.0e-5
+  # incflo.stochastic_cell_depth  = 1.0e-5
+  incflo.stochastic_cell_depth  = 4.0e-5
   
   incflo.constant_density = true
   # incflo.use_tensor_solve = true
@@ -64,3 +99,7 @@
 
   tensor_diffusion.verbose       =   1           # Diffusion
   tensor_diffusion.mg_verbose    =   0           # Diffusion
+
+  # Seeds need to be spaced larger than the number of CPU
+  incflo.seed = 300
+

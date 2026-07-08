@@ -23,7 +23,7 @@
 
   # Seeds need to be spaced larger than the number of CPU
   incflo.seed = 100
-  incflo.seed_2 = 2000 
+  incflo.seed_2 = 1000 
 
   # Controls for number of steps between actions
   # max_step = 100000
@@ -34,7 +34,8 @@
   incflo.turb_spectrum_int = 400
 
   visc_type = 1
-  incflo.use_stochastic_velocity_fluxes = 1
+  # incflo.use_stochastic_velocity_fluxes = 1
+  incflo.use_stochastic_velocity_fluxes = 0
   incflo.stochastic_k_B = 1.380649e-16
   incflo.stochastic_temperature = 294.0
   # incflo.stochastic_cell_depth  = 1.0e-5
