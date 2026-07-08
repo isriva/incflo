@@ -15,12 +15,15 @@
   # amr.max_grid_size       = 32  32
   amr.max_grid_size       = 16  16
 
-  incflo.fixed_dt         = 3.9e-4
+  # incflo.fixed_dt         = 3.9e-4
+  incflo.fixed_dt         = 7.8e-4
 
-  incflo.seed = 3
+  # Seeds need to be spaced larger than the number of CPU
+  incflo.seed = 100
 
   # Controls for number of steps between actions
-  max_step = 3000000
+  # max_step = 3000000
+  max_step = 1500000
   # max_step = 150000
   amr.plot_int = 50000
   incflo.turb_spectrum_int = 50000
@@ -48,7 +51,8 @@
   incflo.use_tensor_solve = false
   incflo.use_tensor_correction = false
 
-  incflo.advection_type   = "Godunov"
+  # incflo.advection_type   = "Godunov"
+  incflo.advection_type   = "WENO5"
   incflo.diffusion_type   = 1             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
 
   incflo.verbose          =   2           # incflo_level

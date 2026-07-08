@@ -391,6 +391,9 @@ public:
 
     int get_seed() {return m_seed;}
 
+    int get_seed_2() {return m_seed_2;}
+    int get_probtype() {return m_probtype;}
+
 private:
 
     //
@@ -596,6 +599,7 @@ private:
     amrex::Real m_stochastic_temperature = 0.0;
     amrex::Real m_stochastic_cell_depth  = 1.0;
     int  m_seed                          = 0;
+    int  m_seed_2                        = 0;
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force;
 
     int m_struct_fact_int = -1;

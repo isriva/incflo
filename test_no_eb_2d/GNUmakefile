@@ -26,4 +26,6 @@ USE_EB = FALSE
 
 USE_CSG = FALSE
 
+USE_FFT = TRUE
+
 include ../src/Make.incflo
