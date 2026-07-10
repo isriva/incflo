@@ -37,28 +37,78 @@ void incflo::prob_init_fluid (int lev)
 
     Real kh_sigma = Real(0);
     Real kh_eps = Real(0);
-    Gpu::DeviceVector<Real> eta;
+    Gpu::DeviceVector<Real> eta1;
+    Gpu::DeviceVector<Real> eta2;
 
     if (3001 == m_probtype) {
         ParmParse pp("kh");
         pp.get("sigma", kh_sigma);
         pp.get("eps", kh_eps);
 
+        // const int nx = domain.length(0);
+        // eta.resize(nx);
+        // Real* eta_ptr = eta.dataPtr();
+
+        // ParallelForRNG(nx, [=] AMREX_GPU_DEVICE (int i, RandomEngine const& engine) noexcept
+        // {
+        //     eta_ptr[i] = RandomNormal(Real(0), Real(1), engine);
+        // });
+
         const int nx = domain.length(0);
-        eta.resize(nx);
-        Real* eta_ptr = eta.dataPtr();
+        eta1.resize(nx);
+        eta2.resize(nx);
+        
+        amrex::Gpu::HostVector<Real> host_eta1(nx);
+        amrex::Gpu::HostVector<Real> host_eta2(nx);
+        
+        if (ParallelDescriptor::IOProcessor()) {
+            Real sum1 = 0.0;
+            Real sum2 = 0.0;
+            for (int i = 0; i < nx; ++i) {
+                host_eta1[i] = amrex::RandomNormal(0.0, 1.0);
+                sum1 += host_eta1[i];
 
-        ParallelForRNG(nx, [=] AMREX_GPU_DEVICE (int i, RandomEngine const& engine) noexcept
-        {
-            eta_ptr[i] = RandomNormal(Real(0), Real(1), engine);
-        });
+                host_eta2[i] = amrex::RandomNormal(0.0, 1.0);
+                sum2 += host_eta2[i];
+            }
+            
+            Real mean1 = sum1 / Real(nx);
+            Real mean2 = sum2 / Real(nx);
+            for (int i = 0; i < nx; ++i) {
+                host_eta1[i] -= mean1;
+                host_eta2[i] -= mean2;
+            }
+        }
+        
+        // const Real eta_mean = Reduce::Sum(nx, eta_ptr, Real(0)) / Real(nx);
+        // ParallelFor(nx, [=] AMREX_GPU_DEVICE (int i) noexcept
+        // {
+        //     eta_ptr[i] -= eta_mean;
+        // });
 
-        const Real eta_mean = Reduce::Sum(nx, eta_ptr, Real(0)) / Real(nx);
 
-        ParallelFor(nx, [=] AMREX_GPU_DEVICE (int i) noexcept
-        {
-            eta_ptr[i] -= eta_mean;
-        });
+        ParallelDescriptor::Bcast(host_eta1.dataPtr(), nx, ParallelDescriptor::IOProcessorNumber());
+        ParallelDescriptor::Bcast(host_eta2.dataPtr(), nx, ParallelDescriptor::IOProcessorNumber());
+
+        amrex::Gpu::copy(amrex::Gpu::hostToDevice, host_eta1.begin(), host_eta1.end(), eta1.begin());
+        amrex::Gpu::copy(amrex::Gpu::hostToDevice, host_eta2.begin(), host_eta2.end(), eta2.begin());
+        
+        Real* eta_ptr1 = eta1.dataPtr();
+        Real* eta_ptr2 = eta2.dataPtr();
+
+        // int my_rank = amrex::ParallelDescriptor::MyProc();
+        // std::stringstream ss;
+        // ss << "Rank " << my_rank << " | nx = " << nx << " | First 5 etas: ";
+        
+        // // Print the first 5 elements of the array
+        // for (int i = 0; i < std::min(nx, 5); ++i) {
+        //     ss << eta[i] << " ";
+        // }
+        // ss << "\n";
+
+        // // 3. Print it out across all MPI processors!
+        // amrex::AllPrint() << ss.str();
+
     }
 
     for (MFIter mfi(ld.density); mfi.isValid(); ++mfi)
@@ -239,7 +289,7 @@ void incflo::prob_init_fluid (int lev)
                                 ld.density.array(mfi),
                                 ld.tracer.array(mfi),
                                 domain, dx, problo, probhi,
-                                eta.dataPtr(), kh_sigma, kh_eps);
+                                eta1.dataPtr(), eta2.dataPtr(), kh_sigma, kh_eps);
         }
         else
         {
@@ -1222,31 +1272,88 @@ void incflo::init_KH_2d_pertubed (Box const& vbx, Box const& /*gbx*/,
                                   GpuArray<Real, AMREX_SPACEDIM> const& dx,
                                   GpuArray<Real, AMREX_SPACEDIM> const& problo,
                                   GpuArray<Real, AMREX_SPACEDIM> const& probhi,
-                                  Real const* eta,
+                                  Real const* eta1,
+                                  Real const* eta2,
                                   Real sigma,
                                   Real eps)
 {
     const int domlo_x = domain.smallEnd(0);
 
+    const Real Ly = probhi[1] - problo[1];
+    const Real y_low = problo[1] + Real(0.25) * Ly;
+    const Real y_high = problo[1] + Real(0.75) * Ly;
+    const Real inv_sqrt2_sigma = Real(1) / (std::sqrt(Real(2)) * sigma);
+
+    // int my_rank = amrex::ParallelDescriptor::MyProc();
+
+    // amrex::AllPrint() << "Rank " << my_rank << " | "
+    //                   << "Ly: " << Ly << ", "
+    //                   << "y_low: " << y_low << ", "
+    //                   << "y_high: " << y_high << ", "
+    //                   << "dx[1]: " << dx[1] << ", "
+    //                   << "inv_sigma: " << inv_sqrt2_sigma << "\n";
+
+    
+    // ParallelFor(gbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
     {
-        const Real Ly = probhi[1] - problo[1];
         const Real y_rel = problo[1] + (Real(j) + Real(0.5)) * dx[1];
-        const Real y_low = problo[1] + Real(0.25) * Ly;
-        const Real y_high = problo[1] + Real(0.75) * Ly;
-        const Real inv_sqrt2_sigma = Real(1) / (std::sqrt(Real(2)) * sigma);
 
-        const Real h_low =
-            Real(0.5) * (Real(1) + std::erf((y_rel - y_low) * inv_sqrt2_sigma));
-        const Real h_high =
-            Real(0.5) * (Real(1) + std::erf((y_rel - y_high) * inv_sqrt2_sigma));
-        const Real s = h_low - h_high;
+        // const Real h_low =
+        //     Real(0.5) * (Real(1) + std::erf((y_rel - y_low) * inv_sqrt2_sigma));
+        // const Real h_high =
+        //     Real(0.5) * (Real(1) + std::erf((y_rel - y_high) * inv_sqrt2_sigma));
+        // const Real s = h_low - h_high;
 
-        const int ii = i - domlo_x;
-        const Real a = Real(1) + eps * eta[ii];
+        // const int ii = i - domlo_x;
+        // int nx = domain.length(0);
+        // ii = (ii % nx + nx) % nx;
 
-        vel(i,j,k,0) = a * (Real(2) * s - Real(1));
-        vel(i,j,k,1) = Real(0);
+        // const Real a = Real(1) + eps * eta[ii];
+
+        // vel(i,j,k,0) = a * (Real(2) * s - Real(1));
+        // vel(i,j,k,1) = Real(0);
+
+
+        // Discontinuous setup:
+        if (y_rel < y_low || y_rel > y_high) {
+            AMREX_D_TERM(vel(i,j,k,0) = -1.0;,
+                         vel(i,j,k,1) = 0.0;,
+                         vel(i,j,k,2) = 0.0;);
+        } else {
+            AMREX_D_TERM(vel(i,j,k,0) = 1.0;,
+                         vel(i,j,k,1) = 0.0;,
+                         vel(i,j,k,2) = 0.0;);
+        }
+
+        int nx = domain.length(0);
+        int iip1 = (i+1) % nx;
+        // Add in perturbations at the interface:
+        Real term_A = 0.0;
+        Real term_B = 0.0;
+        if (y_rel > (problo[1] + Ly / 2)){
+            term_A = dx[1] * eps * eta1[i];
+            term_B = dx[1] * eps * eta1[iip1];
+        } else {
+            term_A = dx[1] * eps * eta2[i];
+            term_B = dx[1] * eps * eta2[iip1];
+        }
+        
+
+        // if (amrex::Math::abs(y_low - y_rel) < dx[1] || amrex::Math::abs(y_high - y_rel) < dx[1]){
+        if ((y_rel < y_low && (y_low - y_rel) < dx[1]) || (y_rel < y_high && (y_high - y_rel) < dx[1])){
+            
+            AMREX_D_TERM(vel(i,j,k,0) += term_A + term_B;,
+                         vel(i,j,k,1) = term_A - term_B;,
+                         vel(i,j,k,2) = 0.0;);
+        }
+
+        if ((y_rel > y_low && (y_rel - y_low) < dx[1]) || (y_rel > y_high && (y_rel - y_high) < dx[1])){
+            
+            AMREX_D_TERM(vel(i,j,k,0) += -term_A - term_B;,
+                         vel(i,j,k,1) = term_A - term_B;,
+                         vel(i,j,k,2) = 0.0;);
+        }
     });
 }
 
