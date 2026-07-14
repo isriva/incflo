@@ -42,8 +42,12 @@ incflo::compute_stochastic_velocity_force (Vector<MultiFab const*> const& densit
         Array<MultiFab, AMREX_SPACEDIM> eta_face = average_velocity_eta_to_faces(lev, *eta[lev]);
         Array<MultiFab, AMREX_SPACEDIM> stochastic_flux;
 
+        // const Real coeff = std::sqrt(Real(2.0) * m_stochastic_k_B *
+        //                              m_stochastic_temperature / (cell_volume * m_dt));
         const Real coeff = std::sqrt(Real(2.0) * m_stochastic_k_B *
-                                     m_stochastic_temperature / (cell_volume * m_dt));
+                                     m_stochastic_temperature / (cell_volume * m_dt)) * std::sqrt(Real(2.0)) / Real(2.0);
+        // const Real coeff = std::sqrt(m_stochastic_k_B *
+        //                              m_stochastic_temperature / (cell_volume * m_dt)); 
 
         for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
             stochastic_flux[dir].define(eta_face[dir].boxArray(), eta_face[dir].DistributionMap(),
@@ -61,8 +65,10 @@ incflo::compute_stochastic_velocity_force (Vector<MultiFab const*> const& densit
                 [=] AMREX_GPU_DEVICE (int i, int j, int k, int n,
                                        RandomEngine const& engine) noexcept
                 {
+                    // flux(i,j,k,n) = coeff * std::sqrt(face_eta(i,j,k)) *
+                    //                 RandomNormal(Real(0.0), Real(1.0), engine);
                     flux(i,j,k,n) = coeff * std::sqrt(face_eta(i,j,k)) *
-                                    RandomNormal(Real(0.0), Real(1.0), engine);
+                                    (RandomNormal(Real(0.0), Real(1.0), engine) + RandomNormal(Real(0.0), Real(1.0), engine));
                 });
             }
 

@@ -118,7 +118,6 @@ void incflo::ApplyCorrector()
     compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_new_const(),
                        get_density_new_const(), get_tracer_new_const(), get_tracer_new_const(),
                        include_pressure_gradient);
-    compute_stochastic_velocity_force(get_density_old_const(), GetVecOfConstPtrs(vel_eta));
     add_stochastic_velocity_force(GetVecOfPtrs(vel_forces));
     compute_MAC_projected_velocities(get_velocity_new_const(), get_density_new_const(),
                                      AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
