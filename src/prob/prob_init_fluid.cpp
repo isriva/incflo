@@ -40,6 +40,9 @@ void incflo::prob_init_fluid (int lev)
     Gpu::DeviceVector<Real> eta1;
     Gpu::DeviceVector<Real> eta2;
 
+    Real F_0 = Real(0);
+    Real n_WN = Real(0);
+
     if (3001 == m_probtype) {
         ParmParse pp("kh");
         pp.get("sigma", kh_sigma);
@@ -109,6 +112,10 @@ void incflo::prob_init_fluid (int lev)
         // // 3. Print it out across all MPI processors!
         // amrex::AllPrint() << ss.str();
 
+    } else if (4000 == m_probtype) {
+        ParmParse pp("kolm");
+        pp.query("F_0", F_0);
+        pp.query("n_WN", n_WN);
     }
 
     for (MFIter mfi(ld.density); mfi.isValid(); ++mfi)
@@ -290,6 +297,14 @@ void incflo::prob_init_fluid (int lev)
                                 ld.tracer.array(mfi),
                                 domain, dx, problo, probhi,
                                 eta1.dataPtr(), eta2.dataPtr(), kh_sigma, kh_eps);
+        }
+        else if (4000 == m_probtype)
+        {
+            init_KOLMOGOROV_2d(vbx, gbx,
+                               ld.velocity.array(mfi),
+                               ld.density.array(mfi),
+                               ld.tracer.array(mfi),
+                               domain, dx, problo, probhi, F_0, n_WN);
         }
         else
         {
@@ -1235,6 +1250,30 @@ void incflo::init_burggraf (Box const& vbx, Box const& /*gbx*/,
 #if (AMREX_SPACEDIM == 3)
         vel(i,j,k,2) = Real(0);
 #endif
+    });
+}
+
+void incflo::init_KOLMOGOROV_2d (Box const& vbx, Box const& /*gbx*/,
+                         Array4<Real> const& vel,
+                         Array4<Real> const& /*density*/,
+                         Array4<Real> const& /*tracer*/,
+                         Box const& /*domain*/,
+                         GpuArray<Real, AMREX_SPACEDIM> const& dx,
+                         GpuArray<Real, AMREX_SPACEDIM> const& problo,
+                         GpuArray<Real, AMREX_SPACEDIM> const& probhi,
+                         Real F_0,
+                         Real n_WN)
+{
+    const Real Ly = probhi[1] - problo[1];
+    ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        // Real y = problo[1] + (Real(j)+Real(0.5))*dx[1];
+        // constexpr Real twopi = Real(2.0)*Real(3.1415926535897932);
+        // const Real F_ext = F_0 * std::sin(twopi*n_WN*y/Ly);
+        const Real F_ext = 0;
+        AMREX_D_TERM(vel(i,j,k,0) = F_ext;,
+                     vel(i,j,k,1) = F_ext;,
+                     vel(i,j,k,2) = 0.0;);
     });
 }
 

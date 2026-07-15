@@ -165,6 +165,17 @@
                     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
                     amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi) const;
     
+    void init_KOLMOGOROV_2d (amrex::Box const& vbx, amrex::Box const& gbx,
+                             amrex::Array4<amrex::Real> const& vel,
+                             amrex::Array4<amrex::Real> const& density,
+                             amrex::Array4<amrex::Real> const& tracer,
+                             amrex::Box const& domain,
+                             amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
+                             amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
+                             amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi,
+                             amrex::Real F_0,
+                             amrex::Real n_WN);
+
     void init_KH_2d (amrex::Box const& vbx, amrex::Box const& gbx,
                      amrex::Array4<amrex::Real> const& vel,
                      amrex::Array4<amrex::Real> const& density,

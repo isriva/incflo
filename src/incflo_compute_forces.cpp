@@ -85,6 +85,8 @@ void incflo::compute_vel_forces_on_level (int lev,
     GpuArray<Real,3> l_gp0{m_gp0[0], m_gp0[1], m_gp0[2]};
 
     auto const dx = geom[lev].CellSizeArray();
+    const Real* problo = geom[lev].ProbLo();
+    const Real* probhi = geom[lev].ProbHi();
 
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
@@ -155,6 +157,39 @@ void incflo::compute_vel_forces_on_level (int lev,
                     Real  gpp  = Real(12) * y*y - Real(2);
 
                     vel_f(i,j,k,1) += Real(8) / Re * (Real(24) * capF + Real(2) * fp * gpp + fppp * g) + Real(64) * (capF2 * capG1 - g * gp * capF1);
+                });
+            } else if(m_probtype = 4000) {
+                Real F_0 = 1.0;
+                Real n_WN = 1.0;
+                ParmParse pp("kolm");
+                pp.query("F_0", F_0);
+                pp.query("n_WN", n_WN);
+
+                const Real Ly = probhi[1] - problo[1];
+                const Real twopi = Real(2.0)*Real(3.1415926535897932);
+
+                ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                {
+                    Real rhoinv = Real(1)/rho(i,j,k);
+
+                    if (include_pressure_gradient)
+                    {
+                        AMREX_D_TERM(vel_f(i,j,k,0) = -(gradp(i,j,k,0)+l_gp0[0])*rhoinv + l_gravity[0];,
+                                     vel_f(i,j,k,1) = -(gradp(i,j,k,1)+l_gp0[1])*rhoinv + l_gravity[1];,
+                                     vel_f(i,j,k,2) = -(gradp(i,j,k,2)+l_gp0[2])*rhoinv + l_gravity[2];);
+                    } else {
+                        AMREX_D_TERM(vel_f(i,j,k,0) = -(               l_gp0[0])*rhoinv + l_gravity[0];,
+                                     vel_f(i,j,k,1) = -(               l_gp0[1])*rhoinv + l_gravity[1];,
+                                     vel_f(i,j,k,2) = -(               l_gp0[2])*rhoinv + l_gravity[2];);
+                    }
+
+                    // Add the Kolmogorov Forcing
+                    Real y_rel = problo[1] + (Real(j) + Real(0.5)) * dx[1];
+                    
+                    // F_ext = F_0 * sin(2 * pi * n * y / L_y)
+                    Real F_ext = F_0 * std::sin(twopi * n_WN * y_rel / Ly);
+
+                    vel_f(i,j,k,0) += F_ext;
                 });
             } else {
                 ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
