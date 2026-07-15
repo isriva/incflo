@@ -158,7 +158,7 @@ void incflo::compute_vel_forces_on_level (int lev,
 
                     vel_f(i,j,k,1) += Real(8) / Re * (Real(24) * capF + Real(2) * fp * gpp + fppp * g) + Real(64) * (capF2 * capG1 - g * gp * capF1);
                 });
-            } else if(m_probtype = 4000) {
+            } else if (m_probtype == 4000) {
                 Real F_0 = 1.0;
                 Real n_WN = 1.0;
                 ParmParse pp("kolm");
