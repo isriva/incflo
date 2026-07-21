@@ -1,0 +1,38 @@
+#ifndef SPECTRAL_FUNCTIONS_H_
+#define SPECTRAL_FUNCTIONS_H_
+
+#include <AMReX_Geometry.H>
+#include <AMReX_MultiFab.H>
+#include <AMReX_Vector.H>
+
+#include <string>
+
+void SpectralReadCheckPoint(const std::string& restart_file,
+                            const amrex::Vector<int>& is_periodic,
+                            amrex::Geometry& geom,
+                            amrex::BoxArray& ba,
+                            amrex::DistributionMapping& dmap,
+                            amrex::MultiFab& velocity,
+                            int& step,
+                            amrex::Real& time);
+
+void SpectralVelDecomp(const amrex::MultiFab& velocity,
+                       amrex::MultiFab& velocity_filter,
+                       amrex::Real kmin,
+                       amrex::Real kmax,
+                       const amrex::Geometry& geom);
+
+void SpectralWritePlotFile(int step,
+                           amrex::Real kmin,
+                           amrex::Real kmax,
+                           const amrex::Geometry& geom,
+                           const amrex::MultiFab& velocity,
+                           const amrex::MultiFab& velocity_filter);
+
+void SpectralWriteFourierPlotFile(int step,
+                                  amrex::Real kmin,
+                                  amrex::Real kmax,
+                                  const amrex::Geometry& geom,
+                                  const amrex::MultiFab& velocity_filter);
+
+#endif
