@@ -22,17 +22,25 @@ void SpectralVelDecomp(const amrex::MultiFab& velocity,
                        amrex::Real kmax,
                        const amrex::Geometry& geom);
 
+void SpectralVelProductDecomp(const amrex::MultiFab& velocity, 
+                              amrex::MultiFab& vv_filter, 
+                              amrex::Real kmin, 
+                              amrex::Real kmax, 
+                              const amrex::Geometry& geom);
+
 void SpectralWritePlotFile(int step,
                            amrex::Real kmin,
                            amrex::Real kmax,
                            const amrex::Geometry& geom,
                            const amrex::MultiFab& velocity,
-                           const amrex::MultiFab& velocity_filter);
+                           const amrex::MultiFab& velocity_filter,
+                           const amrex::MultiFab& vv_filter);
 
 void SpectralWriteFourierPlotFile(int step,
                                   amrex::Real kmin,
                                   amrex::Real kmax,
                                   const amrex::Geometry& geom,
-                                  const amrex::MultiFab& velocity_filter);
+                                  const amrex::MultiFab& velocity_filter,
+                                  const amrex::MultiFab& vv_filter);
 
 #endif

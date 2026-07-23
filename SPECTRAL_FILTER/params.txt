@@ -1,0 +1,5 @@
+restart_file=../test_no_eb_2d/Kolmogorov_WENO_512_1em4_cell_depth_1em5_F_0_1em1_n_WN_3_dt_3em4_seed_100/chk09000
+kmin=0
+kmax_start=80
+kmax_end=120
+kmax_inc=10

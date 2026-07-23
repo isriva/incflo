@@ -355,12 +355,114 @@ void SpectralVelDecomp(const amrex::MultiFab& velocity,
 #endif
 }
 
+
+
+void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
+                              amrex::MultiFab& vv_filter,
+                              amrex::Real kmin,
+                              amrex::Real kmax,
+                              const amrex::Geometry& geom)
+{
+    BL_PROFILE_VAR("SpectralVelProductDecomp()", SpectralVelProductDecomp);
+
+#if (AMREX_SPACEDIM == 3)
+    int constexpr num_vv_comps = 6; // 0:uu, 1:vv, 2:ww, 3:uv, 4:uw, 5:vw
+#else
+    int constexpr num_vv_comps = 3; // 0:uu, 1:vv, 2:uv
+#endif
+
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        velocity.nComp() >= AMREX_SPACEDIM,
+        "SpectralVelProductDecomp: input velocity must have at least AMREX_SPACEDIM components");
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        vv_filter.nComp() >= num_vv_comps,
+        "SpectralVelProductDecomp: vv_filter must have enough components to store the symmetric tensor");
+
+    // Compute the pointwise product v_i * v_j in real space
+    amrex::MultiFab vv_real(velocity.boxArray(), velocity.DistributionMap(), num_vv_comps, 0);
+    
+    for (amrex::MFIter mfi(vv_real, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        amrex::Box const& bx = mfi.tilebox();
+        amrex::Array4<const amrex::Real> const& vel = velocity.const_array(mfi);
+        amrex::Array4<amrex::Real> const& vv = vv_real.array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+        {
+            vv(i,j,k,0) = vel(i,j,k,0) * vel(i,j,k,0); // uu
+            vv(i,j,k,1) = vel(i,j,k,1) * vel(i,j,k,1); // vv
+#if (AMREX_SPACEDIM == 3)
+            vv(i,j,k,2) = vel(i,j,k,2) * vel(i,j,k,2); // ww
+            vv(i,j,k,3) = vel(i,j,k,0) * vel(i,j,k,1); // uv
+            vv(i,j,k,4) = vel(i,j,k,0) * vel(i,j,k,2); // uw
+            vv(i,j,k,5) = vel(i,j,k,1) * vel(i,j,k,2); // vw
+#else
+            vv(i,j,k,2) = vel(i,j,k,0) * vel(i,j,k,1); // uv
+#endif
+        });
+    }
+
+    amrex::Box const domain = geom.Domain();
+    int const nx = domain.length(0);
+#if (AMREX_SPACEDIM >= 2)
+    int const ny = domain.length(1);
+#else
+    int const ny = 1;
+#endif
+#if (AMREX_SPACEDIM == 3)
+    int const nz = domain.length(2);
+#else
+    int const nz = 1;
+#endif
+
+    amrex::Real const kmin2 = kmin * kmin;
+    amrex::Real const kmax2 = kmax * kmax;
+
+    amrex::FFT::R2C<> fft(domain);
+    amrex::Real const scale = fft.scalingFactor();
+
+    amrex::MultiFab vv_single(velocity.boxArray(), velocity.DistributionMap(), 1, 0);
+    amrex::MultiFab filtered_single(velocity.boxArray(), velocity.DistributionMap(), 1, 0);
+
+    // Perform the FFT, Filter, and inverse FFT on each component
+    for (int comp = 0; comp < num_vv_comps; ++comp) {
+        amrex::MultiFab::Copy(vv_single, vv_real, comp, 0, 1, 0);
+        filtered_single.setVal(0.0);
+
+        fft.forwardThenBackward(
+            vv_single,
+            filtered_single,
+            [=] AMREX_GPU_DEVICE (int i, int j, int k, amrex::GpuComplex<amrex::Real>& sp) noexcept
+            {
+                int const ik = (i <= nx / 2) ? i : i - nx;
+                int const jk = (j <= ny / 2) ? j : j - ny;
+#if (AMREX_SPACEDIM == 3)
+                int const kk = (k <= nz / 2) ? k : k - nz;
+#else
+                amrex::ignore_unused(k, nz);
+                int const kk = 0;
+#endif
+                amrex::Real const ksq = amrex::Real(ik*ik + jk*jk + kk*kk);
+                if (ksq < kmin2 || ksq > kmax2) {
+                    sp = amrex::GpuComplex<amrex::Real>(0.0, 0.0);
+                } else {
+                    sp *= scale;
+                }
+            });
+
+        amrex::MultiFab::Copy(vv_filter, filtered_single, 0, comp, 1, 0);
+    }
+}
+
+
+
+
 void SpectralWritePlotFile(int step,
                            amrex::Real kmin,
                            amrex::Real kmax,
                            const amrex::Geometry& geom,
                            const amrex::MultiFab& velocity,
-                           const amrex::MultiFab& velocity_filter)
+                           const amrex::MultiFab& velocity_filter,
+                           const amrex::MultiFab& vv_filter)
 {
     BL_PROFILE_VAR("SpectralWritePlotFile()", SpectralWritePlotFile);
 
@@ -372,9 +474,11 @@ void SpectralWritePlotFile(int step,
         "SpectralWritePlotFile: velocity_filter must have exactly 3 components");
 
 #if (AMREX_SPACEDIM == 2)
-    int constexpr nplot = 6;
+    int constexpr nplot = 12;
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(vv_filter.nComp() >= 3, "vv_filter must have at least 3 comps in 2D");
 #else
-    int constexpr nplot = 8;
+    int constexpr nplot = 20;
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(vv_filter.nComp() >= 6, "vv_filter must have at least 6 comps in 3D");
 #endif
 
     amrex::MultiFab velocity_g(velocity.boxArray(), velocity.DistributionMap(), 3, 1);
@@ -401,6 +505,8 @@ void SpectralWritePlotFile(int step,
         amrex::Array4<const amrex::Real> const& vel = velocity_g.const_array(mfi);
         amrex::Array4<const amrex::Real> const& filt = velocity_filter_g.const_array(mfi);
 
+        amrex::Array4<const amrex::Real> const& vv_filt = vv_filter.const_array(mfi);
+
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
         {
             out(i,j,k,0) = vel(i,j,k,0);
@@ -409,17 +515,32 @@ void SpectralWritePlotFile(int step,
             out(i,j,k,2) = filt(i,j,k,0);
             out(i,j,k,3) = filt(i,j,k,1);
 
+            amrex::Real const ux = amrex::Real(0.5) * (vel(i+1,j,k,0) - vel(i-1,j,k,0)) * idx;
+            amrex::Real const vy = amrex::Real(0.5) * (vel(i,j+1,k,1) - vel(i,j-1,k,1)) * idy;
+
             amrex::Real const vx = amrex::Real(0.5) * (vel(i+1,j,k,1) - vel(i-1,j,k,1)) * idx;
             amrex::Real const uy = amrex::Real(0.5) * (vel(i,j+1,k,0) - vel(i,j-1,k,0)) * idy;
             amrex::Real const vx_f = amrex::Real(0.5) * (filt(i+1,j,k,1) - filt(i-1,j,k,1)) * idx;
             amrex::Real const uy_f = amrex::Real(0.5) * (filt(i,j+1,k,0) - filt(i,j-1,k,0)) * idy;
             out(i,j,k,4) = vx - uy;
             out(i,j,k,5) = vx_f - uy_f;
+
+            out(i,j,k,6) = vv_filt(i,j,k,0); // uu
+            out(i,j,k,7) = vv_filt(i,j,k,1); // vv
+            out(i,j,k,8) = vv_filt(i,j,k,2); // uv
+
+            out(i,j,k,9)  = ux;                               // S_11
+            out(i,j,k,10) = vy;                               // S_22
+            out(i,j,k,11) = amrex::Real(0.5) * (uy + vx);     // S_12
 #else
             out(i,j,k,2) = vel(i,j,k,2);
             out(i,j,k,3) = filt(i,j,k,0);
             out(i,j,k,4) = filt(i,j,k,1);
             out(i,j,k,5) = filt(i,j,k,2);
+
+            amrex::Real const ux = amrex::Real(0.5) * (vel(i+1,j,k,0) - vel(i-1,j,k,0)) * idx;
+            amrex::Real const vy = amrex::Real(0.5) * (vel(i,j+1,k,1) - vel(i,j-1,k,1)) * idy;
+            amrex::Real const wz = amrex::Real(0.5) * (vel(i,j,k+1,2) - vel(i,j,k-1,2)) * idz;
 
             amrex::Real const vx = amrex::Real(0.5) * (vel(i+1,j,k,1) - vel(i-1,j,k,1)) * idx;
             amrex::Real const wx = amrex::Real(0.5) * (vel(i+1,j,k,2) - vel(i-1,j,k,2)) * idx;
@@ -439,6 +560,20 @@ void SpectralWritePlotFile(int step,
             out(i,j,k,7) = std::sqrt((wy_f-vz_f)*(wy_f-vz_f) +
                                       (uz_f-wx_f)*(uz_f-wx_f) +
                                       (vx_f-uy_f)*(vx_f-uy_f));
+            
+            out(i,j,k,8)  = vv_filt(i,j,k,0); // uu
+            out(i,j,k,9)  = vv_filt(i,j,k,1); // vv
+            out(i,j,k,10) = vv_filt(i,j,k,2); // ww
+            out(i,j,k,11) = vv_filt(i,j,k,3); // uv
+            out(i,j,k,12) = vv_filt(i,j,k,4); // uw
+            out(i,j,k,13) = vv_filt(i,j,k,5); // vw
+
+            out(i,j,k,14) = ux;                           // S_11
+            out(i,j,k,15) = vy;                           // S_22
+            out(i,j,k,16) = wz;                           // S_33
+            out(i,j,k,17) = amrex::Real(0.5) * (uy + vx); // S_12
+            out(i,j,k,18) = amrex::Real(0.5) * (uz + wx); // S_13
+            out(i,j,k,19) = amrex::Real(0.5) * (vz + wy); // S_23
 #endif
         });
     }
@@ -447,12 +582,17 @@ void SpectralWritePlotFile(int step,
     amrex::Vector<std::string> varNames{
         "velx", "vely",
         "velx_filter", "vely_filter",
-        "vort", "vort_filter"};
+        "vort", "vort_filter",
+        "uu_filter", "vv_filter", "uv_filter",
+        "S11", "S22", "S12"};
 #else
     amrex::Vector<std::string> varNames{
         "velx", "vely", "velz",
         "velx_filter", "vely_filter", "velz_filter",
-        "vort", "vort_filter"};
+        "vort", "vort_filter",
+        "uu_filter", "vv_filter", "ww_filter",
+        "uv_filter", "uw_filter", "vw_filter",
+        "S11", "S22", "S33", "S12", "S13", "S23"};
 #endif
 
     std::string const plotfilename = FilterPlotFileName(step, kmin, kmax);
@@ -465,7 +605,8 @@ void SpectralWriteFourierPlotFile(int step,
                                   amrex::Real kmin,
                                   amrex::Real kmax,
                                   const amrex::Geometry& geom,
-                                  const amrex::MultiFab& velocity_filter)
+                                  const amrex::MultiFab& velocity_filter,
+                                  const amrex::MultiFab& vv_filter)
 {
     BL_PROFILE_VAR("SpectralWriteFourierPlotFile()", SpectralWriteFourierPlotFile);
 
@@ -473,7 +614,16 @@ void SpectralWriteFourierPlotFile(int step,
         velocity_filter.nComp() == 3,
         "SpectralWriteFourierPlotFile: velocity_filter must have exactly 3 components");
 
-    int constexpr nfields = AMREX_SPACEDIM + 1;
+#if (AMREX_SPACEDIM == 2)
+    int constexpr num_vv_comps = 3; 
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(vv_filter.nComp() >= 3, "vv_filter must have at least 3 comps in 2D");
+#else
+    int constexpr num_vv_comps = 6;
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(vv_filter.nComp() >= 6, "vv_filter must have at least 6 comps in 3D");
+#endif
+
+    // int constexpr nfields = AMREX_SPACEDIM + 1;
+    int constexpr nfields = AMREX_SPACEDIM + 1 + num_vv_comps;
 
     amrex::MultiFab velocity_filter_g(velocity_filter.boxArray(), velocity_filter.DistributionMap(), 3, 1);
     FillVelocityWithGhosts(velocity_filter, velocity_filter_g, geom);
@@ -484,6 +634,8 @@ void SpectralWriteFourierPlotFile(int step,
 
     amrex::MultiFab vort_filter(fields, amrex::make_alias, AMREX_SPACEDIM, 1);
     ComputeVorticityField(velocity_filter_g, vort_filter, geom);
+
+    amrex::MultiFab::Copy(fields, vv_filter, 0, AMREX_SPACEDIM + 1, num_vv_comps, 0);
 
     amrex::MultiFab fourier_real(fields.boxArray(), fields.DistributionMap(), nfields, 0);
     amrex::MultiFab fourier_imag(fields.boxArray(), fields.DistributionMap(), nfields, 0);
@@ -498,10 +650,13 @@ void SpectralWriteFourierPlotFile(int step,
 
 #if (AMREX_SPACEDIM == 2)
     amrex::Vector<std::string> baseNames{
-        "velx_filter", "vely_filter", "vort_filter"};
+        "velx_filter", "vely_filter", "vort_filter",
+        "uu_filter", "vv_filter", "uv_filter"};
 #else
     amrex::Vector<std::string> baseNames{
-        "velx_filter", "vely_filter", "velz_filter", "vort_filter"};
+        "velx_filter", "vely_filter", "velz_filter", "vort_filter",
+        "uu_filter", "vv_filter", "ww_filter",
+        "uv_filter", "uw_filter", "vw_filter"};
 #endif
 
     amrex::Vector<std::string> varNames(2*nfields);

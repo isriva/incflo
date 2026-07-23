@@ -58,15 +58,34 @@ void main_driver(const char* argv)
     MultiFab velocity_filter(ba, dmap, 3, 0);
     velocity_filter.setVal(0.0);
 
+#if (AMREX_SPACEDIM == 3)
+    int constexpr num_vv_comps = 6;
+#else
+    int constexpr num_vv_comps = 3;
+#endif
+
+    MultiFab vv_filter(ba, dmap, num_vv_comps, 0);
+    vv_filter.setVal(0.0);
+
     velocity.FillBoundary(geom.periodicity());
+    
+    // Filter the velocity
     SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
     velocity_filter.FillBoundary(geom.periodicity());
 
+    // Filter the outer product of the velocity
+    SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax, geom);
+    vv_filter.FillBoundary(geom.periodicity());
+
+    // velocity.FillBoundary(geom.periodicity());
+    // SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
+    // velocity_filter.FillBoundary(geom.periodicity());
+
     if (plot_filter != 0) {
-        SpectralWritePlotFile(step, kmin, kmax, geom, velocity, velocity_filter);
+        SpectralWritePlotFile(step, kmin, kmax, geom, velocity, velocity_filter, vv_filter);
     }
     if (plot_fourier != 0) {
-        SpectralWriteFourierPlotFile(step, kmin, kmax, geom, velocity_filter);
+        SpectralWriteFourierPlotFile(step, kmin, kmax, geom, velocity_filter, vv_filter);
     }
 
     Real ts2 = ParallelDescriptor::second() - ts1;
