@@ -599,6 +599,113 @@ IncfloStructFact::integrateShells(int step, std::string const& output_base) cons
     }
 }
 
+
+void
+IncfloStructFact::integrateTensorShells(int step, std::string const& output_base) const
+{
+    BL_PROFILE("IncfloStructFact::integrateTensorShells()");
+
+    if (m_nsamples <= 0) {
+        return;
+    }
+
+    GpuArray<int, AMREX_SPACEDIM> center;
+    int npts = std::numeric_limits<int>::max();
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        center[d] = m_ncell[d] / 2;
+        npts = std::min(npts, center[d]);
+    }
+
+    if (npts <= 1) {
+        return;
+    }
+
+    Gpu::DeviceVector<Real> phisum_device(npts);
+    Gpu::DeviceVector<int> phicnt_device(npts);
+    Gpu::HostVector<Real> phisum_host(npts);
+
+    Real* phisum_ptr = phisum_device.dataPtr();
+    int* phicnt_ptr = phicnt_device.dataPtr();
+
+    ParallelFor(npts, [=] AMREX_GPU_DEVICE (int d) noexcept
+    {
+        phisum_ptr[d] = Real(0.0);
+        phicnt_ptr[d] = 0;
+    });
+
+    int const ncomp_sum = m_ncov;
+    for (MFIter mfi(m_cov_mag, TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        Box const& bx = mfi.tilebox();
+        Array4<Real const> const cov = m_cov_mag.const_array(mfi);
+
+        ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+        {
+            int const ilen = amrex::Math::abs(i - center[0]);
+            int const jlen = amrex::Math::abs(j - center[1]);
+            int const klen = (AMREX_SPACEDIM == 3) ? amrex::Math::abs(k - center[2]) : 0;
+
+            Real dist = std::sqrt(Real(ilen*ilen + jlen*jlen + klen*klen));
+            if (dist <= Real(npts) - Real(0.5)) {
+                int const shell = int(dist + Real(0.5));
+                // for (int n = 0; n < ncomp_sum; ++n) {
+                //     HostDevice::Atomic::Add(&(phisum_ptr[shell]), cov(i,j,k,n));
+                // }
+                // HostDevice::Atomic::Add(&(phicnt_ptr[shell]), 1);
+                Real tensor_energy = Real(0.0);
+                for (int n = 0; n < ncomp_sum; ++n) {
+                    Real amp = cov(i,j,k,n);
+                    Real weight = (n == 2) ? Real(2.0) : Real(1.0);
+                    tensor_energy += weight * (amp * amp);
+                }
+                
+                HostDevice::Atomic::Add(&(phisum_ptr[shell]), tensor_energy);
+                HostDevice::Atomic::Add(&(phicnt_ptr[shell]), 1);
+            }
+        });
+    }
+
+    for (int d = 1; d < npts; ++d) {
+        ParallelDescriptor::ReduceRealSum(phisum_device[d]);
+        ParallelDescriptor::ReduceIntSum(phicnt_device[d]);
+    }
+
+    Real const pi = Real(4.0) * std::atan(Real(1.0));
+    Real const dk = Real(1.0);
+
+#if (AMREX_SPACEDIM == 2)
+    ParallelFor(npts, [=] AMREX_GPU_DEVICE (int d) noexcept
+    {
+        if (d != 0 && phicnt_ptr[d] > 0) {
+            phisum_ptr[d] *= Real(2.0) * pi * (d * dk + Real(0.5) * dk * dk) /
+                             phicnt_ptr[d];
+        }
+    });
+#else
+    ParallelFor(npts, [=] AMREX_GPU_DEVICE (int d) noexcept
+    {
+        if (d != 0 && phicnt_ptr[d] > 0) {
+            phisum_ptr[d] *= Real(4.0) * pi *
+                             (d * d * dk + dk * dk * dk / Real(12.0)) /
+                             phicnt_ptr[d];
+        }
+    });
+#endif
+
+    Gpu::copy(Gpu::deviceToHost, phisum_device.begin(), phisum_device.end(),
+              phisum_host.begin());
+
+    if (ParallelDescriptor::IOProcessor()) {
+        // std::string filename = Concatenate(output_base, step, 7) + ".txt";
+        std::string filename = output_base + std::to_string(step) + ".txt";
+        std::ofstream turb(filename);
+        turb.precision(17);
+        for (int d = 1; d < npts; ++d) {
+            turb << d << " " << phisum_host[d] << "\n";
+        }
+    }
+}
+
+
 void
 IncfloStructFact::writeCheckpoint(std::string const& checkpoint_dir) const
 {

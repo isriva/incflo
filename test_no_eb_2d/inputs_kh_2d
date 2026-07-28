@@ -29,8 +29,9 @@
   # max_step = 6000
   # max_step = 12000
   max_step = 24000
-  amr.plot_int = 400
-  incflo.turb_spectrum_int = 400
+  amr.plot_int = 500
+  amr.check_int = 500
+  incflo.turb_spectrum_int = 500
 
   visc_type = 1
   incflo.use_stochastic_velocity_fluxes = 1

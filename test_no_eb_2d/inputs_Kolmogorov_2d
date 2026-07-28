@@ -6,40 +6,48 @@
 
   incflo.probtype         = 4000
   kolm.F_0 = 1e-1
-  kolm.n_WN = 3
+  kolm.n_WN = 1
   
   incflo.mu               = 1.0e-4 
   
-  amr.n_cell              = 512 512
-  amr.max_grid_size       = 128 128
+  # amr.n_cell              = 512 512
+  # amr.max_grid_size       = 128 128
   # amr.n_cell              = 1024 1024
-  # amr.max_grid_size       = 256 256
-  # amr.n_cell              = 2048 2048
+  amr.max_grid_size       = 256 256
+  amr.n_cell              = 2048 2048
 
-  incflo.fixed_dt         = 3.0e-4
-  # incflo.fixed_dt         = 1.6e-4
-  # incflo.fixed_dt         = 8.1e-5
+  # incflo.fixed_dt         = 3.0e-4
+  # incflo.fixed_dt         = 1.5e-4
+  incflo.fixed_dt         = 9.0e-5
   # incflo.cfl             = 0.1
 
   # Seeds need to be spaced larger than the number of CPU
   incflo.seed = 100
 
   # Controls for number of steps between actions
-  # max_step = 100000
-  max_step = 3000
+  # max_step = 180000
+  # max_step = 360000
+  max_step = 600000
+  # amr.restart = chk90000
   # max_step = 12000
   # max_step = 24000
-  amr.plot_int = 200
-  amr.check_int = 200
-  incflo.turb_spectrum_int = 200
+  # amr.plot_int = 2000
+  # amr.check_int = 2000
+  # incflo.turb_spectrum_int = 2000
+  # amr.plot_int = 1000
+  # amr.check_int = 1000
+  # incflo.turb_spectrum_int = 1000
+  amr.plot_int = 4000
+  amr.check_int = 4000
+  incflo.turb_spectrum_int = 4000
 
   visc_type = 1
   incflo.use_stochastic_velocity_fluxes = 1
   incflo.stochastic_k_B = 1.380649e-16
   incflo.stochastic_temperature = 294.0
-  incflo.stochastic_cell_depth  = 1.0e-5
+  # incflo.stochastic_cell_depth  = 1.0e-5
   # incflo.stochastic_cell_depth  = 4.0e-5
-  # incflo.stochastic_cell_depth  = 1.6e-4
+  incflo.stochastic_cell_depth  = 1.6e-4
 
   incflo.constant_density = true
   # incflo.use_tensor_solve = true

@@ -29,7 +29,7 @@ cd "$TARGET_DIR" || exit
 for (( kmax=kmax_start; kmax<=kmax_end; kmax+=kmax_inc )); do
     echo "kmax = $kmax"
     # ./main2d.gnu.MPI.ex restart_file="$restart_file" kmin="$kmin" kmax="$kmax" plot_fourier=0 plot_filter=1
-    "$EXEC_PATH" restart_file="$CHK_NAME" kmin="$kmin" kmax="$kmax" plot_fourier=0 plot_filter=1
+    mpirun -n 8 "$EXEC_PATH" restart_file="$CHK_NAME" kmin="$kmin" kmax="$kmax" plot_fourier=0 plot_filter=1
 
     # kmin_high=$(awk "BEGIN {print sqrt($kmax * $kmax + 0.5)}")
     # kmax_high=$((kmax * 100))

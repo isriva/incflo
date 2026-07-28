@@ -1,5 +1,7 @@
 #include "spectral_functions.H"
 
+#include "IncfloStructFact.H"
+
 #include <AMReX_FFT.H>
 #include <AMReX_GpuComplex.H>
 #include <AMReX_MultiFabUtil.H>
@@ -454,6 +456,51 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
 }
 
 
+void ProcessDeltaEtaSpectrum(int step, 
+                             const amrex::MultiFab& output, 
+                             const amrex::Geometry& geom, 
+                             amrex::Real kmin, 
+                             amrex::Real kmax)
+{
+    BL_PROFILE("ProcessDeltaEtaSpectrum()");
+
+#if (AMREX_SPACEDIM == 2)
+    int const num_comps = 3;
+    
+    // Extract the real-space delta_eta components (12, 13, 14) from output
+    amrex::MultiFab delta_eta_real(output.boxArray(), output.DistributionMap(), num_comps, 0);
+    amrex::MultiFab::Copy(delta_eta_real, output, 12, 0, num_comps, 0);
+
+    // Define the metadata needed for IncfloStructFact
+    amrex::Vector<std::string> var_names = {"delta_eta_11", "delta_eta_22", "delta_eta_12"};
+    amrex::Vector<amrex::Real> var_scaling = {1.0, 1.0, 1.0};
+    
+    // Pair each variable with itself to compute their auto-spectra
+    amrex::Vector<int> pair_a = {0, 1, 2}; 
+    amrex::Vector<int> pair_b = {0, 1, 2}; 
+    
+    // Initialize a local IncfloStructFact object
+    IncfloStructFact delta_eta_struct_fact;
+    delta_eta_struct_fact.define(output.boxArray(), output.DistributionMap(), geom, 
+                                 var_names, var_scaling, pair_a, pair_b, 0);
+    
+    // Perform the Forward FFT
+    delta_eta_struct_fact.sample(delta_eta_real, 1);
+    
+    // Shift the k=0 mode to the center and compute the magnitude
+    // Passing 1 zeroes out the mean (k=0) mode
+    delta_eta_struct_fact.callFinalize(1);
+
+    // Format the base file name to include kmin and kmax
+    std::ostringstream os;
+    os << "Delta_eta_spectrum_" << kmin << "_" << kmax << "_";
+    
+    // Integrate over shells and write the text file using the custom prefix
+    delta_eta_struct_fact.integrateTensorShells(step, os.str());
+#else
+    amrex::IgnoreUnused(step, output, geom);
+#endif
+}
 
 
 void SpectralWritePlotFile(int step,
@@ -474,7 +521,7 @@ void SpectralWritePlotFile(int step,
         "SpectralWritePlotFile: velocity_filter must have exactly 3 components");
 
 #if (AMREX_SPACEDIM == 2)
-    int constexpr nplot = 12;
+    int constexpr nplot = 16;
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(vv_filter.nComp() >= 3, "vv_filter must have at least 3 comps in 2D");
 #else
     int constexpr nplot = 20;
@@ -493,6 +540,11 @@ void SpectralWritePlotFile(int step,
     amrex::MultiFab output(velocity.boxArray(), velocity.DistributionMap(), nplot, 0);
     output.setVal(0.0);
 
+    // amrex::Real sum_tau_S = 0.0;
+    // amrex::Real sum_S_sq = 0.0;
+    amrex::ReduceOps<amrex::ReduceOpSum, amrex::ReduceOpSum> reduce_op;
+    amrex::ReduceData<amrex::Real, amrex::Real> reduce_data(reduce_op);
+
     amrex::Real const idx = geom.InvCellSize(0);
     amrex::Real const idy = geom.InvCellSize(1);
 #if (AMREX_SPACEDIM == 3)
@@ -507,7 +559,9 @@ void SpectralWritePlotFile(int step,
 
         amrex::Array4<const amrex::Real> const& vv_filt = vv_filter.const_array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+        // amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+        // {
+        reduce_op.eval(bx, reduce_data, [=] AMREX_GPU_DEVICE (int i, int j, int k) -> amrex::GpuTuple<amrex::Real, amrex::Real>
         {
             out(i,j,k,0) = vel(i,j,k,0);
             out(i,j,k,1) = vel(i,j,k,1);
@@ -531,7 +585,16 @@ void SpectralWritePlotFile(int step,
 
             out(i,j,k,9)  = ux;                               // S_11
             out(i,j,k,10) = vy;                               // S_22
-            out(i,j,k,11) = amrex::Real(0.5) * (uy + vx);     // S_12
+            amrex::Real const S_12 = amrex::Real(0.5) * (uy + vx);
+            out(i,j,k,11) =  S_12;    // S_12
+
+            // Let's compute \tau * S
+            amrex::Real const term1 = (vv_filt(i,j,k,0) - filt(i,j,k,0) * filt(i,j,k,0)) * ux + 
+                                      (vv_filt(i,j,k,1) - filt(i,j,k,1) * filt(i,j,k,1)) * vy + 
+                                      amrex::Real(2.0) *(vv_filt(i,j,k,2) - filt(i,j,k,0) * filt(i,j,k,1)) * S_12;
+            // S^2 as well:
+            amrex::Real const term2 = ux * ux + vy * vy + amrex::Real(2.0) * S_12 * S_12;
+            return {term1, term2};
 #else
             out(i,j,k,2) = vel(i,j,k,2);
             out(i,j,k,3) = filt(i,j,k,0);
@@ -574,9 +637,62 @@ void SpectralWritePlotFile(int step,
             out(i,j,k,17) = amrex::Real(0.5) * (uy + vx); // S_12
             out(i,j,k,18) = amrex::Real(0.5) * (uz + wx); // S_13
             out(i,j,k,19) = amrex::Real(0.5) * (vz + wy); // S_23
+            return {0.0, 0.0};
 #endif
         });
     }
+
+#if (AMREX_SPACEDIM == 2)
+    amrex::GpuTuple<amrex::Real, amrex::Real> hv = reduce_data.value();
+    amrex::Real sum_tau_S = amrex::get<0>(hv);
+    amrex::Real sum_S_sq = amrex::get<1>(hv);
+
+    amrex::ParallelDescriptor::ReduceRealSum(sum_tau_S);
+    amrex::ParallelDescriptor::ReduceRealSum(sum_S_sq);
+
+    amrex::Real delta_nu = 0.0;
+    if (sum_S_sq > 1.0e-20) {
+        delta_nu = -1.0 / (2.0 * sum_S_sq) * sum_tau_S;
+    }
+
+    output.setVal(delta_nu, nplot - 1, 1);
+
+    for (amrex::MFIter mfi(output, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        amrex::Box const& bx = mfi.tilebox();
+        amrex::Array4<amrex::Real> const& out = output.array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+        {
+            // Reconstruct tau_ij = vv_filt_ij - filt_i * filt_j 
+            // from the previously saved output components
+            amrex::Real const tau_11 = out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
+            amrex::Real const tau_22 = out(i,j,k,7) - out(i,j,k,3) * out(i,j,k,3);
+            amrex::Real const tau_12 = out(i,j,k,8) - out(i,j,k,2) * out(i,j,k,3);
+
+            // Calculate half of the trace for the 2D isotropic stress
+            amrex::Real const trace_half = amrex::Real(0.5) * (tau_11 + tau_22);
+
+            // Subtract the isotropic part to get the deviatoric stresses
+            amrex::Real const tau_11_dev = tau_11 - trace_half;
+            amrex::Real const tau_22_dev = tau_22 - trace_half;
+
+            // Read the previously saved strain rate tensor components
+            amrex::Real const S_11 = out(i,j,k,9);
+            amrex::Real const S_22 = out(i,j,k,10);
+            amrex::Real const S_12 = out(i,j,k,11);
+
+            // Calculate and store delta_eta_ij
+            // out(i,j,k,12) = tau_11 + amrex::Real(2.0) * delta_nu * S_11;
+            // out(i,j,k,13) = tau_22 + amrex::Real(2.0) * delta_nu * S_22;
+            // out(i,j,k,14) = tau_12 + amrex::Real(2.0) * delta_nu * S_12;
+
+            // Calculate and store delta_eta_ij using the deviatoric stress
+            out(i,j,k,12) = tau_11_dev + amrex::Real(2.0) * delta_nu * S_11;
+            out(i,j,k,13) = tau_22_dev + amrex::Real(2.0) * delta_nu * S_22;
+            out(i,j,k,14) = tau_12 + amrex::Real(2.0) * delta_nu * S_12;
+        });
+    }
+#endif 
 
 #if (AMREX_SPACEDIM == 2)
     amrex::Vector<std::string> varNames{
@@ -584,7 +700,9 @@ void SpectralWritePlotFile(int step,
         "velx_filter", "vely_filter",
         "vort", "vort_filter",
         "uu_filter", "vv_filter", "uv_filter",
-        "S11", "S22", "S12"};
+        "S11", "S22", "S12", 
+        "delta_eta_11", "delta_eta_22", "delta_eta_12",
+        "delta_nu"};
 #else
     amrex::Vector<std::string> varNames{
         "velx", "vely", "velz",
@@ -598,6 +716,8 @@ void SpectralWritePlotFile(int step,
     std::string const plotfilename = FilterPlotFileName(step, kmin, kmax);
     amrex::Print() << "Writing filtered velocity plotfile " << plotfilename << "\n";
     amrex::WriteSingleLevelPlotfile(plotfilename, output, varNames, geom, 0.0, step);
+
+    ProcessDeltaEtaSpectrum(step, output, geom, kmin, kmax);
 }
 
 

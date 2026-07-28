@@ -17,6 +17,9 @@ include $(AMREX_HOME)/Tools/GNUMake/Make.defs
 VPATH_LOCATIONS   += .
 INCLUDE_LOCATIONS += .
 
+VPATH_LOCATIONS   += ../src/analysis
+INCLUDE_LOCATIONS += ../src/analysis
+
 include ./Make.package
 include $(AMREX_HOME)/Src/Base/Make.package
 

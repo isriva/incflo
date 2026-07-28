@@ -43,6 +43,7 @@ public:
                   int zero_mode = 1);
     void callFinalize(int zero_mode = 1);
     void integrateShells(int step, std::string const& output_base) const;
+    void integrateTensorShells(int step, std::string const& output_base) const;
 
     void writeCheckpoint(std::string const& checkpoint_dir) const;
     void readCheckpoint(std::string const& checkpoint_dir);

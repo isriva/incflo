@@ -28,6 +28,12 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
                               amrex::Real kmax, 
                               const amrex::Geometry& geom);
 
+void ProcessDeltaEtaSpectrum(int step, 
+                             const amrex::MultiFab& output, 
+                             const amrex::Geometry& geom, 
+                             amrex::Real kmin, 
+                             amrex::Real kmax);
+
 void SpectralWritePlotFile(int step,
                            amrex::Real kmin,
                            amrex::Real kmax,
