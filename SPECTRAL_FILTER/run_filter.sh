@@ -27,7 +27,7 @@ cd "$TARGET_DIR" || exit
 
 # Run with parameters in a loop
 for (( kmax=kmax_start; kmax<=kmax_end; kmax+=kmax_inc )); do
-    echo "kmax = $kmax"
+    echo "kmin = $kmin and kmax = $kmax"
     # ./main2d.gnu.MPI.ex restart_file="$restart_file" kmin="$kmin" kmax="$kmax" plot_fourier=0 plot_filter=1
     mpirun -n 8 "$EXEC_PATH" restart_file="$CHK_NAME" kmin="$kmin" kmax="$kmax" plot_fourier=0 plot_filter=1
 
