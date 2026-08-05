@@ -1,5 +1,8 @@
-restart_file=../test_no_eb_2d/Kolmogorov_WENO_2048_mu_1em4_cell_depth_1p6em4_F_0_1em1_n_WN_1_dt_9em5_seed_100/chk16000
+target_dir=../test_no_eb_2d/KH_WENO_2048_mu_1em4_cell_depth_1p6em4_seed_600
+chk_start=15000
+chk_end=24000
+chk_inc=500
 kmin=0
-kmax_start=2
-kmax_end=100
-kmax_inc=4
+kmax_start=30
+kmax_end=1000
+kmax_inc=13

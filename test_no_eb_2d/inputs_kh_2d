@@ -21,8 +21,6 @@
   incflo.fixed_dt         = 8.1e-5
   # incflo.cfl             = 0.1
 
-  # Seeds need to be spaced larger than the number of CPU
-  incflo.seed = 100
 
   # Controls for number of steps between actions
   # max_step = 100000
@@ -61,3 +59,7 @@
 
   tensor_diffusion.verbose       =   1           # Diffusion
   tensor_diffusion.mg_verbose    =   0           # Diffusion
+
+  # Seeds need to be spaced larger than the number of CPU
+  incflo.seed = 600
+

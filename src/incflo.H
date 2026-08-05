@@ -248,6 +248,11 @@ public:
                                             amrex::Vector<amrex::MultiFab const*> const& eta);
     void add_stochastic_velocity_force (amrex::Vector<amrex::MultiFab*> const& vel_forces,
                                         StepType step_type) const;
+    
+    void compute_turb_stress_subgrid_force (amrex::Vector<amrex::MultiFab const*> const& velocity,
+                                            amrex::Real gamma_d, amrex::Real gamma_f);
+    void add_turb_stress_subgrid_force (amrex::Vector<amrex::MultiFab*> const& vel_forces,
+                                        StepType step_type) const;
 
     [[nodiscard]] amrex::Array<amrex::MultiFab,AMREX_SPACEDIM>
     average_scalar_eta_to_faces (int lev, int comp, amrex::MultiFab const& cc_eta) const;
@@ -606,6 +611,11 @@ private:
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_pred;
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_corr;
 
+    bool m_use_turb_stress_subgrid = false;
+    std::string m_subgrid_model_type{"strain_ansatz"};
+    amrex::Vector<amrex::MultiFab> m_turb_stress_subgrid_force_pred;
+    amrex::Vector<amrex::MultiFab> m_turb_stress_subgrid_force_corr;
+
     int m_struct_fact_int = -1;
     int m_struct_fact_skip = 0;
     int m_struct_fact_write_int = -1;
@@ -715,6 +725,7 @@ private:
                    incflo* my_incflo);
         // cell-centered multifabs
         amrex::MultiFab velocity;
+        amrex::MultiFab subgrid_velocity;
         amrex::MultiFab velocity_o;
         amrex::MultiFab velocity_eb;
         amrex::MultiFab density;
