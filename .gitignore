@@ -56,3 +56,8 @@ test/tmp_build_dir/
 test/Backtrace.*
 test/*plt*/
 test/chk*/
+
+.ipynb_checkpoints
+*.ex
+tmp_build_dir
+

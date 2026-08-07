@@ -21,16 +21,23 @@ void main_driver(const char* argv)
     }
 
     Real kmin = 0.0;
-    Real kmax = 0.0;
+    // Real kmax = 0.0;
+    std::vector<Real> kmax_list;
     if (!pp.query("kmin", kmin)) {
         Abort("SPECTRAL_FILTER requires kmin=<minimum integer wavenumber>");
     }
-    if (!pp.query("kmax", kmax)) {
-        Abort("SPECTRAL_FILTER requires kmax=<maximum integer wavenumber>");
+    // if (!pp.query("kmax", kmax)) {
+    //     Abort("SPECTRAL_FILTER requires kmax=<maximum integer wavenumber>");
+    // }
+    if (!pp.queryarr("kmax_list", kmax_list)) {
+        Abort("SPECTRAL_FILTER requires kmax_list=<list of maximum integer wavenumbers>");
     }
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(kmin >= 0.0, "kmin must be non-negative");
-    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(kmax >= kmin, "kmax must be greater than or equal to kmin");
-
+    // AMREX_ALWAYS_ASSERT_WITH_MESSAGE(kmax >= kmin, "kmax must be greater than or equal to kmin");
+    // Loop through the vector to validate each kmax value
+    for (Real kmax : kmax_list) {
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(kmax >= kmin, "Every kmax must be greater than or equal to kmin");
+    }
     int plot_filter = 0;
     pp.query("plot_filter", plot_filter);
 
@@ -56,7 +63,6 @@ void main_driver(const char* argv)
     SpectralReadCheckPoint(restart_file, is_periodic, geom, ba, dmap, velocity, step, time);
 
     MultiFab velocity_filter(ba, dmap, 3, 0);
-    velocity_filter.setVal(0.0);
 
 #if (AMREX_SPACEDIM == 3)
     int constexpr num_vv_comps = 6;
@@ -65,27 +71,33 @@ void main_driver(const char* argv)
 #endif
 
     MultiFab vv_filter(ba, dmap, num_vv_comps, 0);
-    vv_filter.setVal(0.0);
+    
 
     velocity.FillBoundary(geom.periodicity());
+
+    // Loop over all of the kmax values
+    for (Real kmax : kmax_list) {
+        velocity_filter.setVal(0.0);
+        vv_filter.setVal(0.0);
+        
+        // Filter the velocity
+        SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
+        velocity_filter.FillBoundary(geom.periodicity());
     
-    // Filter the velocity
-    SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
-    velocity_filter.FillBoundary(geom.periodicity());
-
-    // Filter the outer product of the velocity
-    SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax, geom);
-    vv_filter.FillBoundary(geom.periodicity());
-
-    // velocity.FillBoundary(geom.periodicity());
-    // SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
-    // velocity_filter.FillBoundary(geom.periodicity());
-
-    if (plot_filter != 0) {
-        SpectralWritePlotFile(step, kmin, kmax, geom, velocity, velocity_filter, vv_filter);
-    }
-    if (plot_fourier != 0) {
-        SpectralWriteFourierPlotFile(step, kmin, kmax, geom, velocity_filter, vv_filter);
+        // Filter the outer product of the velocity
+        SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax, geom);
+        vv_filter.FillBoundary(geom.periodicity());
+    
+        // velocity.FillBoundary(geom.periodicity());
+        // SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
+        // velocity_filter.FillBoundary(geom.periodicity());
+    
+        if (plot_filter != 0) {
+            SpectralWritePlotFile(step, kmin, kmax, geom, velocity, velocity_filter, vv_filter);
+        }
+        if (plot_fourier != 0) {
+            SpectralWriteFourierPlotFile(step, kmin, kmax, geom, velocity_filter, vv_filter);
+        }
     }
 
     Real ts2 = ParallelDescriptor::second() - ts1;

@@ -18,7 +18,8 @@
 
   # incflo.fixed_dt         = 3.9e-4
   # incflo.fixed_dt         = 1.6e-4
-  incflo.fixed_dt         = 8.1e-5
+  # incflo.fixed_dt         = 8.1e-5
+  incflo.fixed_dt         = 4.05e-5
   # incflo.cfl             = 0.1
 
 
@@ -61,5 +62,5 @@
   tensor_diffusion.mg_verbose    =   0           # Diffusion
 
   # Seeds need to be spaced larger than the number of CPU
-  incflo.seed = 600
+  incflo.seed = 100
 
