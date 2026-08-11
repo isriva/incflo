@@ -12,6 +12,9 @@
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+#include <fstream>
+#include <set>
+#include <string>
 
 namespace {
 
@@ -38,6 +41,11 @@ std::string FilterPlotFileName(int step, amrex::Real kmin, amrex::Real kmax)
     std::ostringstream os;
     os << "filtered_" << step << "_" << std::setprecision(12) << kmin << "_" << kmax;
     return os.str();
+}
+
+std::string Delta_nu_FileName(int step)
+{
+    return amrex::Concatenate("Delta_nu_", step, 7) + ".txt";
 }
 
 std::string FourierPlotFileName(int step, amrex::Real kmin, amrex::Real kmax)
@@ -521,7 +529,7 @@ void SpectralWritePlotFile(int step,
         "SpectralWritePlotFile: velocity_filter must have exactly 3 components");
 
 #if (AMREX_SPACEDIM == 2)
-    int constexpr nplot = 16;
+    int constexpr nplot = 15;
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(vv_filter.nComp() >= 3, "vv_filter must have at least 3 comps in 2D");
 #else
     int constexpr nplot = 20;
@@ -588,10 +596,32 @@ void SpectralWritePlotFile(int step,
             amrex::Real const S_12 = amrex::Real(0.5) * (uy + vx);
             out(i,j,k,11) =  S_12;    // S_12
 
-            // Let's compute \tau * S
-            amrex::Real const term1 = (vv_filt(i,j,k,0) - filt(i,j,k,0) * filt(i,j,k,0)) * ux + 
-                                      (vv_filt(i,j,k,1) - filt(i,j,k,1) * filt(i,j,k,1)) * vy + 
-                                      amrex::Real(2.0) *(vv_filt(i,j,k,2) - filt(i,j,k,0) * filt(i,j,k,1)) * S_12;
+            amrex::Real const tau_11 = out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
+            amrex::Real const tau_22 = out(i,j,k,7) - out(i,j,k,3) * out(i,j,k,3);
+            amrex::Real const tau_12 = out(i,j,k,8) - out(i,j,k,2) * out(i,j,k,3);
+
+            // Calculate half of the trace for the 2D isotropic stress
+            amrex::Real const trace_half = amrex::Real(0.5) * (tau_11 + tau_22);
+
+            // Subtract the isotropic part to get the deviatoric stresses
+            amrex::Real const tau_11_dev = tau_11 - trace_half;
+            amrex::Real const tau_22_dev = tau_22 - trace_half;
+
+            // Deviatoric tau; delta_nu*S is added in below once delta_nu is known
+            out(i,j,k,12) = tau_11_dev;
+            out(i,j,k,13) = tau_22_dev;
+            out(i,j,k,14) = tau_12;
+            
+            // // Let's compute \tau * S
+            // amrex::Real const term1 = (vv_filt(i,j,k,0) - filt(i,j,k,0) * filt(i,j,k,0)) * ux + 
+            //                           (vv_filt(i,j,k,1) - filt(i,j,k,1) * filt(i,j,k,1)) * vy + 
+            //                           amrex::Real(2.0) *(vv_filt(i,j,k,2) - filt(i,j,k,0) * filt(i,j,k,1)) * S_12;
+            
+            // Let's compute \tau * S with the deviatoric tau
+            amrex::Real const term1 = tau_11_dev * ux + 
+                                      tau_22_dev * vy + 
+                                      amrex::Real(2.0) * tau_12 * S_12;
+            
             // S^2 as well:
             amrex::Real const term2 = ux * ux + vy * vy + amrex::Real(2.0) * S_12 * S_12;
             return {term1, term2};
@@ -652,57 +682,73 @@ void SpectralWritePlotFile(int step,
 
     amrex::Real delta_nu = 0.0;
     if (sum_S_sq > 1.0e-20) {
-        delta_nu = -1.0 / (2.0 * sum_S_sq) * sum_tau_S;
+        delta_nu = -(1.0 / (2.0 * sum_S_sq) ) * sum_tau_S;
     }
 
-    output.setVal(delta_nu, nplot - 1, 1);
+    // output.setVal(delta_nu, nplot - 1, 1);
 
-    for (amrex::MFIter mfi(output, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        amrex::Box const& bx = mfi.tilebox();
-        amrex::Array4<amrex::Real> const& out = output.array(mfi);
+    // for (amrex::MFIter mfi(output, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+    //     amrex::Box const& bx = mfi.tilebox();
+    //     amrex::Array4<amrex::Real> const& out = output.array(mfi);
 
-        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-        {
-            // Reconstruct tau_ij = vv_filt_ij - filt_i * filt_j 
-            // from the previously saved output components
-            amrex::Real const tau_11 = out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
-            amrex::Real const tau_22 = out(i,j,k,7) - out(i,j,k,3) * out(i,j,k,3);
-            amrex::Real const tau_12 = out(i,j,k,8) - out(i,j,k,2) * out(i,j,k,3);
+    //     amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    //     {
+    //         // Reconstruct tau_ij = vv_filt_ij - filt_i * filt_j 
+    //         // from the previously saved output components
+    //         amrex::Real const tau_11 = out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
+    //         amrex::Real const tau_22 = out(i,j,k,7) - out(i,j,k,3) * out(i,j,k,3);
+    //         amrex::Real const tau_12 = out(i,j,k,8) - out(i,j,k,2) * out(i,j,k,3);
 
-            // Calculate half of the trace for the 2D isotropic stress
-            amrex::Real const trace_half = amrex::Real(0.5) * (tau_11 + tau_22);
+    //         // Calculate half of the trace for the 2D isotropic stress
+    //         amrex::Real const trace_half = amrex::Real(0.5) * (tau_11 + tau_22);
 
-            // Subtract the isotropic part to get the deviatoric stresses
-            amrex::Real const tau_11_dev = tau_11 - trace_half;
-            amrex::Real const tau_22_dev = tau_22 - trace_half;
+    //         // Subtract the isotropic part to get the deviatoric stresses
+    //         amrex::Real const tau_11_dev = tau_11 - trace_half;
+    //         amrex::Real const tau_22_dev = tau_22 - trace_half;
 
-            // Read the previously saved strain rate tensor components
-            amrex::Real const S_11 = out(i,j,k,9);
-            amrex::Real const S_22 = out(i,j,k,10);
-            amrex::Real const S_12 = out(i,j,k,11);
+    //         // Read the previously saved strain rate tensor components
+    //         amrex::Real const S_11 = out(i,j,k,9);
+    //         amrex::Real const S_22 = out(i,j,k,10);
+    //         amrex::Real const S_12 = out(i,j,k,11);
 
-            // Calculate and store delta_eta_ij
-            // out(i,j,k,12) = tau_11 + amrex::Real(2.0) * delta_nu * S_11;
-            // out(i,j,k,13) = tau_22 + amrex::Real(2.0) * delta_nu * S_22;
-            // out(i,j,k,14) = tau_12 + amrex::Real(2.0) * delta_nu * S_12;
+    //         // Calculate and store delta_eta_ij
+    //         // out(i,j,k,12) = tau_11 + amrex::Real(2.0) * delta_nu * S_11;
+    //         // out(i,j,k,13) = tau_22 + amrex::Real(2.0) * delta_nu * S_22;
+    //         // out(i,j,k,14) = tau_12 + amrex::Real(2.0) * delta_nu * S_12;
 
-            // Calculate and store delta_eta_ij using the deviatoric stress
-            out(i,j,k,12) = tau_11_dev + amrex::Real(2.0) * delta_nu * S_11;
-            out(i,j,k,13) = tau_22_dev + amrex::Real(2.0) * delta_nu * S_22;
-            out(i,j,k,14) = tau_12 + amrex::Real(2.0) * delta_nu * S_12;
-        });
+    //         // Calculate and store delta_eta_ij using the deviatoric stress
+    //         out(i,j,k,12) = tau_11_dev + amrex::Real(2.0) * delta_nu * S_11;
+    //         out(i,j,k,13) = tau_22_dev + amrex::Real(2.0) * delta_nu * S_22;
+    //         out(i,j,k,14) = tau_12 + amrex::Real(2.0) * delta_nu * S_12;
+    //     });
+    // }
+    // delta_eta_ij = tau_ij_dev + 2 * delta_nu * S_ij   (comps 12..14 += 2*dnu * comps 9..11)
+    amrex::MultiFab::Saxpy(output, amrex::Real(2.0) * delta_nu, output, 9, 12, 3, 0);
+
+    if (amrex::ParallelDescriptor::IOProcessor()) {
+        std::string const dNufilename = Delta_nu_FileName(step);
+
+        static std::set<std::string> opened;   // truncate once per run, then append
+        bool const first = opened.insert(dNufilename).second;
+        std::ofstream ofs(dNufilename, first ? std::ios::trunc : std::ios::app);
+        if (!ofs) {
+            amrex::Abort("Could not open " + dNufilename);
+        }
+        if (first) { ofs << "# step  k_min  k_cutoff  delta_nu  sum_tau_S  sum_S_sq\n"; }
+        ofs.precision(17);
+        ofs << step << " " << kmin << " " << kmax << " " << delta_nu << " "
+            << sum_tau_S << " " << sum_S_sq << "\n";
     }
-#endif 
-
-#if (AMREX_SPACEDIM == 2)
+            
     amrex::Vector<std::string> varNames{
         "velx", "vely",
         "velx_filter", "vely_filter",
         "vort", "vort_filter",
         "uu_filter", "vv_filter", "uv_filter",
         "S11", "S22", "S12", 
-        "delta_eta_11", "delta_eta_22", "delta_eta_12",
-        "delta_nu"};
+        "delta_eta_11", "delta_eta_22", "delta_eta_12"};
+
+    ProcessDeltaEtaSpectrum(step, output, geom, kmin, kmax);
 #else
     amrex::Vector<std::string> varNames{
         "velx", "vely", "velz",
@@ -717,7 +763,7 @@ void SpectralWritePlotFile(int step,
     amrex::Print() << "Writing filtered velocity plotfile " << plotfilename << "\n";
     amrex::WriteSingleLevelPlotfile(plotfilename, output, varNames, geom, 0.0, step);
 
-    ProcessDeltaEtaSpectrum(step, output, geom, kmin, kmax);
+    
 }
 
 
