@@ -347,9 +347,9 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
                 Array4<Real const> const& vel_f = vel_forces[lev].const_array(mfi);
                 Array4<Real const> const divtau = stage_one ? ld.divtau_o.const_array(mfi) : ld.divtau.const_array(mfi);
                 ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-                    AMREX_D_TERM(vel(i,j,k,0) = base*vel_o(i,j,k,0) + state_coeff*vel(i,j,k,0) + current*l_dt*(dvdt(i,j,k,0) + divtau(i,j,k,0) + vel_f(i,j,k,0)));,
-                                 vel(i,j,k,1) = base*vel_o(i,j,k,1) + state_coeff*vel(i,j,k,1) + current*l_dt*(dvdt(i,j,k,1) + divtau(i,j,k,1) + vel_f(i,j,k,1)));,
-                                 vel(i,j,k,2) = base*vel_o(i,j,k,2) + state_coeff*vel(i,j,k,2) + current*l_dt*(dvdt(i,j,k,2) + divtau(i,j,k,2) + vel_f(i,j,k,2))););
+                    AMREX_D_TERM(vel(i,j,k,0) = base*vel_o(i,j,k,0) + state_coeff*vel(i,j,k,0) + current*l_dt*(dvdt(i,j,k,0) + divtau(i,j,k,0) + vel_f(i,j,k,0));,
+                                 vel(i,j,k,1) = base*vel_o(i,j,k,1) + state_coeff*vel(i,j,k,1) + current*l_dt*(dvdt(i,j,k,1) + divtau(i,j,k,1) + vel_f(i,j,k,1));,
+                                 vel(i,j,k,2) = base*vel_o(i,j,k,2) + state_coeff*vel(i,j,k,2) + current*l_dt*(dvdt(i,j,k,2) + divtau(i,j,k,2) + vel_f(i,j,k,2)););
                 });
             }
         }

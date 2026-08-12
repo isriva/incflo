@@ -548,6 +548,7 @@ private:
     bool m_advect_momentum = false;
 
     std::string m_advection_type = "Godunov";
+    std::string m_time_stepping_scheme = "MOL";
 
 #ifdef AMREX_USE_EB
     std::string m_redistribution_type = "StateRedist";
