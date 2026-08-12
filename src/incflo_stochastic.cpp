@@ -127,22 +127,128 @@ incflo::compute_stochastic_velocity_force (Vector<MultiFab const*> const& densit
 }
 
 void
+incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& density,
+                                               Vector<MultiFab const*> const& eta)
+{
+    if (!m_use_stochastic_velocity_fluxes) {
+        for (auto& force : m_stochastic_vel_force_rk3) force.clear();
+        return;
+    }
+
+    BL_PROFILE("incflo::compute_stochastic_velocity_force_RK3");
+    amrex::ignore_unused(density);
+    if (m_dt <= Real(0.0)) {
+        amrex::Abort("stochastic velocity fluxes require a positive timestep");
+    }
+
+    const Real beta[3] = {
+        (Real(2.0)*std::sqrt(Real(2.0)) + std::sqrt(Real(3.0))) / Real(5.0),
+        (-Real(4.0)*std::sqrt(Real(2.0)) + Real(3.0)*std::sqrt(Real(3.0))) / Real(5.0),
+        (std::sqrt(Real(2.0)) - Real(2.0)*std::sqrt(Real(3.0))) / Real(10.0)
+    };
+    for (auto& force : m_stochastic_vel_force_rk3) force.resize(finest_level+1);
+
+    for (int lev = 0; lev <= finest_level; ++lev) {
+        Real cell_volume = Real(1.0);
+        auto const dx = geom[lev].CellSizeArray();
+        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) cell_volume *= dx[dir];
+#if (AMREX_SPACEDIM == 2)
+        cell_volume *= m_stochastic_cell_depth;
+#endif
+
+        for (auto& force : m_stochastic_vel_force_rk3) {
+            force[lev].define(eta[lev]->boxArray(), eta[lev]->DistributionMap(),
+                              AMREX_SPACEDIM, nghost_force(), MFInfo(), eta[lev]->Factory());
+            force[lev].setVal(0.0);
+        }
+
+        Array<MultiFab, AMREX_SPACEDIM> eta_face =
+            average_velocity_eta_to_faces(lev, *eta[lev]);
+        Array<MultiFab, AMREX_SPACEDIM> flux_A;
+        Array<MultiFab, AMREX_SPACEDIM> flux_B;
+        const Real coeff = std::sqrt(Real(2.0) * m_stochastic_k_B *
+                                     m_stochastic_temperature / (cell_volume * m_dt));
+
+        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+            flux_A[dir].define(eta_face[dir].boxArray(), eta_face[dir].DistributionMap(),
+                               AMREX_SPACEDIM, 0, MFInfo(), eta_face[dir].Factory());
+            flux_B[dir].define(eta_face[dir].boxArray(), eta_face[dir].DistributionMap(),
+                               AMREX_SPACEDIM, 0, MFInfo(), eta_face[dir].Factory());
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+            for (MFIter mfi(flux_A[dir], TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+                Box const& bx = mfi.tilebox();
+                Array4<Real> const& a = flux_A[dir].array(mfi);
+                Array4<Real> const& b = flux_B[dir].array(mfi);
+                Array4<Real const> const& face_eta = eta_face[dir].const_array(mfi);
+                ParallelForRNG(bx, AMREX_SPACEDIM,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k, int n,
+                                      RandomEngine const& engine) noexcept {
+                    a(i,j,k,n) = coeff * std::sqrt(face_eta(i,j,k)) *
+                        RandomNormal(Real(0.0), Real(1.0), engine);
+                    b(i,j,k,n) = coeff * std::sqrt(face_eta(i,j,k)) *
+                        RandomNormal(Real(0.0), Real(1.0), engine);
+                });
+            }
+            flux_A[dir].OverrideSync(geom[lev].periodicity());
+            flux_B[dir].OverrideSync(geom[lev].periodicity());
+        }
+
+        Array<MultiFab, AMREX_SPACEDIM> stage_flux;
+        for (int stage = 0; stage < 3; ++stage) {
+            Array<MultiFab const*, AMREX_SPACEDIM> flux_ptrs;
+            for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+                stage_flux[dir].define(flux_A[dir].boxArray(), flux_A[dir].DistributionMap(),
+                                       AMREX_SPACEDIM, 0, MFInfo(), flux_A[dir].Factory());
+                MultiFab::LinComb(stage_flux[dir], Real(1.0), flux_A[dir], 0,
+                                  beta[stage], flux_B[dir], 0, 0, AMREX_SPACEDIM, 0);
+                flux_ptrs[dir] = &stage_flux[dir];
+            }
+            amrex::computeDivergence(m_stochastic_vel_force_rk3[stage][lev],
+                                     flux_ptrs, geom[lev]);
+            m_stochastic_vel_force_rk3[stage][lev].mult(Real(1.0) / m_ro_0,
+                                                        0, AMREX_SPACEDIM, 0);
+            m_stochastic_vel_force_rk3[stage][lev].FillBoundary(geom[lev].periodicity());
+        }
+    }
+}
+
+void
 incflo::add_stochastic_velocity_force (Vector<MultiFab*> const& vel_forces, StepType step_type) const
 {
     if (!m_use_stochastic_velocity_fluxes) {
         return;
     }
 
-    AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_pred.size() == vel_forces.size());
-    AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_corr.size() == vel_forces.size());
+    if (step_type == StepType::Predictor || step_type == StepType::Corrector) {
+        AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_pred.size() == vel_forces.size());
+        AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_corr.size() == vel_forces.size());
+    } else {
+        for (auto const& force : m_stochastic_vel_force_rk3) {
+            AMREX_ALWAYS_ASSERT(force.size() == vel_forces.size());
+        }
+    }
 
     for (int lev = 0; lev <= finest_level; ++lev) {
         if (step_type == StepType::Predictor) {
+            if (uses_RK3_timestepping()) {
+                MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_rk3[0][lev],
+                              0, 0, AMREX_SPACEDIM, 0);
+                continue;
+            }
             MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_pred[lev],
                           0, 0, AMREX_SPACEDIM, 0);
-        }
-        else if (step_type == StepType::Corrector) {
+        } else if (step_type == StepType::Corrector) {
             MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_corr[lev],
+                          0, 0, AMREX_SPACEDIM, 0);
+        } else if (step_type == StepType::RK3StageOne ||
+                   step_type == StepType::RK3StageTwo ||
+                   step_type == StepType::RK3StageThree) {
+            int stage = static_cast<int>(step_type) -
+                        static_cast<int>(StepType::RK3StageOne);
+            MultiFab::Add(*vel_forces[lev],
+                          m_stochastic_vel_force_rk3[stage][lev],
                           0, 0, AMREX_SPACEDIM, 0);
         }
     }

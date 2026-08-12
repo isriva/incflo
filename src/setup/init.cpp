@@ -116,17 +116,6 @@ void incflo::ReadParameters ()
             amrex::Abort("incflo.advection_type = WENO5 requires max_level = 0");
         }
 
-        if (m_time_stepping_scheme == "RK3" && !m_constant_density){
-            amrex::Abort("incflo.time_stepping_scheme = RK3 requires constant density");
-        }
-        
-        if (m_time_stepping_scheme == "RK3" && m_advect_tracer){
-            amrex::Abort("incflo.time_stepping_scheme = RK3 does not support tracers");
-        }
-
-        if (m_time_stepping_scheme == "RK3" && m_diff_type != DiffusionType::Explicit){
-            amrex::Abort("incflo.time_stepping_scheme = RK3 requires explicit diffusion");
-        }
         // The default for diffusion_type is 2, i.e. the default m_diff_type is DiffusionType::Implicit
         int diffusion_type = 2;
         pp.query("diffusion_type", diffusion_type);
@@ -139,6 +128,12 @@ void incflo::ReadParameters ()
         } else {
             amrex::Abort("We currently require diffusion_type = 0 for explicit, 1 for Crank-Nicolson or 2 for implicit");
         }
+
+        if (m_time_stepping_scheme == "RK3" && m_advection_type != "WENO5") amrex::Abort("incflo.time_stepping_scheme = RK3 requires advection_type = WENO5");
+        if (m_time_stepping_scheme == "RK3" && !m_constant_density) amrex::Abort("incflo.time_stepping_scheme = RK3 requires constant density");
+        if (m_time_stepping_scheme == "RK3" && (m_advect_tracer || m_use_temperature)) amrex::Abort("incflo.time_stepping_scheme = RK3 does not support tracers or temperature");
+        if (m_time_stepping_scheme == "RK3" && m_diff_type != DiffusionType::Explicit) amrex::Abort("incflo.time_stepping_scheme = RK3 requires explicit diffusion");
+        if (m_time_stepping_scheme == "RK3" && m_advect_momentum) amrex::Abort("incflo.time_stepping_scheme = RK3 does not support advect_momentum");
 
         // Default is true; should we use tensor solve instead of separate solves for each component?
         pp.query("use_tensor_solve",use_tensor_solve);
@@ -557,7 +552,7 @@ void incflo::InitialIterations ()
     {
         if (m_verbose) amrex::Print() << "\n In initial_iterations: iter = " << iter << "\n";
 
-     ApplyPredictor(true);
+     ApplyPredictor(StepType::Predictor, true);
 
         copy_from_old_to_new_velocity();
         copy_from_old_to_new_density();

@@ -74,12 +74,15 @@ using namespace amrex;
 // It is assumed that the ghost cells of the old data have been filled and
 // the old and new data are the same in valid region.
 //
-void incflo::ApplyPredictor (bool incremental_projection)
+void incflo::ApplyPredictor (StepType step_type, bool incremental_projection)
 {
     BL_PROFILE("incflo::ApplyPredictor");
 
-    // We use the new time value for things computed on the "*" state
-    Real new_time = m_cur_time + m_dt;
+    // Use the appropriate stage time for quantities computed on the stage state
+    // RK3 Stage 1 represents the state at t^n + dt/3.  The legacy
+    // predictor/corrector schemes use the end-of-step time here.
+    Real new_time = m_cur_time +
+        (step_type == StepType::RK3StageOne ? m_dt / Real(3.0) : m_dt);
 
     // *************************************************************************************
     // Allocate space for the MAC velocities
@@ -141,7 +144,11 @@ void incflo::ApplyPredictor (bool incremental_projection)
 
     // do this once per time step in predictor here
     // ideally move it to incflo_advance
-    compute_stochastic_velocity_force(get_density_old_const(), GetVecOfConstPtrs(vel_eta)); 
+    if (uses_RK3_timestepping()) {
+        compute_stochastic_velocity_force_RK3(get_density_old_const(), GetVecOfConstPtrs(vel_eta));
+    } else {
+        compute_stochastic_velocity_force(get_density_old_const(), GetVecOfConstPtrs(vel_eta));
+    }
 
     // *************************************************************************************
     // Compute explicit viscous term
@@ -206,22 +213,22 @@ void incflo::ApplyPredictor (bool incremental_projection)
     // *************************************************************************************
     // Update density
     // *************************************************************************************
-    update_density(StepType::Predictor);
+    update_density(step_type);
 
     // **********************************************************************************************
     // Update tracer
     // **********************************************************************************************
-    update_tracer(StepType::Predictor, tra_eta, tra_forces);
+    update_tracer(step_type, tra_eta, tra_forces);
 
     // **********************************************************************************************
     // Update temperature
     // **********************************************************************************************
-    update_temperature(StepType::Predictor, tem_eta, tem_forces);
+    update_temperature(step_type, tem_eta, tem_forces);
 
     // **********************************************************************************************
     // Update velocity
     // **********************************************************************************************
-    update_velocity(StepType::Predictor, vel_eta, vel_forces);
+    update_velocity(step_type, vel_eta, vel_forces);
 
     // **********************************************************************************************
     // Project velocity field, update pressure

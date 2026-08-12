@@ -142,7 +142,7 @@ public:
     //
     ///////////////////////////////////////////////////////////////////////////
 
-    void ApplyPredictor (bool incremental_projection = false);
+    void ApplyPredictor (StepType step_type, bool incremental_projection = false);
     void ApplyCorrector (StepType step_type);
     void compute_convective_term (amrex::Vector<amrex::MultiFab*> const& conv_u,
                                   amrex::Vector<amrex::MultiFab*> const& conv_r,
@@ -246,6 +246,8 @@ public:
 
     void compute_stochastic_velocity_force (amrex::Vector<amrex::MultiFab const*> const& density,
                                             amrex::Vector<amrex::MultiFab const*> const& eta);
+    void compute_stochastic_velocity_force_RK3 (amrex::Vector<amrex::MultiFab const*> const& density,
+                                               amrex::Vector<amrex::MultiFab const*> const& eta);
     void add_stochastic_velocity_force (amrex::Vector<amrex::MultiFab*> const& vel_forces,
                                         StepType step_type) const;
     
@@ -610,6 +612,7 @@ private:
                                                   amrex::Real(1.0)/sqrt(2.0), amrex::Real(1.0)/sqrt(2.0)}; 
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_pred;
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_corr;
+    std::array<amrex::Vector<amrex::MultiFab>, 3> m_stochastic_vel_force_rk3;
 
     bool m_use_turb_stress_subgrid = false;
     std::string m_subgrid_model_type{"strain_ansatz"};

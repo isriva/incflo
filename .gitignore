@@ -60,4 +60,4 @@ test/chk*/
 .ipynb_checkpoints
 *.ex
 tmp_build_dir
-
+test_no_eb_2d/tmp_build_dir/*

@@ -65,7 +65,7 @@ void incflo::Advance()
     }
 #endif
 
-    ApplyPredictor();
+    ApplyPredictor(uses_RK3_timestepping() ? StepType::RK3StageOne : StepType::Predictor);
 
     if (uses_predictor_corrector_advection()) {
         for (int lev = 0; lev <= finest_level; ++lev) {
