@@ -79,7 +79,38 @@ void incflo::Advance()
             }
         }
 
-        ApplyCorrector();
+        ApplyCorrector(StepType::Corrector);
+    }
+
+    if (uses_RK3_timestepping()) {
+
+        // Second stage
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity, ng);
+            fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density, ng);
+            if (m_advect_tracer) {
+                fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer, ng);
+            }
+            if (m_use_temperature) {
+                fillpatch_temperature(lev, m_t_new[lev], m_leveldata[lev]->temperature, ng);
+            }
+        }
+
+        ApplyCorrector(StepType::RK3StageTwo);
+
+        // Third stage
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            fillpatch_velocity(lev, m_t_new[lev], m_leveldata[lev]->velocity, ng);
+            fillpatch_density(lev, m_t_new[lev], m_leveldata[lev]->density, ng);
+            if (m_advect_tracer) {
+                fillpatch_tracer(lev, m_t_new[lev], m_leveldata[lev]->tracer, ng);
+            }
+            if (m_use_temperature) {
+                fillpatch_temperature(lev, m_t_new[lev], m_leveldata[lev]->temperature, ng);
+            }
+        }
+
+        ApplyCorrector(StepType::RK3StageThree);
     }
 
 #ifdef INCFLO_USE_PARTICLES

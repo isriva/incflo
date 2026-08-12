@@ -68,6 +68,7 @@ void incflo::ReadParameters ()
 
         // Are we using MOL or Godunov?
         pp.query("advection_type"                   , m_advection_type);
+        pp.query("time_stepping_scheme"             , m_time_stepping_scheme);
         pp.query("use_ppm"                          , m_godunov_ppm);
         pp.query("godunov_use_forces_in_trans"      , m_godunov_use_forces_in_trans);
         pp.query("godunov_include_diff_in_forcing"  , m_godunov_include_diff_in_forcing);
@@ -115,6 +116,17 @@ void incflo::ReadParameters ()
             amrex::Abort("incflo.advection_type = WENO5 requires max_level = 0");
         }
 
+        if (m_time_stepping_scheme == "RK3" && !m_constant_density){
+            amrex::Abort("incflo.time_stepping_scheme = RK3 requires constant density");
+        }
+        
+        if (m_time_stepping_scheme == "RK3" && m_advect_tracer){
+            amrex::Abort("incflo.time_stepping_scheme = RK3 does not support tracers");
+        }
+
+        if (m_time_stepping_scheme == "RK3" && m_diff_type != DiffusionType::Explicit){
+            amrex::Abort("incflo.time_stepping_scheme = RK3 requires explicit diffusion");
+        }
         // The default for diffusion_type is 2, i.e. the default m_diff_type is DiffusionType::Implicit
         int diffusion_type = 2;
         pp.query("diffusion_type", diffusion_type);

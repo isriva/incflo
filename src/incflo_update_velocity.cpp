@@ -325,7 +325,82 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
             }
         }
         } // lev
-    } // Corrector
+    } else if (step_type == StepType::RK3StageOne || step_type == StepType::RK3StageTwo || step_type == StepType::RK3StageThree) {
+
+        // *************************************************************************************
+        // Define the forcing terms to use in the final update (using half-time density)
+        // *************************************************************************************
+        compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_new_const(),
+                           get_density_nph_const(), get_tracer_old_const(), get_tracer_new_const());
+//        compute_stochastic_velocity_force(get_density_nph_const(), GetVecOfConstPtrs(vel_eta));
+        add_stochastic_velocity_force(GetVecOfPtrs(vel_forces), step_type);
+
+        for (int lev = 0; lev <= finest_level; lev++)
+        {
+            auto& ld = *m_leveldata[lev];
+
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+        for (MFIter mfi(ld.velocity,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+        {
+            Box const& bx = mfi.tilebox();
+            Array4<Real> const& vel = ld.velocity.array(mfi);
+            Array4<Real const> const& vel_o = ld.velocity_o.const_array(mfi);
+            Array4<Real const> const& dvdt = ld.conv_velocity.const_array(mfi);
+            Array4<Real const> const& dvdt_o = ld.conv_velocity_o.const_array(mfi);
+            Array4<Real const> const& vel_f = vel_forces[lev].const_array(mfi);
+
+            Array4<Real const> const& rho_old  = ld.density_o.const_array(mfi);
+            Array4<Real const> const& rho_new  = ld.density.const_array(mfi);
+            Array4<Real const> const& rho_nph  = ld.density_nph.const_array(mfi);
+
+            if (m_diff_type == DiffusionType::Explicit)
+            {
+                Array4<Real const> const& divtau_o = ld.divtau_o.const_array(mfi);
+                Array4<Real const> const& divtau   = ld.divtau.const_array(mfi);
+
+                if (m_advect_momentum) {
+                    ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                    {
+                        AMREX_D_TERM(vel(i,j,k,0) = rho_old(i,j,k) * vel_o(i,j,k,0) + l_dt * (
+                                                    l_half*(  dvdt_o(i,j,k,0)+  dvdt(i,j,k,0))
+                                                  + l_half*(divtau_o(i,j,k,0)+divtau(i,j,k,0))
+                                                  + rho_nph(i,j,k) * vel_f(i,j,k,0) );,
+                                     vel(i,j,k,1) =  rho_old(i,j,k) * vel_o(i,j,k,1) + l_dt * (
+                                                     l_half*(  dvdt_o(i,j,k,1)+  dvdt(i,j,k,1))
+                                                   + l_half*(divtau_o(i,j,k,1)+divtau(i,j,k,1))
+                                                   + rho_nph(i,j,k) * vel_f(i,j,k,1) );,
+                                     vel(i,j,k,2) =  rho_old(i,j,k) * vel_o(i,j,k,2) + l_dt * (
+                                                     l_half*(  dvdt_o(i,j,k,2)+  dvdt(i,j,k,2))
+                                                   + l_half*(divtau_o(i,j,k,2)+divtau(i,j,k,2))
+                                                   + rho_nph(i,j,k) * vel_f(i,j,k,2) ););
+
+                        AMREX_D_TERM(vel(i,j,k,0) /= rho_new(i,j,k);,
+                                     vel(i,j,k,1) /= rho_new(i,j,k);,
+                                     vel(i,j,k,2) /= rho_new(i,j,k););
+                    });
+                } else {
+                    ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                    {
+                        AMREX_D_TERM(vel(i,j,k,0) = vel_o(i,j,k,0) + l_dt * (
+                                                    l_half*(  dvdt_o(i,j,k,0)+  dvdt(i,j,k,0))
+                                                  + l_half*(divtau_o(i,j,k,0)+divtau(i,j,k,0))
+                                                  + vel_f(i,j,k,0) );,
+                                     vel(i,j,k,1) = vel_o(i,j,k,1) + l_dt * (
+                                                    l_half*(  dvdt_o(i,j,k,1)+  dvdt(i,j,k,1))
+                                                  + l_half*(divtau_o(i,j,k,1)+divtau(i,j,k,1))
+                                                  + vel_f(i,j,k,1) );,
+                                     vel(i,j,k,2) = vel_o(i,j,k,2) + l_dt * (
+                                                    l_half*(  dvdt_o(i,j,k,2)+  dvdt(i,j,k,2))
+                                                  + l_half*(divtau_o(i,j,k,2)+divtau(i,j,k,2))
+                                                  + vel_f(i,j,k,2) ););
+                    });
+                }
+            }
+        }
+        } // lev
+    } // RK3 Stage
 
     // *************************************************************************************
     // Solve diffusion equation for u* but using eta_old at old time

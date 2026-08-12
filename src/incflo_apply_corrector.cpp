@@ -65,7 +65,7 @@ using namespace amrex;
 //
 //     vel = u** - dt * grad p / rho
 //
-void incflo::ApplyCorrector()
+void incflo::ApplyCorrector(StepType step_type)
 {
     BL_PROFILE("incflo::ApplyCorrector");
 
@@ -147,17 +147,20 @@ void incflo::ApplyCorrector()
     // *************************************************************************************
     // Update density
     // *************************************************************************************
-    update_density(StepType::Corrector);
+    // update_density(StepType::Corrector);
+    update_density(step_type);
 
     // *************************************************************************************
     // Update tracer
     // *************************************************************************************
-    update_tracer(StepType::Corrector, tra_eta, tra_forces);
+    // update_tracer(StepType::Corrector, tra_eta, tra_forces);
+    update_tracer(step_type, tra_eta, tra_forces);
 
     // *************************************************************************************
     // Update velocity
     // *************************************************************************************
-    update_velocity(StepType::Corrector, vel_eta, vel_forces);
+    // update_velocity(StepType::Corrector, vel_eta, vel_forces);
+    update_velocity(step_type, vel_eta, vel_forces);
 
     // **********************************************************************************************
     // Project velocity field, update pressure

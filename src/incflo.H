@@ -24,7 +24,7 @@
 class IncfloStructFact;
 
 enum struct StepType : std::uint8_t {
-    Predictor, Corrector
+    Predictor, Corrector, RK3StageOne, RK3StageTwo, RK3StageThree
 };
 
 class incflo : public amrex::AmrCore
@@ -143,7 +143,7 @@ public:
     ///////////////////////////////////////////////////////////////////////////
 
     void ApplyPredictor (bool incremental_projection = false);
-    void ApplyCorrector ();
+    void ApplyCorrector (StepType step_type);
     void compute_convective_term (amrex::Vector<amrex::MultiFab*> const& conv_u,
                                   amrex::Vector<amrex::MultiFab*> const& conv_r,
                                   amrex::Vector<amrex::MultiFab*> const& conv_tra,
@@ -829,7 +829,11 @@ private:
 
     // Number of ghost cells for field arrays.
     [[nodiscard]] bool uses_predictor_corrector_advection () const noexcept {
-        return (m_advection_type == "MOL" || m_advection_type == "WENO5");
+        return (m_time_stepping_scheme == "MOL" && m_advection_type == "WENO5");
+    }
+
+    [[nodiscard]] bool uses_RK3_timestepping () const noexcept {
+        return (m_time_stepping_scheme == "RK3" && m_advection_type == "WENO5");
     }
 
     [[nodiscard]] bool uses_godunov_forcing () const noexcept {

@@ -6,7 +6,7 @@ void incflo::update_density (StepType step_type)
 {
     BL_PROFILE("incflo::update_density");
 
-    int ng = (step_type == StepType::Corrector) ? 0 : 1;
+    int ng = (step_type == StepType::Corrector || step_type == StepType::RK3StageThree) ? 0 : 1;
 
     Real l_dt = m_dt;
 

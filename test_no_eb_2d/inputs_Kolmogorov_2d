@@ -63,6 +63,7 @@
 
   # incflo.advection_type   = "Godunov"
   incflo.advection_type   = "WENO5"
+  incflo.time_stepping_scheme   = "RK3"
 
   incflo.diffusion_type   = 1             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
 
