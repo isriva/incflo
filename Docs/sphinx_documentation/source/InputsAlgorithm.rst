@@ -4,6 +4,7 @@ Algorithm Options
 =================
 
 The following inputs must be preceded by "incflo."
+The RK3 RHS pressure-gradient term can be controlled with ``incflo.rk3_use_lagged_pressure_gradient`` (bool, default ``true``).
 
 +----------------------+-----------------------------------------------------------------------+-------------+--------------+
 |                      | Description                                                           |   Type      | Default      |

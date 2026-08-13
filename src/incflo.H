@@ -549,6 +549,8 @@ private:
 
     std::string m_advection_type = "Godunov";
     std::string m_time_stepping_scheme = "MOL";
+    // If true, include the lagged pressure gradient in the RK3 RHS.
+    bool m_rk3_use_lagged_pressure_gradient = true;
 
 #ifdef AMREX_USE_EB
     std::string m_redistribution_type = "StateRedist";

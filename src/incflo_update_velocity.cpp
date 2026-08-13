@@ -326,7 +326,9 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         }
         } // lev
     } else if (step_type == StepType::RK3StageOne || step_type == StepType::RK3StageTwo || step_type == StepType::RK3StageThree) {
-        compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_new_const(), get_density_nph_const(), get_tracer_old_const(), get_tracer_new_const());
+        compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_new_const(), get_density_nph_const(),
+                           get_tracer_old_const(), get_tracer_new_const(),
+                           m_rk3_use_lagged_pressure_gradient);
         add_stochastic_velocity_force(GetVecOfPtrs(vel_forces), step_type);
         const bool stage_one = (step_type == StepType::RK3StageOne);
         const Real base = stage_one ? Real(1.0) :

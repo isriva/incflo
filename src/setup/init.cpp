@@ -69,6 +69,7 @@ void incflo::ReadParameters ()
         // Are we using MOL or Godunov?
         pp.query("advection_type"                   , m_advection_type);
         pp.query("time_stepping_scheme"             , m_time_stepping_scheme);
+        pp.query("rk3_use_lagged_pressure_gradient", m_rk3_use_lagged_pressure_gradient);
         pp.query("use_ppm"                          , m_godunov_ppm);
         pp.query("godunov_use_forces_in_trans"      , m_godunov_use_forces_in_trans);
         pp.query("godunov_include_diff_in_forcing"  , m_godunov_include_diff_in_forcing);
