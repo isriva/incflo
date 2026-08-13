@@ -49,6 +49,11 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
 #endif
     if (!my_incflo->uses_predictor_corrector_advection()) {
         divtau_o.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+        // RK3 uses divtau_o for stage 1 and divtau for stages 2 and 3.
+        // The latter is filled from the current stage state in ApplyCorrector.
+        if (my_incflo->uses_RK3_timestepping()) {
+            divtau.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+        }
         if (my_incflo->m_advect_tracer) {
             laps_o.define(ba, dm, my_incflo->m_ntrac, 0, MFInfo(), fact);
         }

@@ -130,7 +130,8 @@ void incflo::ApplyCorrector(StepType step_type)
 //    add_stochastic_velocity_force(GetVecOfPtrs(vel_forces));
     compute_MAC_projected_velocities(get_velocity_new_const(), get_density_new_const(),
                                      AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-                                     GetVecOfPtrs(w_mac)), GetVecOfPtrs(vel_forces), new_time);
+                                     GetVecOfPtrs(w_mac)), GetVecOfPtrs(vel_forces),
+                                     step_type, new_time);
     // *************************************************************************************
     // Compute the explicit "new" advective terms R_u^(n+1,*), R_r^(n+1,*) and R_t^(n+1,*)
     // *************************************************************************************
@@ -144,8 +145,6 @@ void incflo::ApplyCorrector(StepType step_type)
     // Compute viscosity / diffusive coefficients
     // *************************************************************************************
     compute_viscosity(GetVecOfPtrs(vel_eta), get_density_new(), get_velocity_new(), new_time, 1);
-
-    // Here we create divtau of the (n+1,*) state that was computed in the predictor
     if ( (m_diff_type == DiffusionType::Explicit) || use_tensor_correction )
     {
         compute_divtau(get_divtau_new(), get_velocity_new_const(),

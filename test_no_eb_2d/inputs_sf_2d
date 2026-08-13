@@ -70,7 +70,9 @@
   incflo.struct_fact_file = plt_SF
   incflo.struct_fact_verbosity = 1
 
-  incflo.advect_momentum = true
+  incflo.advect_momentum = false
+  incflo.time_stepping_scheme = "RK3"
+  incflo.rk3_use_lagged_pressure_gradient = false
   incflo.PPM_flux_limiter = false
   # incflo.PPM_flux_limiter = true
   
@@ -89,7 +91,7 @@
 
   # incflo.advection_type   = "Godunov"
   incflo.advection_type   = "WENO5"
-  incflo.diffusion_type   = 1             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
+  incflo.diffusion_type   = 0             # 0 = Explicit, 1 = Crank-Nicolson, 2 = Implicit
 
   incflo.verbose          =   2           # incflo_level
   mac_proj.verbose        =   1           # MAC Projector

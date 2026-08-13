@@ -14,11 +14,16 @@ void incflo::Advance()
     bool explicit_diffusion = (m_diff_type == DiffusionType::Explicit);
     ComputeDt(initialisation, explicit_diffusion);
 
-    // Set new and old time to correctly use in fillpatching
-    for(int lev = 0; lev <= finest_level; lev++)
+    // Set new and old time to correctly use in fillpatching. For RK3,
+    // the first two stages use the t^n + dt/2 source time; after Stage 2,
+    // the remaining stage uses the end-of-step source time.
+    const bool rk3 = uses_RK3_timestepping();
+    for (int lev = 0; lev <= finest_level; ++lev)
     {
         m_t_old[lev] = m_cur_time;
-        m_t_new[lev] = m_cur_time + m_dt;
+        m_t_new[lev] = rk3
+            ? m_cur_time + m_dt / Real(2.0)
+            : m_cur_time + m_dt;
     }
 
     if (m_verbose > 0)
@@ -97,6 +102,10 @@ void incflo::Advance()
         }
 
         ApplyCorrector(StepType::RK3StageTwo);
+
+        for (int lev = 0; lev <= finest_level; ++lev) {
+            m_t_new[lev] = m_cur_time + m_dt;
+        }
 
         // Third stage
         for (int lev = 0; lev <= finest_level; ++lev) {

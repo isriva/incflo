@@ -188,6 +188,7 @@ public:
                                                amrex::Vector<amrex::MultiFab*> const& v_mac,
                                                amrex::Vector<amrex::MultiFab*> const& w_mac),
                                   amrex::Vector<amrex::MultiFab*> const& vel_forces,
+                                  StepType step_type,
                                   amrex::Real time);
 
     void tracer_explicit_update(amrex::Vector<amrex::MultiFab> const& tra_forces);

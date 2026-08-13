@@ -14,6 +14,7 @@ incflo::compute_MAC_projected_velocities (
                                               Vector<MultiFab*> const& v_mac,
                                               Vector<MultiFab*> const& w_mac),
                                  Vector<MultiFab*> const& vel_forces,
+                                 StepType step_type,
                                  Real /*time*/)
 {
     BL_PROFILE("incflo::compute_MAC_projected_velocities()");
@@ -36,7 +37,14 @@ incflo::compute_MAC_projected_velocities (
                     Box const& bx = mfi.tilebox();
                     Array4<Real> const& vel_f          = vel_forces[lev]->array(mfi);
                     Array4<Real const> const& rho      = density[lev]->array(mfi);
-                    Array4<Real const> const& divtau   = ld.divtau_o.const_array(mfi);
+                    // RK3 stages 2 and 3 use the viscous term evaluated from
+                    // the current intermediate state. Keep legacy paths on
+                    // divtau_o.
+                    Array4<Real const> const& divtau =
+                        (step_type == StepType::RK3StageTwo ||
+                         step_type == StepType::RK3StageThree)
+                        ? ld.divtau.const_array(mfi)
+                        : ld.divtau_o.const_array(mfi);
                     if (m_advect_momentum) {
                         ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
                         {
