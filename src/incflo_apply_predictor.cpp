@@ -78,11 +78,8 @@ void incflo::ApplyPredictor (StepType step_type, bool incremental_projection)
 {
     BL_PROFILE("incflo::ApplyPredictor");
 
-    // Use the appropriate stage time for quantities computed on the stage state
-    // RK3 Stage 1 represents the state at t^n + dt/3.  The legacy
-    // predictor/corrector schemes use the end-of-step time here.
-    Real new_time = m_cur_time +
-        (step_type == StepType::RK3StageOne ? m_dt / Real(3.0) : m_dt);
+    // Stage 1 produces U^(1), associated with the end of the RK interval.
+    Real new_time = m_cur_time + m_dt;
 
     // *************************************************************************************
     // Allocate space for the MAC velocities

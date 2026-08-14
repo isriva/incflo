@@ -69,14 +69,14 @@ void incflo::ApplyCorrector(StepType step_type)
 {
     BL_PROFILE("incflo::ApplyCorrector");
 
-    // Use the appropriate stage time for quantities computed on the stage state
-    // RK3 stages represent intermediate states at t^n + dt/3 and
-    // t^n + 2 dt/3, respectively.  The ordinary corrector is at t^(n+1).
+    // Use the physical time at which the RK3 stage RHS is evaluated.
+    // Stage 2 evaluates R(U^(1)) at t^n + dt, while
+    // Stage 3 evaluates R(U^(2)) at t^n + dt/2.
     Real stage_fraction = Real(1.0);
     if (step_type == StepType::RK3StageTwo) {
-        stage_fraction = Real(1.0) / Real(3.0);
+        stage_fraction = Real(1.0);
     } else if (step_type == StepType::RK3StageThree) {
-        stage_fraction = Real(2.0) / Real(3.0);
+        stage_fraction = Real(0.5);
     }
     Real new_time = m_cur_time + stage_fraction * m_dt;
 
