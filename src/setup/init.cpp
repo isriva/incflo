@@ -134,7 +134,7 @@ void incflo::ReadParameters ()
         if (m_time_stepping_scheme == "RK3" && !m_constant_density) amrex::Abort("incflo.time_stepping_scheme = RK3 requires constant density");
         if (m_time_stepping_scheme == "RK3" && (m_advect_tracer || m_use_temperature)) amrex::Abort("incflo.time_stepping_scheme = RK3 does not support tracers or temperature");
         if (m_time_stepping_scheme == "RK3" && m_diff_type != DiffusionType::Explicit) amrex::Abort("incflo.time_stepping_scheme = RK3 requires explicit diffusion");
-        if (m_time_stepping_scheme == "RK3" && m_advect_momentum) amrex::Abort("incflo.time_stepping_scheme = RK3 does not support advect_momentum");
+        // if (m_time_stepping_scheme == "RK3" && m_advect_momentum) amrex::Abort("incflo.time_stepping_scheme = RK3 does not support advect_momentum");
 
         // Default is true; should we use tensor solve instead of separate solves for each component?
         pp.query("use_tensor_solve",use_tensor_solve);

@@ -14,7 +14,8 @@
   amr.n_cell              = 64 64
 
   # amr.max_grid_size       = 32  32
-  amr.max_grid_size       = 16  16
+  # amr.max_grid_size       = 16  16
+  amr.max_grid_size       = 8 8
 
   incflo.fixed_dt         = 3.9e-3
   # incflo.fixed_dt         = 7.8e-3
@@ -70,7 +71,8 @@
   incflo.struct_fact_file = plt_SF
   incflo.struct_fact_verbosity = 1
 
-  incflo.advect_momentum = false
+  # incflo.advect_momentum = false
+  incflo.advect_momentum = true
   incflo.time_stepping_scheme = "RK3"
   incflo.rk3_use_lagged_pressure_gradient = false
   incflo.PPM_flux_limiter = false

@@ -7,4 +7,5 @@ incflo2d.gnu.MPI.ex
 ../SPECTRAL_FILTER/main2d.gnu.MPI.ex
 ../SPECTRAL_FILTER/tmp_build_dir/*
 tmp_build_dir*
+SF_RK3_Pressure*/
 
