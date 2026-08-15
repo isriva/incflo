@@ -53,6 +53,9 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
         // The latter is filled from the current stage state in ApplyCorrector.
         if (my_incflo->uses_RK3_timestepping()) {
             divtau.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+            conv_velocity.define(ba, dm, AMREX_SPACEDIM, 0, MFInfo(), fact);
+            conv_density.define (ba, dm, 1, 0, MFInfo(), fact);
+            conv_tracer.define  (ba, dm, my_incflo->m_ntrac, 0, MFInfo(), fact);
         }
         if (my_incflo->m_advect_tracer) {
             laps_o.define(ba, dm, my_incflo->m_ntrac, 0, MFInfo(), fact);
