@@ -131,7 +131,9 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
                                                Vector<MultiFab const*> const& eta)
 {
     if (!m_use_stochastic_velocity_fluxes) {
-        for (auto& force : m_stochastic_vel_force_rk3) force.clear();
+        m_stochastic_vel_force_RK3_stage_one.clear();
+        m_stochastic_vel_force_RK3_stage_two.clear();
+        m_stochastic_vel_force_RK3_stage_three.clear();
         return;
     }
 
@@ -146,8 +148,12 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
         (-Real(4.0)*std::sqrt(Real(2.0)) + Real(3.0)*std::sqrt(Real(3.0))) / Real(5.0),
         (std::sqrt(Real(2.0)) - Real(2.0)*std::sqrt(Real(3.0))) / Real(10.0)
     };
-    for (auto& force : m_stochastic_vel_force_rk3) force.resize(finest_level+1);
-
+    Vector<MultiFab>* stage_forces[3] = {
+        &m_stochastic_vel_force_RK3_stage_one,
+        &m_stochastic_vel_force_RK3_stage_two,
+        &m_stochastic_vel_force_RK3_stage_three
+    };
+    for (auto* force : stage_forces) force->resize(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev) {
         Real cell_volume = Real(1.0);
         auto const dx = geom[lev].CellSizeArray();
@@ -156,10 +162,10 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
         cell_volume *= m_stochastic_cell_depth;
 #endif
 
-        for (auto& force : m_stochastic_vel_force_rk3) {
-            force[lev].define(eta[lev]->boxArray(), eta[lev]->DistributionMap(),
+        for (auto* force : stage_forces) {
+            (*force)[lev].define(eta[lev]->boxArray(), eta[lev]->DistributionMap(),
                               AMREX_SPACEDIM, nghost_force(), MFInfo(), eta[lev]->Factory());
-            force[lev].setVal(0.0);
+            (*force)[lev].setVal(0.0);
         }
 
         Array<MultiFab, AMREX_SPACEDIM> eta_face =
@@ -205,11 +211,11 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
                                   beta[stage], flux_B[dir], 0, 0, AMREX_SPACEDIM, 0);
                 flux_ptrs[dir] = &stage_flux[dir];
             }
-            amrex::computeDivergence(m_stochastic_vel_force_rk3[stage][lev],
+            amrex::computeDivergence((*stage_forces[stage])[lev],
                                      flux_ptrs, geom[lev]);
-            m_stochastic_vel_force_rk3[stage][lev].mult(Real(1.0) / m_ro_0,
+            (*stage_forces[stage])[lev].mult(Real(1.0) / m_ro_0,
                                                         0, AMREX_SPACEDIM, 0);
-            m_stochastic_vel_force_rk3[stage][lev].FillBoundary(geom[lev].periodicity());
+            (*stage_forces[stage])[lev].FillBoundary(geom[lev].periodicity());
         }
     }
 }
@@ -221,19 +227,20 @@ incflo::add_stochastic_velocity_force (Vector<MultiFab*> const& vel_forces, Step
         return;
     }
 
-    if (step_type == StepType::Predictor || step_type == StepType::Corrector) {
+    if ((step_type == StepType::Predictor && !uses_RK3_timestepping()) ||
+        step_type == StepType::Corrector) {
         AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_pred.size() == vel_forces.size());
         AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_corr.size() == vel_forces.size());
     } else {
-        for (auto const& force : m_stochastic_vel_force_rk3) {
-            AMREX_ALWAYS_ASSERT(force.size() == vel_forces.size());
-        }
+        AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_RK3_stage_one.size() == vel_forces.size());
+        AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_RK3_stage_two.size() == vel_forces.size());
+        AMREX_ALWAYS_ASSERT(m_stochastic_vel_force_RK3_stage_three.size() == vel_forces.size());
     }
 
     for (int lev = 0; lev <= finest_level; ++lev) {
         if (step_type == StepType::Predictor) {
             if (uses_RK3_timestepping()) {
-                MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_rk3[0][lev],
+                MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_RK3_stage_one[lev],
                               0, 0, AMREX_SPACEDIM, 0);
                 continue;
             }
@@ -247,8 +254,11 @@ incflo::add_stochastic_velocity_force (Vector<MultiFab*> const& vel_forces, Step
                    step_type == StepType::RK3StageThree) {
             int stage = static_cast<int>(step_type) -
                         static_cast<int>(StepType::RK3StageOne);
-            MultiFab::Add(*vel_forces[lev],
-                          m_stochastic_vel_force_rk3[stage][lev],
+            Vector<MultiFab> const* stage_force =
+                (stage == 0) ? &m_stochastic_vel_force_RK3_stage_one :
+                (stage == 1) ? &m_stochastic_vel_force_RK3_stage_two :
+                               &m_stochastic_vel_force_RK3_stage_three;
+            MultiFab::Add(*vel_forces[lev], (*stage_force)[lev],
                           0, 0, AMREX_SPACEDIM, 0);
         }
     }

@@ -326,11 +326,13 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         }
         } // lev
     } else if (step_type == StepType::RK3StageOne || step_type == StepType::RK3StageTwo || step_type == StepType::RK3StageThree) {
-        compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_new_const(), get_density_nph_const(),
+        const bool stage_one = (step_type == StepType::RK3StageOne);
+        compute_vel_forces(GetVecOfPtrs(vel_forces),
+                           stage_one ? get_velocity_old_const() : get_velocity_new_const(),
+                           get_density_nph_const(),
                            get_tracer_old_const(), get_tracer_new_const(),
                            m_rk3_use_lagged_pressure_gradient);
         add_stochastic_velocity_force(GetVecOfPtrs(vel_forces), step_type);
-        const bool stage_one = (step_type == StepType::RK3StageOne);
         const Real base = stage_one ? Real(1.0) :
                           (step_type == StepType::RK3StageTwo ? Real(0.75) : Real(1.0/3.0));
         const Real current = stage_one ? Real(1.0) :
@@ -349,17 +351,19 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
                 Array4<Real const> const& vel_f = vel_forces[lev].const_array(mfi);
                 Array4<Real const> const divtau = stage_one ? ld.divtau_o.const_array(mfi) : ld.divtau.const_array(mfi);
                 Array4<Real const> const& rho_nph = ld.density_nph.const_array(mfi);
-                ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-                    if (m_advect_momentum) {
+                if (m_advect_momentum) {
+                    ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
                         AMREX_D_TERM(vel(i,j,k,0) = base*vel_o(i,j,k,0) + state_coeff*vel(i,j,k,0) + current*l_dt*((dvdt(i,j,k,0) + divtau(i,j,k,0))/rho_nph(i,j,k) + vel_f(i,j,k,0));,
                                      vel(i,j,k,1) = base*vel_o(i,j,k,1) + state_coeff*vel(i,j,k,1) + current*l_dt*((dvdt(i,j,k,1) + divtau(i,j,k,1))/rho_nph(i,j,k) + vel_f(i,j,k,1));,
                                      vel(i,j,k,2) = base*vel_o(i,j,k,2) + state_coeff*vel(i,j,k,2) + current*l_dt*((dvdt(i,j,k,2) + divtau(i,j,k,2))/rho_nph(i,j,k) + vel_f(i,j,k,2)););
-                    } else {
+                    });
+                } else {
+                    ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
                         AMREX_D_TERM(vel(i,j,k,0) = base*vel_o(i,j,k,0) + state_coeff*vel(i,j,k,0) + current*l_dt*(dvdt(i,j,k,0) + divtau(i,j,k,0) + vel_f(i,j,k,0));,
                                      vel(i,j,k,1) = base*vel_o(i,j,k,1) + state_coeff*vel(i,j,k,1) + current*l_dt*(dvdt(i,j,k,1) + divtau(i,j,k,1) + vel_f(i,j,k,1));,
                                      vel(i,j,k,2) = base*vel_o(i,j,k,2) + state_coeff*vel(i,j,k,2) + current*l_dt*(dvdt(i,j,k,2) + divtau(i,j,k,2) + vel_f(i,j,k,2)););
-                    }
-                });
+                    });
+                }
             }
         }
     } // RK3 Stage

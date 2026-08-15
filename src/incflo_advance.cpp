@@ -103,9 +103,9 @@ void incflo::Advance()
 
         ApplyCorrector(StepType::RK3StageTwo);
 
-        for (int lev = 0; lev <= finest_level; ++lev) {
-            m_t_new[lev] = m_cur_time + m_dt / Real(2.0);
-        }
+        // for (int lev = 0; lev <= finest_level; ++lev) {
+        //     m_t_new[lev] = m_cur_time + m_dt / Real(2.0);
+        // }
 
         // Third stage
         for (int lev = 0; lev <= finest_level; ++lev) {

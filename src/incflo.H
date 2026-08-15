@@ -616,7 +616,9 @@ private:
                                                   amrex::Real(1.0)/sqrt(2.0), amrex::Real(1.0)/sqrt(2.0)}; 
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_pred;
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_corr;
-    std::array<amrex::Vector<amrex::MultiFab>, 3> m_stochastic_vel_force_rk3;
+    amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_RK3_stage_one;
+    amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_RK3_stage_two;
+    amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_RK3_stage_three;
 
     bool m_use_turb_stress_subgrid = false;
     std::string m_subgrid_model_type{"strain_ansatz"};

@@ -73,11 +73,11 @@ void incflo::ApplyCorrector(StepType step_type)
     // Stage 2 evaluates R(U^(1)) at t^n + dt, while
     // Stage 3 evaluates R(U^(2)) at t^n + dt/2.
     Real stage_fraction = Real(1.0);
-    if (step_type == StepType::RK3StageTwo) {
-        stage_fraction = Real(1.0);
-    } else if (step_type == StepType::RK3StageThree) {
-        stage_fraction = Real(0.5);
-    }
+    // if (step_type == StepType::RK3StageTwo) {
+    //     stage_fraction = Real(1.0);
+    // } else if (step_type == StepType::RK3StageThree) {
+    //     stage_fraction = Real(0.5);
+    // }
     Real new_time = m_cur_time + stage_fraction * m_dt;
 
     // *************************************************************************************
