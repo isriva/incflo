@@ -286,16 +286,14 @@ incflo::add_stochastic_velocity_force (Vector<MultiFab*> const& vel_forces, Step
         } else if (step_type == StepType::Corrector) {
             MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_corr[lev],
                           0, 0, AMREX_SPACEDIM, 0);
-        } else if (step_type == StepType::RK3StageOne ||
-                   step_type == StepType::RK3StageTwo ||
-                   step_type == StepType::RK3StageThree) {
-            int stage = static_cast<int>(step_type) -
-                        static_cast<int>(StepType::RK3StageOne);
-            Vector<MultiFab> const* stage_force =
-                (stage == 0) ? &m_stochastic_vel_force_RK3_stage_one :
-                (stage == 1) ? &m_stochastic_vel_force_RK3_stage_two :
-                               &m_stochastic_vel_force_RK3_stage_three;
-            MultiFab::Add(*vel_forces[lev], (*stage_force)[lev],
+        } else if (step_type == StepType::RK3StageOne) {
+            MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_RK3_stage_one[lev],
+                          0, 0, AMREX_SPACEDIM, 0);
+        } else if (step_type == StepType::RK3StageTwo) {
+            MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_RK3_stage_two[lev],
+                          0, 0, AMREX_SPACEDIM, 0);
+        } else if (step_type == StepType::RK3StageThree) {
+            MultiFab::Add(*vel_forces[lev], m_stochastic_vel_force_RK3_stage_three[lev],
                           0, 0, AMREX_SPACEDIM, 0);
         }
     }
