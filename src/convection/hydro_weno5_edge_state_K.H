@@ -5,18 +5,39 @@
 #include <hydro_constants.H>
 #include <hydro_godunov_ppm.H>
 
+#include <limits>
+
 namespace WENO5 {
 
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
 amrex::Real weno5_select(amrex::Real qmns, amrex::Real qpls, amrex::Real vel) noexcept
 {
-    if (vel > small_vel) {
+    constexpr amrex::Real small_epsilon = amrex::Real(10) * std::numeric_limits<amrex::Real>::epsilon();
+    if (vel > small_epsilon) {
         return qmns;
-    } else if (vel < -small_vel) {
+    } else if (vel < -small_epsilon) {
         return qpls;
     } else {
         return amrex::Real(0.5) * (qmns + qpls);
     }
+}
+
+AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+amrex::Real weno5_upwind_select(amrex::Real qmns, amrex::Real qpls) noexcept
+{
+    constexpr amrex::Real small_epsilon = amrex::Real(10) * std::numeric_limits<amrex::Real>::epsilon();
+    amrex::Real u_val(0);
+    if (qmns >= amrex::Real(0.0) || qpls <= amrex::Real(0.0)) {
+        amrex::Real avg = amrex::Real(0.5) * (qpls + qmns);
+
+        if (avg >= small_epsilon) {
+            u_val = qmns;
+        }
+        else if (avg <= -small_epsilon){
+            u_val = qpls;
+        }
+    }
+    return u_val;
 }
 
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
@@ -223,7 +244,8 @@ amrex::Real hydro_weno5_xface_velocity(int i, int j, int k,
     if (i == domhi+1 && d_bcrec[0].hi(0) == amrex::BCType::ext_dir) {
         return vcc(i,j,k,0);
     }
-    return weno5_select(qmns, qpls, amrex::Real(0.5) * (qmns + qpls)); // this needs to be correct upwinding logic -- Riemann problem (also for y, z)
+    // return weno5_select(qmns, qpls, amrex::Real(0.5) * (qmns + qpls)); // this needs to be correct upwinding logic -- Riemann problem (also for y, z)
+    return weno5_upwind_select(qmns, qpls);
 }
 
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
@@ -258,7 +280,8 @@ amrex::Real hydro_weno5_yface_velocity(int i, int j, int k,
     if (j == domhi+1 && d_bcrec[1].hi(1) == amrex::BCType::ext_dir) {
         return vcc(i,j,k,1);
     }
-    return weno5_select(qmns, qpls, amrex::Real(0.5) * (qmns + qpls));
+    // return weno5_select(qmns, qpls, amrex::Real(0.5) * (qmns + qpls));
+    return weno5_upwind_select(qmns, qpls);
 }
 
 #if (AMREX_SPACEDIM == 3)
@@ -294,7 +317,8 @@ amrex::Real hydro_weno5_zface_velocity(int i, int j, int k,
     if (k == domhi+1 && d_bcrec[2].hi(2) == amrex::BCType::ext_dir) {
         return vcc(i,j,k,2);
     }
-    return weno5_select(qmns, qpls, amrex::Real(0.5) * (qmns + qpls));
+    // return weno5_select(qmns, qpls, amrex::Real(0.5) * (qmns + qpls));
+    return weno5_upwind_select(qmns, qpls);
 }
 #endif
 
