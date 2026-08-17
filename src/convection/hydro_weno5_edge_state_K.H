@@ -106,7 +106,7 @@ amrex::Real hydro_weno5_xedge_state(int i, int j, int k, int n,
         qpls = qmns;
     }
 
-    return weno5_select(qmns, qpls, umac(i,j,k));
+    return weno5_select(qmns, qpls, umac(i,j,k)); // this is right (also for y, z), but just make sure the epsilon is small
 }
 
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
@@ -223,7 +223,7 @@ amrex::Real hydro_weno5_xface_velocity(int i, int j, int k,
     if (i == domhi+1 && d_bcrec[0].hi(0) == amrex::BCType::ext_dir) {
         return vcc(i,j,k,0);
     }
-    return weno5_select(qmns, qpls, amrex::Real(0.5) * (qmns + qpls));
+    return weno5_select(qmns, qpls, amrex::Real(0.5) * (qmns + qpls)); // this needs to be correct upwinding logic -- Riemann problem (also for y, z)
 }
 
 AMREX_GPU_DEVICE AMREX_FORCE_INLINE
