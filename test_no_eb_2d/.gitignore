@@ -9,4 +9,5 @@ incflo2d.gnu.MPI.ex
 tmp_build_dir*
 SF_RK3_Pressure*/
 SF_MOL_WENO5*/
+WENO5_alpha_squared*/
 

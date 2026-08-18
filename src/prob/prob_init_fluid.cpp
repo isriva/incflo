@@ -43,10 +43,15 @@ void incflo::prob_init_fluid (int lev)
     Real F_0 = Real(0);
     Real n_WN = Real(0);
 
+    if (3001 == m_probtype || 3002 == m_probtype) {
+        ParmParse pp("kh");
+        pp.get("eps", kh_eps);
+    }
+
     if (3001 == m_probtype) {
         ParmParse pp("kh");
         pp.get("sigma", kh_sigma);
-        pp.get("eps", kh_eps);
+        // pp.get("eps", kh_eps);
 
         // const int nx = domain.length(0);
         // eta.resize(nx);
@@ -297,7 +302,16 @@ void incflo::prob_init_fluid (int lev)
                                 ld.tracer.array(mfi),
                                 domain, dx, problo, probhi,
                                 eta1.dataPtr(), eta2.dataPtr(), kh_sigma, kh_eps);
-        }
+        } 
+        else if (3002 == m_probtype)
+        {
+            init_KH_2d_sine_perturbed(
+                vbx, gbx,
+                ld.velocity.array(mfi),
+                ld.density.array(mfi),
+                ld.tracer.array(mfi),
+                domain, dx, problo, probhi, kh_eps);
+        } 
         else if (4000 == m_probtype)
         {
             init_KOLMOGOROV_2d(vbx, gbx,
@@ -1396,3 +1410,41 @@ void incflo::init_KH_2d_pertubed (Box const& vbx, Box const& /*gbx*/,
     });
 }
 
+void incflo::init_KH_2d_sine_perturbed (
+      Box const& vbx, Box const& /*gbx*/,
+      Array4<Real> const& vel,
+      Array4<Real> const& /*density*/,
+      Array4<Real> const& /*tracer*/,
+      Box const& /*domain*/,
+      GpuArray<Real, AMREX_SPACEDIM> const& dx,
+      GpuArray<Real, AMREX_SPACEDIM> const& problo,
+      GpuArray<Real, AMREX_SPACEDIM> const& probhi,
+      Real eps)
+  {
+      constexpr Real pi = Real(3.14159265358979323846);
+      const Real Lx = probhi[0] - problo[0];
+
+      ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+      {
+          const Real x = problo[0] + (Real(i) + Real(0.5)) * dx[0];
+          const Real y = problo[1] + (Real(j) + Real(0.5)) * dx[1];
+
+          const Real quarter =
+              problo[1] + Real(0.25) * (probhi[1] - problo[1]);
+          const Real threequarter =
+              problo[1] + Real(0.75) * (probhi[1] - problo[1]);
+
+          if (y < quarter || y > threequarter) {
+              vel(i,j,k,0) = Real(-1.0);
+          } else {
+              vel(i,j,k,0) = Real(1.0);
+          }
+
+          vel(i,j,k,1) =
+              eps * std::sin(Real(2.0) * pi * (x - problo[0]) / Lx);
+
+  #if (AMREX_SPACEDIM == 3)
+          vel(i,j,k,2) = Real(0.0);
+  #endif
+      });
+  }

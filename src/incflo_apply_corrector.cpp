@@ -122,10 +122,16 @@ void incflo::ApplyCorrector(StepType step_type)
     // *************************************************************************************
     // Compute the MAC-projected velocities at all levels
     // *************************************************************************************
-    bool include_pressure_gradient = !(m_use_mac_phi_in_godunov);
-    compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_new_const(),
-                       get_density_new_const(), get_tracer_new_const(), get_tracer_new_const(),
-                       include_pressure_gradient);
+    if (!uses_RK3_timestepping()){
+        bool include_pressure_gradient = !(m_use_mac_phi_in_godunov);
+        compute_vel_forces(GetVecOfPtrs(vel_forces), get_velocity_new_const(),
+                        get_density_new_const(), get_tracer_new_const(), get_tracer_new_const(),
+                        include_pressure_gradient);
+    } else{
+        for (auto& force : vel_forces) {
+            force.setVal(0.0);
+        }
+    }
 //    compute_stochastic_velocity_force(get_density_old_const(), GetVecOfConstPtrs(vel_eta));
 //    add_stochastic_velocity_force(GetVecOfPtrs(vel_forces));
     compute_MAC_projected_velocities(get_velocity_new_const(), get_density_new_const(),
@@ -135,11 +141,11 @@ void incflo::ApplyCorrector(StepType step_type)
     // *************************************************************************************
     // Compute the explicit "new" advective terms R_u^(n+1,*), R_r^(n+1,*) and R_t^(n+1,*)
     // *************************************************************************************
-    compute_convective_term(get_conv_velocity_new(), get_conv_density_new(), get_conv_tracer_new(),
-                            get_velocity_new_const(), get_density_new_const(), get_tracer_new_const(),
-                            AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-                            GetVecOfPtrs(w_mac)),
-                            {}, {}, rhs_time);
+    // compute_convective_term(get_conv_velocity_new(), get_conv_density_new(), get_conv_tracer_new(),
+    //                         get_velocity_new_const(), get_density_new_const(), get_tracer_new_const(),
+    //                         AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+    //                         GetVecOfPtrs(w_mac)),
+    //                         {}, {}, rhs_time);
 
     // *************************************************************************************
     // Compute viscosity / diffusive coefficients
@@ -172,10 +178,10 @@ void incflo::ApplyCorrector(StepType step_type)
     // **********************************************************************************************
     // Project velocity field, update pressure
     // **********************************************************************************************
-    bool incremental_projection = false;
-    ApplyProjection(get_density_nph_const(),
-                    AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-                    GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection);
+    // bool incremental_projection = false;
+    // ApplyProjection(get_density_nph_const(),
+    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+    //                 GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection);
 
 #ifdef AMREX_USE_EB
     // **********************************************************************************************

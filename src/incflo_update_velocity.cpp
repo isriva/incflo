@@ -28,6 +28,7 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         for (int lev = 0; lev <= finest_level; lev++)
         {
         auto& ld = *m_leveldata[lev];
+        ld.conv_velocity_o.setVal(0.0);
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -159,7 +160,8 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         for (int lev = 0; lev <= finest_level; lev++)
         {
             auto& ld = *m_leveldata[lev];
-
+            ld.conv_velocity_o.setVal(0.0);
+            ld.conv_velocity.setVal(0.0);
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -340,6 +342,8 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         const Real state_coeff = stage_one ? Real(0.0) : current;
         for (int lev = 0; lev <= finest_level; ++lev) {
             auto& ld = *m_leveldata[lev];
+
+        (stage_one ? ld.conv_velocity_o : ld.conv_velocity).setVal(0.0);
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -348,6 +352,7 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
                 Array4<Real> const& vel = ld.velocity.array(mfi);
                 Array4<Real const> const& vel_o = ld.velocity_o.const_array(mfi);
                 Array4<Real const> const dvdt = stage_one ? ld.conv_velocity_o.const_array(mfi) : ld.conv_velocity.const_array(mfi);
+                
                 Array4<Real const> const& vel_f = vel_forces[lev].const_array(mfi);
                 Array4<Real const> const divtau = stage_one ? ld.divtau_o.const_array(mfi) : ld.divtau.const_array(mfi);
                 Array4<Real const> const& rho_nph = ld.density_nph.const_array(mfi);
