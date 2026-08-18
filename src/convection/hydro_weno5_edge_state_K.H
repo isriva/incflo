@@ -6,6 +6,7 @@
 #include <hydro_godunov_ppm.H>
 
 #include <limits>
+#include <AMReX_GpuPrint.H>
 
 namespace WENO5 {
 
@@ -26,6 +27,7 @@ AMREX_GPU_DEVICE AMREX_FORCE_INLINE
 amrex::Real weno5_upwind_select(amrex::Real qmns, amrex::Real qpls) noexcept
 {
     constexpr amrex::Real small_epsilon = amrex::Real(10) * std::numeric_limits<amrex::Real>::epsilon();
+    // AMREX_DEVICE_PRINTF("WENO5 upwind_select called: small_epsilon = %.17g\n", small_epsilon);
     amrex::Real u_val(0);
     if (qmns >= amrex::Real(0.0) || qpls <= amrex::Real(0.0)) {
         amrex::Real avg = amrex::Real(0.5) * (qpls + qmns);
