@@ -601,6 +601,10 @@ void incflo::InitialProjection()
     ApplyProjection(get_density_new_const(),
                     AMREX_D_DECL(GetVecOfPtrs(u_mac_tmp), GetVecOfPtrs(v_mac_tmp),
                     GetVecOfPtrs(w_mac_tmp)),m_cur_time,dummy_dt,incremental_projection);
+    
+    // ApplyProjection(get_density_new_const(),
+    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac_tmp), GetVecOfPtrs(v_mac_tmp),
+    //                 GetVecOfPtrs(w_mac_tmp)),m_cur_time,dummy_dt,incremental_projection);
 
 
     // We set p and gp back to zero (p0 may still be still non-zero)
@@ -691,6 +695,10 @@ void incflo::InitialPressureProjection()
     ApplyProjection(get_density_new_const(), GetVecOfPtrs(vel), Source,
                     m_cur_time, dummy_dt, false /*incremental*/,
                     true /*set_inflow_bc*/);
+    
+    // ApplyProjection(get_density_new_const(), GetVecOfPtrs(vel), Source,
+    //                 m_cur_time, dummy_dt, false /*incremental*/,
+    //                 true /*set_inflow_bc*/);
 }
 
 #ifdef AMREX_USE_EB
