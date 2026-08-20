@@ -252,8 +252,7 @@ public:
     void add_stochastic_velocity_force (amrex::Vector<amrex::MultiFab*> const& vel_forces,
                                         StepType step_type) const;
     
-    void compute_turb_stress_subgrid_force (amrex::Vector<amrex::MultiFab const*> const& velocity,
-                                            amrex::Real gamma_d, amrex::Real gamma_f);
+    void compute_turb_stress_subgrid_force (amrex::Real gamma_d, amrex::Real gamma_f, amrex::Vector<amrex::MultiFab const*> const& eta);
     void add_turb_stress_subgrid_force (amrex::Vector<amrex::MultiFab*> const& vel_forces,
                                         StepType step_type) const;
 
@@ -620,10 +619,13 @@ private:
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_RK3_stage_two;
     amrex::Vector<amrex::MultiFab> m_stochastic_vel_force_RK3_stage_three;
 
-    bool m_use_turb_stress_subgrid = false;
-    std::string m_subgrid_model_type{"strain_ansatz"};
-    amrex::Vector<amrex::MultiFab> m_turb_stress_subgrid_force_pred;
-    amrex::Vector<amrex::MultiFab> m_turb_stress_subgrid_force_corr;
+    // If True, perform subgrid modeling
+    bool m_subgrid_modeling = false;
+    std::string m_subgrid_model_type{"OU_strain_ansatz"};
+    amrex::Vector<amrex::MultiFab> m_turb_stress_subgrid_force;
+    
+    amrex::Real m_subgrid_gamma_d = amrex::Real(0.0)
+    amrex::Real m_subgrid_gamma_f = amrex::Real(0.0)
 
     int m_struct_fact_int = -1;
     int m_struct_fact_skip = 0;
@@ -734,7 +736,6 @@ private:
                    incflo* my_incflo);
         // cell-centered multifabs
         amrex::MultiFab velocity;
-        amrex::MultiFab subgrid_velocity;
         amrex::MultiFab velocity_o;
         amrex::MultiFab velocity_eb;
         amrex::MultiFab density;
@@ -747,6 +748,10 @@ private:
         amrex::MultiFab temperature;
         amrex::MultiFab temperature_eb;
         amrex::MultiFab temperature_o;
+
+        // MultiFabs for subgrid modeling
+        amrex::MultiFab subgrid_velocity;
+        // amrex::MultiFab turb_stress;
 
         amrex::MultiFab mac_phi; // cell-centered pressure used in MAC projection
 

@@ -69,7 +69,10 @@ void incflo::ReadParameters ()
         // Are we using MOL or Godunov?
         pp.query("advection_type"                   , m_advection_type);
         pp.query("time_stepping_scheme"             , m_time_stepping_scheme);
-        pp.query("rk3_use_lagged_pressure_gradient", m_rk3_use_lagged_pressure_gradient);
+        pp.query("rk3_use_lagged_pressure_gradient" , m_rk3_use_lagged_pressure_gradient);
+        pp.query("m_subgrid_modeling"               , m_subgrid_modeling);
+        pp.query("subgrid_gamma_d"                  , m_subgrid_gamma_d);
+        pp.query("subgrid_gamma_f"                  , m_subgrid_gamma_f);
         pp.query("use_ppm"                          , m_godunov_ppm);
         pp.query("godunov_use_forces_in_trans"      , m_godunov_use_forces_in_trans);
         pp.query("godunov_include_diff_in_forcing"  , m_godunov_include_diff_in_forcing);
@@ -601,6 +604,10 @@ void incflo::InitialProjection()
     ApplyProjection(get_density_new_const(),
                     AMREX_D_DECL(GetVecOfPtrs(u_mac_tmp), GetVecOfPtrs(v_mac_tmp),
                     GetVecOfPtrs(w_mac_tmp)),m_cur_time,dummy_dt,incremental_projection);
+    
+    // ApplyProjection(get_density_new_const(),
+    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac_tmp), GetVecOfPtrs(v_mac_tmp),
+    //                 GetVecOfPtrs(w_mac_tmp)),m_cur_time,dummy_dt,incremental_projection);
 
 
     // We set p and gp back to zero (p0 may still be still non-zero)
@@ -691,6 +698,10 @@ void incflo::InitialPressureProjection()
     ApplyProjection(get_density_new_const(), GetVecOfPtrs(vel), Source,
                     m_cur_time, dummy_dt, false /*incremental*/,
                     true /*set_inflow_bc*/);
+    
+    // ApplyProjection(get_density_new_const(), GetVecOfPtrs(vel), Source,
+    //                 m_cur_time, dummy_dt, false /*incremental*/,
+    //                 true /*set_inflow_bc*/);
 }
 
 #ifdef AMREX_USE_EB
