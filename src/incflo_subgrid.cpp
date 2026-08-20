@@ -42,6 +42,13 @@ void compute_turb_stress_subgrid_force (Real gamma_d, Real gamma_f, Vector<Multi
         amrex::MultiFab velocity_x_star(ld.velocity.boxArray(), ld.velocity.DistributionMap(),
                                            AMREX_SPACEDIM, nghost_force(), MFInfo(), ld.velocity.Factory());
 
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+        for (MFIter mfi(ld.velocity,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            Box const& bx = mfi.tilebox();
+        }
+
         // Compute drift term a(v', \bar{v}, gamma_d) and diffusion term b(v', \bar{v}, gamma_f)
         if (m_subgrid_model_type == "strain_ansatz"){
             drift_diffusion_strain_ansatz(Vector<MultiFab const*> const& v_prime_displaced, Vector<MultiFab const*> const& v_bar_displaced, Real gamma_d)
