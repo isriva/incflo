@@ -34,6 +34,13 @@ incflo::LevelData::LevelData (amrex::BoxArray const& ba,
 
         conv_temperature_o.define(ba, dm, 1, 0, MFInfo(), fact);
     }
+
+    if (my_incflo->m_subgrid_modeling) {
+        // turb_stress.define     (ba, dm, AMREX_SPACEDIM, my_incflo->nghost_state(), MFInfo(), fact);
+        amrex::BoxArray ba2 = ba;
+        ba2.refine(2);
+        subgrid_velocity.define(ba2, dm, AMREX_SPACEDIM, my_incflo->nghost_state(), MFInfo(), fact);
+    }
 #ifdef AMREX_USE_EB
     if (my_incflo->hasEBFlow()) {
         velocity_eb.define(ba, dm, AMREX_SPACEDIM, my_incflo->nghost_state(), MFInfo(), fact);
