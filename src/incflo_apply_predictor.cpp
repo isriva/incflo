@@ -237,9 +237,12 @@ void incflo::ApplyPredictor (StepType step_type, bool incremental_projection)
     // **********************************************************************************************
     // Project velocity field, update pressure
     // **********************************************************************************************
-    // ApplyProjection(get_density_nph_const(),
-    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-    //                 GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection);
+    if (uses_RK3_timestepping()) {
+        incremental_projection = true;
+    }
+    ApplyProjection(get_density_nph_const(),
+                    AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+                    GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection);
 
 #ifdef INCFLO_USE_PARTICLES
     // **************************************************************************************
