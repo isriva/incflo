@@ -207,6 +207,6 @@
       amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& dx,
       amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& problo,
       amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi,
-      amrex::Real eps);
+      amrex::Real eps, amrex::Real sigma);
       
 #endif
