@@ -596,6 +596,8 @@ void incflo::InitialProjection()
 
     Real dummy_dt = 1.0;
     bool incremental_projection = false;
+    bool update_pressure_proj = true;
+    bool add_lagged_pressure = true;
     for (int lev = 0; lev <= finest_level; lev++)
     {
         m_leveldata[lev]->density.FillBoundary(geom[lev].periodicity());
@@ -603,12 +605,8 @@ void incflo::InitialProjection()
 
     ApplyProjection(get_density_new_const(),
                     AMREX_D_DECL(GetVecOfPtrs(u_mac_tmp), GetVecOfPtrs(v_mac_tmp),
-                    GetVecOfPtrs(w_mac_tmp)),m_cur_time,dummy_dt,incremental_projection);
+                    GetVecOfPtrs(w_mac_tmp)),m_cur_time,dummy_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
     
-    // ApplyProjection(get_density_new_const(),
-    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac_tmp), GetVecOfPtrs(v_mac_tmp),
-    //                 GetVecOfPtrs(w_mac_tmp)),m_cur_time,dummy_dt,incremental_projection);
-
 
     // We set p and gp back to zero (p0 may still be still non-zero)
     for (int lev = 0; lev <= finest_level; lev++)
@@ -695,13 +693,11 @@ void incflo::InitialPressureProjection()
     Vector<MultiFab*> Source(finest_level+1, nullptr);
 
     // FIXME FIXME FIXME - THIS ONLY WORKS RIGHT FOR NODAL PROJ
+    bool update_pressure_proj = true;
+    bool add_lagged_pressure = true;
     ApplyProjection(get_density_new_const(), GetVecOfPtrs(vel), Source,
                     m_cur_time, dummy_dt, false /*incremental*/,
-                    true /*set_inflow_bc*/);
-    
-    // ApplyProjection(get_density_new_const(), GetVecOfPtrs(vel), Source,
-    //                 m_cur_time, dummy_dt, false /*incremental*/,
-    //                 true /*set_inflow_bc*/);
+                    true /*set_inflow_bc*/, update_pressure_proj, add_lagged_pressure);
 }
 
 #ifdef AMREX_USE_EB

@@ -28,7 +28,7 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         for (int lev = 0; lev <= finest_level; lev++)
         {
         auto& ld = *m_leveldata[lev];
-        ld.conv_velocity_o.setVal(0.0);
+        // ld.conv_velocity_o.setVal(0.0);
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -160,8 +160,8 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         for (int lev = 0; lev <= finest_level; lev++)
         {
             auto& ld = *m_leveldata[lev];
-            ld.conv_velocity_o.setVal(0.0);
-            ld.conv_velocity.setVal(0.0);
+            // ld.conv_velocity_o.setVal(0.0);
+            // ld.conv_velocity.setVal(0.0);
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -329,11 +329,15 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         } // lev
     } else if (step_type == StepType::RK3StageOne || step_type == StepType::RK3StageTwo || step_type == StepType::RK3StageThree) {
         const bool stage_one = (step_type == StepType::RK3StageOne);
+        bool include_pressure_gradient_RK3 = true;
+        // if (m_rk3_use_lagged_pressure_gradient && step_type == StepType::RK3StageThree) {
+        //     include_pressure_gradient_RK3 = true;
+        // }
         compute_vel_forces(GetVecOfPtrs(vel_forces),
                            stage_one ? get_velocity_old_const() : get_velocity_new_const(),
                            get_density_nph_const(),
                            get_tracer_old_const(), get_tracer_new_const(),
-                           m_rk3_use_lagged_pressure_gradient);
+                           include_pressure_gradient_RK3);
         add_stochastic_velocity_force(GetVecOfPtrs(vel_forces), step_type);
         const Real base = stage_one ? Real(1.0) :
                           (step_type == StepType::RK3StageTwo ? Real(0.75) : Real(1.0/3.0));
@@ -343,7 +347,7 @@ void incflo::update_velocity (StepType step_type, Vector<MultiFab>& vel_eta, Vec
         for (int lev = 0; lev <= finest_level; ++lev) {
             auto& ld = *m_leveldata[lev];
 
-        (stage_one ? ld.conv_velocity_o : ld.conv_velocity).setVal(0.0);
+        // (stage_one ? ld.conv_velocity_o : ld.conv_velocity).setVal(0.0);
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif

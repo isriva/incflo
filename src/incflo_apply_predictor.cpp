@@ -205,14 +205,14 @@ void incflo::ApplyPredictor (StepType step_type, bool incremental_projection)
     //      Compute the explicit advective terms R_u^n      , R_s^n       and R_t^n
     // Note that if advection_type != "MOL" then we call compute_tra_forces inside this routine
     // *************************************************************************************
-    // compute_convective_term(get_conv_velocity_old(), get_conv_density_old(), get_conv_tracer_old(),
-    //                         get_conv_temperature_old(),
-    //                         get_velocity_old_const(), get_density_old_const(), get_tracer_old_const(),
-    //                         get_temperature_old_const(),
-    //                         AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-    //                                      GetVecOfPtrs(w_mac)),
-    //                         GetVecOfPtrs(vel_forces), GetVecOfPtrs(tra_forces),
-    //                         GetVecOfPtrs(tem_forces), m_cur_time);
+    compute_convective_term(get_conv_velocity_old(), get_conv_density_old(), get_conv_tracer_old(),
+                            get_conv_temperature_old(),
+                            get_velocity_old_const(), get_density_old_const(), get_tracer_old_const(),
+                            get_temperature_old_const(),
+                            AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+                                         GetVecOfPtrs(w_mac)),
+                            GetVecOfPtrs(vel_forces), GetVecOfPtrs(tra_forces),
+                            GetVecOfPtrs(tem_forces), m_cur_time);
 
     // *************************************************************************************
     // Update density
@@ -241,13 +241,16 @@ void incflo::ApplyPredictor (StepType step_type, bool incremental_projection)
     //     incremental_projection = true;
     // }
     incremental_projection = false;
+    bool update_pressure_proj = false;
+    bool add_lagged_pressure = false;
     ApplyProjection(get_density_nph_const(),
                     AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-                    GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection);
+                    GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
 
-    // ApplyProjection(get_density_nph_const(),
-    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-    //                 GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection);
+    ApplyProjection(get_density_nph_const(),
+                    AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+                    GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
+
 
 #ifdef INCFLO_USE_PARTICLES
     // **************************************************************************************

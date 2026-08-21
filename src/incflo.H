@@ -319,21 +319,21 @@ public:
                           AMREX_D_DECL(amrex::Vector<amrex::MultiFab*> const& u_mac,
                                        amrex::Vector<amrex::MultiFab*> const& v_mac,
                                        amrex::Vector<amrex::MultiFab*> const& w_mac),
-                          amrex::Real time, amrex::Real scaling_factor, bool incremental);
+                          amrex::Real time, amrex::Real scaling_factor, bool incremental, bool update_pressure_proj, bool add_lagged_pressure);
 
     void ApplyProjection (amrex::Vector<amrex::MultiFab const*> const& density,
                           amrex::Vector<amrex::MultiFab      *> const& vel,
                           amrex::Vector<amrex::MultiFab      *> const& divu_Source,
                           amrex::Real time, amrex::Real scaling_factor, bool incremental,
-                          bool set_inflow_bc);
+                          bool set_inflow_bc, bool update_pressure_proj, bool add_lagged_pressure);
 
     void ApplyNodalProjection (amrex::Vector<amrex::MultiFab const*> density,
-                               amrex::Real time, amrex::Real scaling_factor, bool incremental);
+                               amrex::Real time, amrex::Real scaling_factor, bool incremental, bool update_pressure_proj, bool add_lagged_pressure);
     void ApplyNodalProjection (amrex::Vector<amrex::MultiFab const*> const& density,
                                amrex::Vector<amrex::MultiFab      *>        vel,
                                amrex::Vector<amrex::MultiFab      *> const& divu_Source,
                                amrex::Real time, amrex::Real scaling_factor, bool incremental,
-                               bool set_inflow_bc);
+                               bool set_inflow_bc, bool update_pressure_proj);
 
     void ApplyCCProjection (amrex::Vector<amrex::MultiFab const*> density,
                             AMREX_D_DECL(amrex::Vector<amrex::MultiFab*> const& u_mac,
@@ -624,8 +624,8 @@ private:
     std::string m_subgrid_model_type{"OU_strain_ansatz"};
     amrex::Vector<amrex::MultiFab> m_turb_stress_subgrid_force;
     
-    amrex::Real m_subgrid_gamma_d = amrex::Real(0.0)
-    amrex::Real m_subgrid_gamma_f = amrex::Real(0.0)
+    amrex::Real m_subgrid_gamma_d = amrex::Real(0.0);
+    amrex::Real m_subgrid_gamma_f = amrex::Real(0.0);
 
     int m_struct_fact_int = -1;
     int m_struct_fact_skip = 0;

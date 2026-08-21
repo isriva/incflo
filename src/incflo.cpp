@@ -220,7 +220,7 @@ incflo::ApplyProjection (Vector<MultiFab const*> const& density,
                          AMREX_D_DECL(Vector<MultiFab*> const& u_mac,
                                       Vector<MultiFab*> const& v_mac,
                                       Vector<MultiFab*> const& w_mac),
-                         Real time, Real scaling_factor, bool incremental)
+                         Real time, Real scaling_factor, bool incremental, bool update_pressure_proj, bool add_lagged_pressure)
 {
     BL_PROFILE("incflo::ApplyProjection");
     if (m_use_cc_proj)
@@ -230,7 +230,7 @@ incflo::ApplyProjection (Vector<MultiFab const*> const& density,
     }
     else
     {
-        ApplyNodalProjection(density,time,scaling_factor,incremental);
+        ApplyNodalProjection(density,time,scaling_factor,incremental, update_pressure_proj, add_lagged_pressure);
     }
 }
 
@@ -239,12 +239,12 @@ incflo::ApplyProjection (Vector<MultiFab const*> const& density,
                          Vector<MultiFab      *> const& vel,
                          Vector<MultiFab      *> const& divu_Source,
                          Real time, Real scaling_factor, bool incremental,
-                         bool set_inflow_bc)
+                         bool set_inflow_bc, bool update_pressure_proj, bool add_lagged_pressure)
 {
     AMREX_ALWAYS_ASSERT("This is not yet coded for ccproj!");
 
     ApplyNodalProjection(density, vel, divu_Source, time, scaling_factor,
-                         incremental, set_inflow_bc);
+                         incremental, set_inflow_bc, update_pressure_proj);
 }
 
 // Make a new level from scratch using provided BoxArray and DistributionMapping.

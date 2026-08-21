@@ -128,7 +128,7 @@ void incflo::Advance()
     if (m_subgrid_modeling) {
         // Generate U'(t_n) using U'(t_{n-1}) and \bar{U}(t_n) 
         // Use this to approximate the turbulent stress tensor at time t_n
-        compute_turb_stress_subgrid_force(m_subgrid_gamma_d, m_subgrid_gamma_f);
+        // compute_turb_stress_subgrid_force(m_subgrid_gamma_d, m_subgrid_gamma_f);
     }
 
 #ifdef INCFLO_USE_PARTICLES

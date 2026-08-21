@@ -27,7 +27,7 @@ using namespace amrex;
 // Note: scaling_factor equals dt except when called during initial projection, when it is 1.0
 //
 void incflo::ApplyNodalProjection (Vector<MultiFab const*> density,
-                                   Real time, Real scaling_factor, bool incremental)
+                                   Real time, Real scaling_factor, bool incremental, bool update_pressure_proj, bool add_lagged_pressure)
 {
     // If we have dropped the dt substantially for whatever reason,
     // use a different form of the approximate projection that
@@ -35,31 +35,31 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> density,
 
     bool proj_for_small_dt = (time > 0.0 && m_dt < 0.1 * m_prev_dt);
 
-//     // Add the ( grad p /ro ) back to u* (note the +dt)
-//     if (!incremental)
-//     {
-//         for (int lev = 0; lev <= finest_level; lev++)
-//         {
-//             auto& ld = *m_leveldata[lev];
-// #ifdef _OPENMP
-// #pragma omp parallel if (Gpu::notInLaunchRegion())
-// #endif
-//             for (MFIter mfi(ld.velocity,TilingIfNotGPU()); mfi.isValid(); ++mfi)
-//             {
-//                 Box const& bx = mfi.tilebox();
-//                 Array4<Real> const& u = ld.velocity.array(mfi);
-//                 Array4<Real const> const& rho = density[lev]->const_array(mfi);
-//                 Array4<Real const> const& gp = ld.gp.const_array(mfi);
-//                 ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-//                 {
-//                     Real soverrho = scaling_factor / rho(i,j,k);
-//                     AMREX_D_TERM(u(i,j,k,0) += gp(i,j,k,0) * soverrho;,
-//                                  u(i,j,k,1) += gp(i,j,k,1) * soverrho;,
-//                                  u(i,j,k,2) += gp(i,j,k,2) * soverrho;);
-//                 });
-//             }
-//         }
-//     }
+    // Add the ( grad p /ro ) back to u* (note the +dt)
+    if (!incremental && add_lagged_pressure)
+    {
+        for (int lev = 0; lev <= finest_level; lev++)
+        {
+            auto& ld = *m_leveldata[lev];
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+            for (MFIter mfi(ld.velocity,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+            {
+                Box const& bx = mfi.tilebox();
+                Array4<Real> const& u = ld.velocity.array(mfi);
+                Array4<Real const> const& rho = density[lev]->const_array(mfi);
+                Array4<Real const> const& gp = ld.gp.const_array(mfi);
+                ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                {
+                    Real soverrho = scaling_factor / rho(i,j,k);
+                    AMREX_D_TERM(u(i,j,k,0) += gp(i,j,k,0) * soverrho;,
+                                 u(i,j,k,1) += gp(i,j,k,1) * soverrho;,
+                                 u(i,j,k,2) += gp(i,j,k,2) * soverrho;);
+                });
+            }
+        }
+    }
 
     // Define "vel" to be U^* - U^n rather than U^*
     if (proj_for_small_dt || incremental)
@@ -80,7 +80,7 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> density,
 
     bool set_inflow_bc = !proj_for_small_dt && !incremental;
     ApplyNodalProjection(density, vel, Source, time, scaling_factor,
-                         incremental, set_inflow_bc);
+                         incremental, set_inflow_bc, update_pressure_proj);
 
     // Define "vel" to be U^{n+1} rather than (U^{n+1}-U^n)
     if (proj_for_small_dt || incremental)
@@ -96,7 +96,7 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> const& density,
                                    Vector<MultiFab      *>        vel,
                                    Vector<MultiFab      *> const& /*divu_Source*/, // only incompressible for now
                                    Real time, Real scaling_factor, bool incremental,
-                                   bool set_inflow_bc)
+                                   bool set_inflow_bc, bool update_pressure_proj)
 {
     Vector<amrex::MultiFab> sigma(finest_level+1);
     if (!m_constant_density)
@@ -210,17 +210,18 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> const& density,
 
 #endif
 
-    m_nodal_mg_rtol = amrex::Real(1.0e-13);
-    m_nodal_mg_atol = amrex::Real(1.0e-16);
+    // m_nodal_mg_rtol = amrex::Real(1.0e-13);
+    // m_nodal_mg_atol = amrex::Real(1.0e-16);
     nodal_projector->project(m_nodal_mg_rtol, m_nodal_mg_atol);
 
-    // Get phi and fluxes
-    auto phi = nodal_projector->getPhi();
-    auto gradphi = nodal_projector->getGradPhi();
+    if (update_pressure_proj) {
+        // Get phi and fluxes
+        auto phi = nodal_projector->getPhi();
+        auto gradphi = nodal_projector->getGradPhi();
 
-    for(int lev = 0; lev <= finest_level; lev++)
-    {
-        auto& ld = *m_leveldata[lev];
+        for(int lev = 0; lev <= finest_level; lev++)
+        {
+            auto& ld = *m_leveldata[lev];
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
@@ -264,4 +265,6 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> const& density,
                             0, AMREX_SPACEDIM, refRatio(lev));
 #endif
     }
+}
+
 }

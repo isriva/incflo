@@ -141,11 +141,11 @@ void incflo::ApplyCorrector(StepType step_type)
     // *************************************************************************************
     // Compute the explicit "new" advective terms R_u^(n+1,*), R_r^(n+1,*) and R_t^(n+1,*)
     // *************************************************************************************
-    // compute_convective_term(get_conv_velocity_new(), get_conv_density_new(), get_conv_tracer_new(),
-    //                         get_velocity_new_const(), get_density_new_const(), get_tracer_new_const(),
-    //                         AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-    //                         GetVecOfPtrs(w_mac)),
-    //                         {}, {}, rhs_time);
+    compute_convective_term(get_conv_velocity_new(), get_conv_density_new(), get_conv_tracer_new(),
+                            get_velocity_new_const(), get_density_new_const(), get_tracer_new_const(),
+                            AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+                            GetVecOfPtrs(w_mac)),
+                            {}, {}, rhs_time);
 
     // *************************************************************************************
     // Compute viscosity / diffusive coefficients
@@ -179,16 +179,26 @@ void incflo::ApplyCorrector(StepType step_type)
     // Project velocity field, update pressure
     // **********************************************************************************************
     bool incremental_projection = false;
+    bool update_pressure_proj = false;
+    bool add_lagged_pressure = false;
     // if (uses_RK3_timestepping()){
     //     incremental_projection = true;
     // }
+    if (step_type == StepType::RK3StageThree) {
+        update_pressure_proj = true;
+        add_lagged_pressure = true;
+    }
     ApplyProjection(get_density_nph_const(),
                     AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-                    GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection);
+                    GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
     
-    // ApplyProjection(get_density_nph_const(),
-    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-    //                 GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection);
+    // if (step_type == StepType::RK3StageThree) {
+    update_pressure_proj = false;
+    add_lagged_pressure = false;
+    ApplyProjection(get_density_nph_const(),
+                AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+                GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
+    // }
 
 #ifdef AMREX_USE_EB
     // **********************************************************************************************
