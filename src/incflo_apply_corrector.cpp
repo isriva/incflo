@@ -187,17 +187,28 @@ void incflo::ApplyCorrector(StepType step_type)
     if (step_type == StepType::RK3StageThree) {
         update_pressure_proj = true;
         add_lagged_pressure = true;
-    }
-    ApplyProjection(get_density_nph_const(),
+        ApplyProjection(get_density_nph_const(),
                     AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
                     GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
+    }
+    // ApplyProjection(get_density_nph_const(),
+    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+    //                 GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
     
     // if (step_type == StepType::RK3StageThree) {
-    update_pressure_proj = false;
-    add_lagged_pressure = false;
-    ApplyProjection(get_density_nph_const(),
-                AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-                GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
+    //     update_pressure_proj = false;
+    //     add_lagged_pressure = false;
+    //     ApplyProjection(get_density_nph_const(),
+    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+    //                 GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
+        
+    //     ApplyProjection(get_density_nph_const(),
+    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+    //                 GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
+
+    //     ApplyProjection(get_density_nph_const(),
+    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+    //                 GetVecOfPtrs(w_mac)),state_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
     // }
 
 #ifdef AMREX_USE_EB

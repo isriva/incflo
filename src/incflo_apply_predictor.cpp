@@ -247,9 +247,9 @@ void incflo::ApplyPredictor (StepType step_type, bool incremental_projection)
                     AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
                     GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
 
-    ApplyProjection(get_density_nph_const(),
-                    AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
-                    GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
+    // ApplyProjection(get_density_nph_const(),
+    //                 AMREX_D_DECL(GetVecOfPtrs(u_mac), GetVecOfPtrs(v_mac),
+    //                 GetVecOfPtrs(w_mac)),new_time,m_dt,incremental_projection, update_pressure_proj, add_lagged_pressure);
 
 
 #ifdef INCFLO_USE_PARTICLES
