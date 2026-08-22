@@ -214,6 +214,36 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
                                   beta[0], stochastic_flux_B[dir], 0, 0, AMREX_SPACEDIM, 0);
                 flux_ptrs[dir] = &stochastic_flux_RK3_one[dir];
             }
+            macproj_stochastic_flux.reset();
+
+            Vector<Array<MultiFab, AMREX_SPACEDIM> > flux_alias(1);
+            Vector<Array<MultiFab*, AMREX_SPACEDIM> > mac_vec(1);
+            Vector<Geometry> stochastic_geom(1, geom[lev]);
+            LPInfo lp_info;
+            lp_info.setMaxCoarseningLevel(m_mac_mg_max_coarsening_level);
+
+            Array<LinOpBCType, AMREX_SPACEDIM> periodic_bc;
+            periodic_bc.fill(LinOpBCType::Periodic);
+
+            for (int n = 0; n < AMREX_SPACEDIM; ++n) {
+                for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+                    flux_alias[0][dir] =
+                        MultiFab(stochastic_flux_RK3_one[dir], amrex::make_alias, n, 1);
+                    mac_vec[0][dir] = &flux_alias[0][dir];
+                }
+
+                if (n == 0) {
+                    macproj_stochastic_flux =
+                        std::make_unique<Hydro::MacProjector>(
+                            mac_vec, Real(1.0), stochastic_geom, lp_info);
+                    macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
+                } else {
+                    macproj_stochastic_flux->setUMAC(mac_vec);
+                }
+
+                macproj_stochastic_flux->project(m_mac_mg_rtol, m_mac_mg_atol);
+            }
+
             amrex::computeDivergence(m_stochastic_vel_force_RK3_stage_one[lev], flux_ptrs, geom[lev]);
 
             const Real rhoinv = Real(1.0) / m_ro_0;
@@ -232,6 +262,36 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
                                   beta[1], stochastic_flux_B[dir], 0, 0, AMREX_SPACEDIM, 0);
                 flux_ptrs[dir] = &stochastic_flux_RK3_two[dir];
             }
+            macproj_stochastic_flux.reset();
+
+            Vector<Array<MultiFab, AMREX_SPACEDIM> > flux_alias(1);
+            Vector<Array<MultiFab*, AMREX_SPACEDIM> > mac_vec(1);
+            Vector<Geometry> stochastic_geom(1, geom[lev]);
+            LPInfo lp_info;
+            lp_info.setMaxCoarseningLevel(m_mac_mg_max_coarsening_level);
+
+            Array<LinOpBCType, AMREX_SPACEDIM> periodic_bc;
+            periodic_bc.fill(LinOpBCType::Periodic);
+
+            for (int n = 0; n < AMREX_SPACEDIM; ++n) {
+                for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+                    flux_alias[0][dir] =
+                        MultiFab(stochastic_flux_RK3_two[dir], amrex::make_alias, n, 1);
+                    mac_vec[0][dir] = &flux_alias[0][dir];
+                }
+
+                if (n == 0) {
+                    macproj_stochastic_flux =
+                        std::make_unique<Hydro::MacProjector>(
+                            mac_vec, Real(1.0), stochastic_geom, lp_info);
+                    macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
+                } else {
+                    macproj_stochastic_flux->setUMAC(mac_vec);
+                }
+
+                macproj_stochastic_flux->project(m_mac_mg_rtol, m_mac_mg_atol);
+            }
+
             amrex::computeDivergence(m_stochastic_vel_force_RK3_stage_two[lev], flux_ptrs, geom[lev]);
             const Real rhoinv = Real(1.0) / m_ro_0;
             m_stochastic_vel_force_RK3_stage_two[lev].mult(rhoinv, 0, AMREX_SPACEDIM, 0);
@@ -249,6 +309,36 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
                                   beta[2], stochastic_flux_B[dir], 0, 0, AMREX_SPACEDIM, 0);
                 flux_ptrs[dir] = &stochastic_flux_RK3_three[dir];
             }
+            macproj_stochastic_flux.reset();
+
+            Vector<Array<MultiFab, AMREX_SPACEDIM> > flux_alias(1);
+            Vector<Array<MultiFab*, AMREX_SPACEDIM> > mac_vec(1);
+            Vector<Geometry> stochastic_geom(1, geom[lev]);
+            LPInfo lp_info;
+            lp_info.setMaxCoarseningLevel(m_mac_mg_max_coarsening_level);
+
+            Array<LinOpBCType, AMREX_SPACEDIM> periodic_bc;
+            periodic_bc.fill(LinOpBCType::Periodic);
+
+            for (int n = 0; n < AMREX_SPACEDIM; ++n) {
+                for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+                    flux_alias[0][dir] =
+                        MultiFab(stochastic_flux_RK3_three[dir], amrex::make_alias, n, 1);
+                    mac_vec[0][dir] = &flux_alias[0][dir];
+                }
+
+                if (n == 0) {
+                    macproj_stochastic_flux =
+                        std::make_unique<Hydro::MacProjector>(
+                            mac_vec, Real(1.0), stochastic_geom, lp_info);
+                    macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
+                } else {
+                    macproj_stochastic_flux->setUMAC(mac_vec);
+                }
+
+                macproj_stochastic_flux->project(m_mac_mg_rtol, m_mac_mg_atol);
+            }
+
             amrex::computeDivergence(m_stochastic_vel_force_RK3_stage_three[lev], flux_ptrs, geom[lev]);
             const Real rhoinv = Real(1.0) / m_ro_0;
             m_stochastic_vel_force_RK3_stage_three[lev].mult(rhoinv, 0, AMREX_SPACEDIM, 0);

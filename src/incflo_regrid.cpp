@@ -59,7 +59,7 @@ void incflo::MakeNewLevelFromCoarse (int lev,
 #else
     macproj = std::make_unique<Hydro::MacProjector>(Geom(0,lev));
 #endif
-
+    macproj_stochastic_flux.reset();
 #ifdef INCFLO_USE_PARTICLES
     particleData.Redistribute();
 #endif
@@ -120,7 +120,7 @@ void incflo::RemakeLevel (int lev, Real time, const BoxArray& ba,
 #else
     macproj = std::make_unique<Hydro::MacProjector>(Geom(0,finest_level));
 #endif
-
+    macproj_stochastic_flux.reset();
 #ifdef INCFLO_USE_PARTICLES
     particleData.Redistribute();
 #endif
@@ -136,4 +136,5 @@ void incflo::ClearLevel (int lev)
     m_diffusion_tensor_op.reset();
     m_diffusion_scalar_op.reset();
     macproj.reset();
+    macproj_stochastic_flux.reset();
 }

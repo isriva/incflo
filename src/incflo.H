@@ -482,6 +482,7 @@ private:
     // More info in "AMReX-Hydro/Projections/hydro_MacProjector.cpp"
 
     std::unique_ptr<Hydro::MacProjector> macproj;
+    std::unique_ptr<Hydro::MacProjector> macproj_stochastic_flux;
 
     int m_mac_mg_max_coarsening_level = 100;
 
