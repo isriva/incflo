@@ -225,6 +225,15 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
             Array<LinOpBCType, AMREX_SPACEDIM> periodic_bc;
             periodic_bc.fill(LinOpBCType::Periodic);
 
+            macproj_stochastic_flux =
+                std::make_unique<Hydro::MacProjector>(stochastic_geom);
+            Vector<BoxArray> ba(1);
+            Vector<DistributionMapping> dm(1);
+            ba[0] = stochastic_flux_RK3_one[0].boxArray();
+            dm[0] = stochastic_flux_RK3_one[0].DistributionMap();
+            macproj_stochastic_flux->initProjector(ba, dm, lp_info, Real(1.0));
+            macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
+
             for (int n = 0; n < AMREX_SPACEDIM; ++n) {
                 for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
                     flux_alias[0][dir] =
@@ -232,15 +241,7 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
                     mac_vec[0][dir] = &flux_alias[0][dir];
                 }
 
-                if (n == 0) {
-                    macproj_stochastic_flux =
-                        std::make_unique<Hydro::MacProjector>(
-                            mac_vec, Real(1.0), stochastic_geom, lp_info);
-                    macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
-                } else {
-                    macproj_stochastic_flux->setUMAC(mac_vec);
-                }
-
+                macproj_stochastic_flux->setUMAC(mac_vec);
                 macproj_stochastic_flux->project(m_mac_mg_rtol, m_mac_mg_atol);
             }
 
@@ -273,6 +274,15 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
             Array<LinOpBCType, AMREX_SPACEDIM> periodic_bc;
             periodic_bc.fill(LinOpBCType::Periodic);
 
+            macproj_stochastic_flux =
+                std::make_unique<Hydro::MacProjector>(stochastic_geom);
+            Vector<BoxArray> ba(1);
+            Vector<DistributionMapping> dm(1);
+            ba[0] = stochastic_flux_RK3_two[0].boxArray();
+            dm[0] = stochastic_flux_RK3_two[0].DistributionMap();
+            macproj_stochastic_flux->initProjector(ba, dm, lp_info, Real(1.0));
+            macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
+
             for (int n = 0; n < AMREX_SPACEDIM; ++n) {
                 for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
                     flux_alias[0][dir] =
@@ -280,15 +290,7 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
                     mac_vec[0][dir] = &flux_alias[0][dir];
                 }
 
-                if (n == 0) {
-                    macproj_stochastic_flux =
-                        std::make_unique<Hydro::MacProjector>(
-                            mac_vec, Real(1.0), stochastic_geom, lp_info);
-                    macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
-                } else {
-                    macproj_stochastic_flux->setUMAC(mac_vec);
-                }
-
+                macproj_stochastic_flux->setUMAC(mac_vec);
                 macproj_stochastic_flux->project(m_mac_mg_rtol, m_mac_mg_atol);
             }
 
@@ -320,6 +322,15 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
             Array<LinOpBCType, AMREX_SPACEDIM> periodic_bc;
             periodic_bc.fill(LinOpBCType::Periodic);
 
+            macproj_stochastic_flux =
+                std::make_unique<Hydro::MacProjector>(stochastic_geom);
+            Vector<BoxArray> ba(1);
+            Vector<DistributionMapping> dm(1);
+            ba[0] = stochastic_flux_RK3_three[0].boxArray();
+            dm[0] = stochastic_flux_RK3_three[0].DistributionMap();
+            macproj_stochastic_flux->initProjector(ba, dm, lp_info, Real(1.0));
+            macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
+
             for (int n = 0; n < AMREX_SPACEDIM; ++n) {
                 for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
                     flux_alias[0][dir] =
@@ -327,15 +338,7 @@ incflo::compute_stochastic_velocity_force_RK3 (Vector<MultiFab const*> const& de
                     mac_vec[0][dir] = &flux_alias[0][dir];
                 }
 
-                if (n == 0) {
-                    macproj_stochastic_flux =
-                        std::make_unique<Hydro::MacProjector>(
-                            mac_vec, Real(1.0), stochastic_geom, lp_info);
-                    macproj_stochastic_flux->setDomainBC(periodic_bc, periodic_bc);
-                } else {
-                    macproj_stochastic_flux->setUMAC(mac_vec);
-                }
-
+                macproj_stochastic_flux->setUMAC(mac_vec);
                 macproj_stochastic_flux->project(m_mac_mg_rtol, m_mac_mg_atol);
             }
 
