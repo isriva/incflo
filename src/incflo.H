@@ -484,6 +484,13 @@ private:
     std::unique_ptr<Hydro::MacProjector> macproj;
     std::unique_ptr<Hydro::MacProjector> macproj_stochastic_flux;
 
+    // Lazily (re)builds macproj if it is null.  ClearLevel resets it, and
+    // AmrCore::regrid runs ClearLevel *after* the RemakeLevel /
+    // MakeNewLevelFromCoarse calls, so a regrid that lowers finest_level would
+    // otherwise leave macproj null until the next projection dereferenced it.
+    // Same lazy pattern as get_diffusion_tensor_op / get_diffusion_scalar_op.
+    Hydro::MacProjector* get_mac_projector ();
+
     int m_mac_mg_max_coarsening_level = 100;
 
 #ifdef AMREX_USE_FLOAT
@@ -656,6 +663,9 @@ private:
     amrex::Real m_n_0 = 0.0;
     amrex::Real m_tau_0 = 0.0;
     amrex::Real m_papa_reg = 0.0;
+    //! Lower bound on the strain rate used by the power-law viscosity, so that
+    //! eta = mu*sr^(n-1) stays finite (and non-zero) at zero strain rate
+    amrex::Real m_sr_floor = 1.e-9;
     amrex::Real m_eta_0 = 0.0;
 
     int m_plot_int = -1;
@@ -710,7 +720,7 @@ private:
     ParticleData particleData;
 
     // variables and functions for tracers particles
-    bool  m_use_tracer_particles; /*!< tracer particles that advect with flow */
+    bool  m_use_tracer_particles = false; /*!< tracer particles that advect with flow */
 
     /*! Read tracer particles parameters */
     void readTracerParticlesParams ();
@@ -882,6 +892,14 @@ private:
         if (!EBFactory(0).isAllRegular()) return uses_predictor_corrector_advection() ? 3 : 4;
 #endif
         return uses_predictor_corrector_advection() ? 0 : 1;
+#ifdef INCFLO_USE_PARTICLES
+        // incflo_PC::AdvectWithFlow interpolates from the faces bracketing each
+        // particle, so it needs at least one ghost face even with MOL, which
+        // otherwise needs none.  Returning a non-zero value here also makes
+        // compute_convective_term FillPatch those ghost faces.
+        if (m_use_tracer_particles) return 1;
+#endif
+        return (m_advection_type == "MOL") ? 0 : 1;
     }
 
 #ifdef AMREX_USE_EB
