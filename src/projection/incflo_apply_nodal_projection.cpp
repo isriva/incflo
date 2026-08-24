@@ -1,4 +1,5 @@
 #include <AMReX_BC_TYPES.H>
+#include <AMReX_FFT_CrossProj.H>
 #include <AMReX_PhysBCFunct.H>
 #include <hydro_utils.H>
 #include <incflo.H>
@@ -35,31 +36,31 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> density,
 
     bool proj_for_small_dt = (time > 0.0 && m_dt < 0.1 * m_prev_dt);
 
-    // Add the ( grad p /ro ) back to u* (note the +dt)
-    if (!incremental && add_lagged_pressure)
-    {
-        for (int lev = 0; lev <= finest_level; lev++)
-        {
-            auto& ld = *m_leveldata[lev];
-#ifdef _OPENMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
-            for (MFIter mfi(ld.velocity,TilingIfNotGPU()); mfi.isValid(); ++mfi)
-            {
-                Box const& bx = mfi.tilebox();
-                Array4<Real> const& u = ld.velocity.array(mfi);
-                Array4<Real const> const& rho = density[lev]->const_array(mfi);
-                Array4<Real const> const& gp = ld.gp.const_array(mfi);
-                ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                {
-                    Real soverrho = scaling_factor / rho(i,j,k);
-                    AMREX_D_TERM(u(i,j,k,0) += gp(i,j,k,0) * soverrho;,
-                                 u(i,j,k,1) += gp(i,j,k,1) * soverrho;,
-                                 u(i,j,k,2) += gp(i,j,k,2) * soverrho;);
-                });
-            }
-        }
-    }
+//     // Add the ( grad p /ro ) back to u* (note the +dt)
+//     if (!incremental && add_lagged_pressure)
+//     {
+//         for (int lev = 0; lev <= finest_level; lev++)
+//         {
+//             auto& ld = *m_leveldata[lev];
+// #ifdef _OPENMP
+// #pragma omp parallel if (Gpu::notInLaunchRegion())
+// #endif
+//             for (MFIter mfi(ld.velocity,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+//             {
+//                 Box const& bx = mfi.tilebox();
+//                 Array4<Real> const& u = ld.velocity.array(mfi);
+//                 Array4<Real const> const& rho = density[lev]->const_array(mfi);
+//                 Array4<Real const> const& gp = ld.gp.const_array(mfi);
+//                 ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+//                 {
+//                     Real soverrho = scaling_factor / rho(i,j,k);
+//                     AMREX_D_TERM(u(i,j,k,0) += gp(i,j,k,0) * soverrho;,
+//                                  u(i,j,k,1) += gp(i,j,k,1) * soverrho;,
+//                                  u(i,j,k,2) += gp(i,j,k,2) * soverrho;);
+//                 });
+//             }
+//         }
+//     }
 
     // Define "vel" to be U^* - U^n rather than U^*
     if (proj_for_small_dt || incremental)
@@ -98,172 +99,186 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> const& density,
                                    Real time, Real scaling_factor, bool incremental,
                                    bool set_inflow_bc, bool update_pressure_proj)
 {
-    Vector<amrex::MultiFab> sigma(finest_level+1);
-    if (!m_constant_density)
-    {
-        for (int lev = 0; lev <= finest_level; ++lev )
-        {
-            sigma[lev].define(grids[lev], dmap[lev], 1, 0, MFInfo(), *m_factory[lev]);
-#ifdef _OPENMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
-            for (MFIter mfi(sigma[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
-            {
-                Box const& bx = mfi.tilebox();
-                Array4<Real> const& sig = sigma[lev].array(mfi);
-                Array4<Real const> const& rho = density[lev]->const_array(mfi);
-                ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                {
-                    sig(i,j,k) = scaling_factor / rho(i,j,k);
-                });
-            }
-        }
+    if (finest_level != 0) {
+        amrex::Abort("CrossProj test currently supports only finest_level = 0");
+    }
+    if (AMREX_SPACEDIM != 2) {
+        amrex::Abort("CrossProj test currently supports only 2D");
+    }
+    if (incremental) {
+        amrex::Abort("CrossProj test currently supports only non-incremental projection");
     }
 
-    // Perform projection
-    std::unique_ptr<Hydro::NodalProjector> nodal_projector;
+    FFT::CrossProj crossproj(Geom(0));
+    crossproj.solve(*vel[0], *vel[0]);
+    vel[0]->FillBoundary(Geom(0).periodicity());
 
-    auto bclo = get_projection_bc(Orientation::low);
-    auto bchi = get_projection_bc(Orientation::high);
-
-    for (int lev = 0; lev <= finest_level; ++lev) {
-#ifdef AMREX_USE_EB
-        if (m_eb_flow.enabled) {
-           set_eb_velocity(lev, time, *get_velocity_eb()[lev], 1);
-        }
-#endif
-        vel[lev]->setBndry(0.0);
-        if (set_inflow_bc) {
-            // Only the inflow boundary gets set here
-            IntVect nghost(1);
-            amrex::Vector<amrex::BCRec> inflow_bcr;
-            inflow_bcr.resize(AMREX_SPACEDIM);
-            for (OrientationIter oit; oit; ++oit) {
-                if (m_bc_type[oit()] == BC::mass_inflow) {
-                    AMREX_D_TERM(inflow_bcr[0].set(oit(), BCType::ext_dir);,
-                                 inflow_bcr[1].set(oit(), BCType::ext_dir);,
-                                 inflow_bcr[2].set(oit(), BCType::ext_dir));
-                } else if (m_bc_type[oit()] == BC::direction_dependent) {
-                    AMREX_D_TERM(inflow_bcr[0].set(oit(), BCType::direction_dependent);,
-                                 inflow_bcr[1].set(oit(), BCType::direction_dependent);,
-                                 inflow_bcr[2].set(oit(), BCType::direction_dependent));
-                }
-            }
-
-            PhysBCFunct<GpuBndryFuncFab<IncfloVelFill> > physbc
-                (geom[lev], inflow_bcr, IncfloVelFill{m_probtype, m_bc_velocity});
-
-            physbc(*vel[lev], 0, AMREX_SPACEDIM, nghost, time, 0);
-
-            // We make sure to only fill "nghost" ghost cells so we don't accidentally
-            // over-write good ghost cell values with unfilled ghost cell values
-            vel[lev]->EnforcePeriodicity(0, AMREX_SPACEDIM, nghost, geom[lev].periodicity());
-        }
-    }
-
-    // Enforce solvability by matching outflow to inflow.
-    if (has_inout_bndry && set_inflow_bc)
-    {
-        Vector<Array<MultiFab, AMREX_SPACEDIM>> vel_vec(finest_level+1);
-
-        for (int lev = 0; lev <= finest_level; lev++) {
-            AMREX_D_TERM(vel_vec[lev][0] = MultiFab(*vel[lev], amrex::make_alias, 0, 1);,
-                         vel_vec[lev][1] = MultiFab(*vel[lev], amrex::make_alias, 1, 1);,
-                         vel_vec[lev][2] = MultiFab(*vel[lev], amrex::make_alias, 2, 1););
-        }
-
-        HydroUtils::enforceInOutSolvability(GetVecOfArrOfPtrs(vel_vec), get_velocity_bcrec().data(), geom, true);
-    }
-
-    LPInfo info;
-    info.setMaxCoarseningLevel(m_nodal_mg_max_coarsening_level);
-
-    if (m_constant_density)
-    {
-        Real constant_sigma = scaling_factor / m_ro_0;
-        nodal_projector = std::make_unique<Hydro::NodalProjector>(vel, constant_sigma,
-                                         Geom(0,finest_level), info);
-    } else
-    {
-        nodal_projector = std::make_unique<Hydro::NodalProjector>(vel, GetVecOfConstPtrs(sigma),
-                                         Geom(0,finest_level), info);
-    }
-    nodal_projector->setDomainBC(bclo, bchi);
-
-#ifdef AMREX_USE_EB
-    if (m_eb_flow.enabled) {
-       for(int lev = 0; lev <= finest_level; ++lev) {
-          nodal_projector->getLinOp().setEBInflowVelocity(lev, *get_velocity_eb()[lev]);
-       }
-    }
-
-    if(m_has_mixedBC)
-    {
-        // We use an overset mask to effectively apply the mixed BC
-        for(int lev = 0; lev <= finest_level; ++lev)
-        {
-            const auto mask = make_nodalBC_mask(lev);
-            nodal_projector->getLinOp().setOversetMask(lev, mask);
-        }
-    }
-
-#endif
-
-    // m_nodal_mg_rtol = amrex::Real(1.0e-13);
-    // m_nodal_mg_atol = amrex::Real(1.0e-16);
-    nodal_projector->project(m_nodal_mg_rtol, m_nodal_mg_atol);
-
-    if (update_pressure_proj) {
-        // Get phi and fluxes
-        auto phi = nodal_projector->getPhi();
-        auto gradphi = nodal_projector->getGradPhi();
-
-        for(int lev = 0; lev <= finest_level; lev++)
-        {
-            auto& ld = *m_leveldata[lev];
-#ifdef _OPENMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
-        for (MFIter mfi(ld.gp,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-            Box const& tbx = mfi.tilebox();
-            Box const& nbx = mfi.nodaltilebox();
-            Array4<Real> const& gp_lev = ld.gp.array(mfi);
-            Array4<Real> const& p_lev = ld.p_nd.array(mfi);
-            Array4<Real const> const& gp_proj = gradphi[lev]->const_array(mfi);
-            Array4<Real const> const& p_proj = phi[lev]->const_array(mfi);
-            if (incremental) {
-                ParallelFor(tbx, AMREX_SPACEDIM,
-                [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
-                {
-                    gp_lev(i,j,k,n) += gp_proj(i,j,k,n);
-                });
-                ParallelFor(nbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                {
-                    p_lev (i,j,k) += p_proj(i,j,k);
-                });
-            } else {
-                ParallelFor(tbx, AMREX_SPACEDIM,
-                [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
-                {
-                    gp_lev(i,j,k,n) = gp_proj(i,j,k,n);
-                });
-                ParallelFor(nbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
-                {
-                    p_lev(i,j,k) = p_proj(i,j,k);
-                });
-            }
-        }
-    }
-
-    for (int lev = finest_level-1; lev >= 0; --lev) {
-#ifdef AMREX_USE_EB
-        amrex::EB_average_down(m_leveldata[lev+1]->gp, m_leveldata[lev]->gp,
-                               0, AMREX_SPACEDIM, refRatio(lev));
-#else
-        amrex::average_down(m_leveldata[lev+1]->gp, m_leveldata[lev]->gp,
-                            0, AMREX_SPACEDIM, refRatio(lev));
-#endif
-    }
+    // Legacy nodal-projector path retained below for reference.
+//     Vector<amrex::MultiFab> sigma(finest_level+1);
+//     if (!m_constant_density)
+//     {
+//         for (int lev = 0; lev <= finest_level; ++lev )
+//         {
+//             sigma[lev].define(grids[lev], dmap[lev], 1, 0, MFInfo(), *m_factory[lev]);
+// #ifdef _OPENMP
+// #pragma omp parallel if (Gpu::notInLaunchRegion())
+// #endif
+//             for (MFIter mfi(sigma[lev],TilingIfNotGPU()); mfi.isValid(); ++mfi)
+//             {
+//                 Box const& bx = mfi.tilebox();
+//                 Array4<Real> const& sig = sigma[lev].array(mfi);
+//                 Array4<Real const> const& rho = density[lev]->const_array(mfi);
+//                 ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+//                 {
+//                     sig(i,j,k) = scaling_factor / rho(i,j,k);
+//                 });
+//             }
+//         }
+//     }
+//
+//     // Perform projection
+//     std::unique_ptr<Hydro::NodalProjector> nodal_projector;
+//
+//     auto bclo = get_projection_bc(Orientation::low);
+//     auto bchi = get_projection_bc(Orientation::high);
+//
+//     for (int lev = 0; lev <= finest_level; ++lev) {
+// #ifdef AMREX_USE_EB
+//         if (m_eb_flow.enabled) {
+//            set_eb_velocity(lev, time, *get_velocity_eb()[lev], 1);
+//         }
+// #endif
+//         vel[lev]->setBndry(0.0);
+//         if (set_inflow_bc) {
+//             // Only the inflow boundary gets set here
+//             IntVect nghost(1);
+//             amrex::Vector<amrex::BCRec> inflow_bcr;
+//             inflow_bcr.resize(AMREX_SPACEDIM);
+//             for (OrientationIter oit; oit; ++oit) {
+//                 if (m_bc_type[oit()] == BC::mass_inflow) {
+//                     AMREX_D_TERM(inflow_bcr[0].set(oit(), BCType::ext_dir);,
+//                                  inflow_bcr[1].set(oit(), BCType::ext_dir);,
+//                                  inflow_bcr[2].set(oit(), BCType::ext_dir));
+//                 } else if (m_bc_type[oit()] == BC::direction_dependent) {
+//                     AMREX_D_TERM(inflow_bcr[0].set(oit(), BCType::direction_dependent);,
+//                                  inflow_bcr[1].set(oit(), BCType::direction_dependent);,
+//                                  inflow_bcr[2].set(oit(), BCType::direction_dependent));
+//                 }
+//             }
+//
+//             PhysBCFunct<GpuBndryFuncFab<IncfloVelFill> > physbc
+//                 (geom[lev], inflow_bcr, IncfloVelFill{m_probtype, m_bc_velocity});
+//
+//             physbc(*vel[lev], 0, AMREX_SPACEDIM, nghost, time, 0);
+//
+//             // We make sure to only fill "nghost" ghost cells so we don't accidentally
+//             // over-write good ghost cell values with unfilled ghost cell values
+//             vel[lev]->EnforcePeriodicity(0, AMREX_SPACEDIM, nghost, geom[lev].periodicity());
+//         }
+//     }
+//
+//     // Enforce solvability by matching outflow to inflow.
+//     if (has_inout_bndry && set_inflow_bc)
+//     {
+//         Vector<Array<MultiFab, AMREX_SPACEDIM>> vel_vec(finest_level+1);
+//
+//         for (int lev = 0; lev <= finest_level; lev++) {
+//             AMREX_D_TERM(vel_vec[lev][0] = MultiFab(*vel[lev], amrex::make_alias, 0, 1);,
+//                          vel_vec[lev][1] = MultiFab(*vel[lev], amrex::make_alias, 1, 1);,
+//                          vel_vec[lev][2] = MultiFab(*vel[lev], amrex::make_alias, 2, 1););
+//         }
+//
+//         HydroUtils::enforceInOutSolvability(GetVecOfArrOfPtrs(vel_vec), get_velocity_bcrec().data(), geom, true);
+//     }
+//
+//     LPInfo info;
+//     info.setMaxCoarseningLevel(m_nodal_mg_max_coarsening_level);
+//
+//     if (m_constant_density)
+//     {
+//         Real constant_sigma = scaling_factor / m_ro_0;
+//         nodal_projector = std::make_unique<Hydro::NodalProjector>(vel, constant_sigma,
+//                                          Geom(0,finest_level), info);
+//     } else
+//     {
+//         nodal_projector = std::make_unique<Hydro::NodalProjector>(vel, GetVecOfConstPtrs(sigma),
+//                                          Geom(0,finest_level), info);
+//     }
+//     nodal_projector->setDomainBC(bclo, bchi);
+//
+// #ifdef AMREX_USE_EB
+//     if (m_eb_flow.enabled) {
+//        for(int lev = 0; lev <= finest_level; ++lev) {
+//           nodal_projector->getLinOp().setEBInflowVelocity(lev, *get_velocity_eb()[lev]);
+//        }
+//     }
+//
+//     if(m_has_mixedBC)
+//     {
+//         // We use an overset mask to effectively apply the mixed BC
+//         for(int lev = 0; lev <= finest_level; ++lev)
+//         {
+//             const auto mask = make_nodalBC_mask(lev);
+//             nodal_projector->getLinOp().setOversetMask(lev, mask);
+//         }
+//     }
+//
+// #endif
+//
+//     // m_nodal_mg_rtol = amrex::Real(1.0e-13);
+//     // m_nodal_mg_atol = amrex::Real(1.0e-16);
+//     nodal_projector->project(m_nodal_mg_rtol, m_nodal_mg_atol);
+//
+//     if (update_pressure_proj) {
+//         // Get phi and fluxes
+//         auto phi = nodal_projector->getPhi();
+//         auto gradphi = nodal_projector->getGradPhi();
+//
+//         for(int lev = 0; lev <= finest_level; lev++)
+//         {
+//             auto& ld = *m_leveldata[lev];
+// #ifdef _OPENMP
+// #pragma omp parallel if (Gpu::notInLaunchRegion())
+// #endif
+//         for (MFIter mfi(ld.gp,TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+//             Box const& tbx = mfi.tilebox();
+//             Box const& nbx = mfi.nodaltilebox();
+//             Array4<Real> const& gp_lev = ld.gp.array(mfi);
+//             Array4<Real> const& p_lev = ld.p_nd.array(mfi);
+//             Array4<Real const> const& gp_proj = gradphi[lev]->const_array(mfi);
+//             Array4<Real const> const& p_proj = phi[lev]->const_array(mfi);
+//             if (incremental) {
+//                 ParallelFor(tbx, AMREX_SPACEDIM,
+//                 [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
+//                 {
+//                     gp_lev(i,j,k,n) += gp_proj(i,j,k,n);
+//                 });
+//                 ParallelFor(nbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+//                 {
+//                     p_lev (i,j,k) += p_proj(i,j,k);
+//                 });
+//             } else {
+//                 ParallelFor(tbx, AMREX_SPACEDIM,
+//                 [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept
+//                 {
+//                     gp_lev(i,j,k,n) = gp_proj(i,j,k,n);
+//                 });
+//                 ParallelFor(nbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+//                 {
+//                     p_lev(i,j,k) = p_proj(i,j,k);
+//                 });
+//             }
+//         }
+//     }
+//
+//     for (int lev = finest_level-1; lev >= 0; --lev) {
+// #ifdef AMREX_USE_EB
+//         amrex::EB_average_down(m_leveldata[lev+1]->gp, m_leveldata[lev]->gp,
+//                                0, AMREX_SPACEDIM, refRatio(lev));
+// #else
+//         amrex::average_down(m_leveldata[lev+1]->gp, m_leveldata[lev]->gp,
+//                             0, AMREX_SPACEDIM, refRatio(lev));
+// #endif
+//     }
 }
 
-}

@@ -1,4 +1,4 @@
-AMREX_HOME ?= ../../amrex
+AMREX_HOME ?= ../../amrex_john
 AMREX_HYDRO_HOME ?= ../../AMReX-Hydro
 TOP = ..
 
