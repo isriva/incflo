@@ -1,5 +1,20 @@
+// #include <AMReX_BC_TYPES.H>
+// #include <AMReX_FFT_CrossProj.H>
+// #include <AMReX_PhysBCFunct.H>
+// #include <hydro_utils.H>
+// #include <incflo.H>
+// #include <prob_bc.H>
+// #include <memory>
+
 #include <AMReX_BC_TYPES.H>
+#include <AMReX_FFT.H>
+
+#define FFTPhysBCTag CrossProjPhysBCTag
+#define fill_physbc CrossProj_fill_physbc
 #include <AMReX_FFT_CrossProj.H>
+#undef fill_physbc
+#undef FFTPhysBCTag
+
 #include <AMReX_PhysBCFunct.H>
 #include <hydro_utils.H>
 #include <incflo.H>
@@ -109,7 +124,11 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> const& density,
         amrex::Abort("CrossProj test currently supports only non-incremental projection");
     }
 
-    FFT::CrossProj crossproj(Geom(0));
+    auto periodic_bc = std::make_pair(FFT::Boundary::periodic,
+                                      FFT::Boundary::periodic);
+    amrex::Array<std::pair<FFT::Boundary,FFT::Boundary>,AMREX_SPACEDIM>
+        fft_bc{AMREX_D_DECL(periodic_bc, periodic_bc, periodic_bc)};
+    FFT::CrossProj crossproj(Geom(0), fft_bc);
     crossproj.solve(*vel[0], *vel[0]);
     vel[0]->FillBoundary(Geom(0).periodicity());
 
@@ -281,4 +300,3 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> const& density,
 // #endif
 //     }
 }
-
