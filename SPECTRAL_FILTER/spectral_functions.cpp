@@ -506,7 +506,7 @@ void ProcessDeltaEtaSpectrum(int step,
     // Integrate over shells and write the text file using the custom prefix
     delta_eta_struct_fact.integrateTensorShells(step, os.str());
 #else
-    amrex::IgnoreUnused(step, output, geom);
+    amrex::ignore_unused(step, output, geom);
 #endif
 }
 

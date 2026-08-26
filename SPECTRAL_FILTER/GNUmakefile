@@ -1,4 +1,4 @@
-AMREX_HOME ?= ../../amrex
+AMREX_HOME ?= ../../amrex_john
 
 DEBUG         = FALSE
 USE_MPI       = TRUE
