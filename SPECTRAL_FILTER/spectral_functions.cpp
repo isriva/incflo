@@ -579,6 +579,8 @@ void SpectralWritePlotFile(int step,
 
             amrex::Real const ux = amrex::Real(0.5) * (vel(i+1,j,k,0) - vel(i-1,j,k,0)) * idx;
             amrex::Real const vy = amrex::Real(0.5) * (vel(i,j+1,k,1) - vel(i,j-1,k,1)) * idy;
+            amrex::Real const ux_f = amrex::Real(0.5) * (filt(i+1,j,k,0) - filt(i-1,j,k,0)) * idx;
+            amrex::Real const vy_f = amrex::Real(0.5) * (filt(i,j+1,k,1) - filt(i,j-1,k,1)) * idy;
 
             amrex::Real const vx = amrex::Real(0.5) * (vel(i+1,j,k,1) - vel(i-1,j,k,1)) * idx;
             amrex::Real const uy = amrex::Real(0.5) * (vel(i,j+1,k,0) - vel(i,j-1,k,0)) * idy;
@@ -591,9 +593,15 @@ void SpectralWritePlotFile(int step,
             out(i,j,k,7) = vv_filt(i,j,k,1); // vv
             out(i,j,k,8) = vv_filt(i,j,k,2); // uv
 
-            out(i,j,k,9)  = ux;                               // S_11
-            out(i,j,k,10) = vy;                               // S_22
-            amrex::Real const S_12 = amrex::Real(0.5) * (uy + vx);
+            // amrex::Real const S_11 = ux;
+            amrex::Real const S_11 = ux_f;
+            // amrex::Real const S_22 = vy;
+            amrex::Real const S_22 = vy_f;
+            // amrex::Real const S_12 = amrex::Real(0.5) * (uy + vx);
+            amrex::Real const S_12 = amrex::Real(0.5) * (uy_f + vx_f);
+            out(i,j,k,9)  = S_11;                               // S_11
+            out(i,j,k,10) = S_22;                               // S_22
+            
             out(i,j,k,11) =  S_12;    // S_12
 
             amrex::Real const tau_11 = out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
@@ -618,12 +626,12 @@ void SpectralWritePlotFile(int step,
             //                           amrex::Real(2.0) *(vv_filt(i,j,k,2) - filt(i,j,k,0) * filt(i,j,k,1)) * S_12;
             
             // Let's compute \tau * S with the deviatoric tau
-            amrex::Real const term1 = tau_11_dev * ux + 
-                                      tau_22_dev * vy + 
+            amrex::Real const term1 = tau_11_dev * S_11 + 
+                                      tau_22_dev * S_22 + 
                                       amrex::Real(2.0) * tau_12 * S_12;
             
             // S^2 as well:
-            amrex::Real const term2 = ux * ux + vy * vy + amrex::Real(2.0) * S_12 * S_12;
+            amrex::Real const term2 = S_11 * S_11 + S_22 * S_22 + amrex::Real(2.0) * S_12 * S_12;
             return {term1, term2};
 #else
             out(i,j,k,2) = vel(i,j,k,2);
