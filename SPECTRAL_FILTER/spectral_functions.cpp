@@ -438,7 +438,7 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
         vv_filter.nComp() >= num_vv_comps,
         "SpectralVelProductDecomp: vv_filter must have enough components to store the symmetric tensor");
 
-    constexpr amrex::Real padding_factor = amrex::Real(1.5);
+    constexpr amrex::Real padding_factor = amrex::Real(2.0);
     amrex::Box const domain = geom.Domain();
     amrex::IntVect original_size = amrex::IntVect::TheZeroVector();
     amrex::IntVect padded_size = amrex::IntVect::TheZeroVector();
@@ -446,7 +446,7 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
         int const n = domain.length(idim);
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
             n % 2 == 0,
-            "SpectralVelProductDecomp: every domain dimension must be even for 3/2 padding");
+            "SpectralVelProductDecomp: every domain dimension must be even for 2x padding");
         original_size[idim] = n;
         padded_size[idim] = static_cast<int>(padding_factor * n);
     }
@@ -719,11 +719,14 @@ void SpectralWritePlotFile(int step,
             // amrex::Real const tau_11 = out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
             // amrex::Real const tau_22 = out(i,j,k,7) - out(i,j,k,3) * out(i,j,k,3);
             // amrex::Real const tau_12 = out(i,j,k,8) - out(i,j,k,2) * out(i,j,k,3);
-            amrex::Real const u_prime = vel(i,j,k,0) - filt(i,j,k,0);
-            amrex::Real const v_prime = vel(i,j,k,1) - filt(i,j,k,1);
-            amrex::Real const tau_11 = u_prime * u_prime;
-            amrex::Real const tau_22 = v_prime * v_prime;
-            amrex::Real const tau_12 = u_prime * v_prime;
+            // amrex::Real const u_prime = vel(i,j,k,0) - filt(i,j,k,0);
+            // amrex::Real const v_prime = vel(i,j,k,1) - filt(i,j,k,1);
+            // amrex::Real const tau_11 = u_prime * u_prime;
+            // amrex::Real const tau_22 = v_prime * v_prime;
+            // amrex::Real const tau_12 = u_prime * v_prime;
+            amrex::Real const tau_11 = out(i,j,k,6);
+            amrex::Real const tau_22 = out(i,j,k,7);
+            amrex::Real const tau_12 = out(i,j,k,8);
 
             // Calculate half of the trace for the 2D isotropic stress
             amrex::Real const trace_half = amrex::Real(0.5) * (tau_11 + tau_22);

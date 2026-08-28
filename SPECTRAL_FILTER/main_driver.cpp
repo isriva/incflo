@@ -63,6 +63,7 @@ void main_driver(const char* argv)
     SpectralReadCheckPoint(restart_file, is_periodic, geom, ba, dmap, velocity, step, time);
 
     MultiFab velocity_filter(ba, dmap, 3, 0);
+    MultiFab velocity_prime(ba, dmap, AMREX_SPACEDIM, 0);
 
 #if (AMREX_SPACEDIM == 3)
     int constexpr num_vv_comps = 6;
@@ -83,9 +84,13 @@ void main_driver(const char* argv)
         // Filter the velocity
         SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
         velocity_filter.FillBoundary(geom.periodicity());
+
+        MultiFab::Copy(velocity_prime, velocity, 0, 0, AMREX_SPACEDIM, 0);
+        MultiFab::Subtract(velocity_prime, velocity_filter, 0, 0, AMREX_SPACEDIM, 0);
     
         // Filter the outer product of the velocity
-        SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax, geom);
+        // SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax, geom);
+        SpectralVelProductDecomp(velocity_prime, vv_filter, kmin, kmax, geom);
         vv_filter.FillBoundary(geom.periodicity());
     
         // velocity.FillBoundary(geom.periodicity());
