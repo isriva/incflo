@@ -701,9 +701,14 @@ void SpectralWritePlotFile(int step,
             out(i,j,k,8) = vv_filt(i,j,k,2); // uv
 
             // amrex::Real const S_11 = ux;
-            amrex::Real const S_11 = ux_f;
+            amrex::Real const S_11_temp = ux_f;
             // amrex::Real const S_22 = vy;
-            amrex::Real const S_22 = vy_f;
+            amrex::Real const S_22_temp = vy_f;
+            amrex::Real const S_trace_half = amrex::Real(0.5) * (S_11_temp + S_22_temp);
+            // Enforce that S should be deviatoric
+            amrex::Real const S_11 = S_11_temp - S_trace_half;
+            amrex::Real const S_22 = S_22_temp - S_trace_half;
+
             // amrex::Real const S_12 = amrex::Real(0.5) * (uy + vx);
             amrex::Real const S_12 = amrex::Real(0.5) * (uy_f + vx_f);
             out(i,j,k,9)  = S_11;                               // S_11
