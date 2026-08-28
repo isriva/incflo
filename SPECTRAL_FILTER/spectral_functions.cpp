@@ -636,7 +636,7 @@ void SpectralWritePlotFile(int step,
         "SpectralWritePlotFile: velocity_filter must have exactly 3 components");
 
 #if (AMREX_SPACEDIM == 2)
-    int constexpr nplot = 18;
+    int constexpr nplot = 21;
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(vv_filter.nComp() >= 3, "vv_filter must have at least 3 comps in 2D");
 #else
     int constexpr nplot = 20;
@@ -742,6 +742,9 @@ void SpectralWritePlotFile(int step,
             out(i,j,k,15) = tau_11_dev;
             out(i,j,k,16) = tau_22_dev;
             out(i,j,k,17) = tau_12;
+            out(i,j,k,18) = tau_11;
+            out(i,j,k,19) = tau_22;
+            out(i,j,k,20) = tau_12;
             
             // // Let's compute \tau * S
             // amrex::Real const term1 = (vv_filt(i,j,k,0) - filt(i,j,k,0) * filt(i,j,k,0)) * ux + 
@@ -878,7 +881,8 @@ void SpectralWritePlotFile(int step,
         "uu_filter", "vv_filter", "uv_filter",
         "S11", "S22", "S12", 
         "delta_eta_11", "delta_eta_22", "delta_eta_12",
-        "tau_dev_11", "tau_dev_22", "tau_dev_12"};
+        "tau_dev_11", "tau_dev_22", "tau_dev_12",
+        "tau_11", "tau_22", "tau_12"};
 
     ProcessDeltaEtaSpectrum(step, output, geom, kmin, kmax);
 #else
