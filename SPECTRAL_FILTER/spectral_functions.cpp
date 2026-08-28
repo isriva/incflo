@@ -87,8 +87,8 @@ void RemapFourierModes(const ComplexFabArray& source,
 
         amrex::ParallelFor(dbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
         {
-            int const dcoord[AMREX_SPACEDIM] = {i, j, k};
-            int scoord[AMREX_SPACEDIM] = {0, 0, 0};
+            int const dcoord[3] = {i, j, k};
+            int scoord[3] = {0, 0, 0};
             bool valid = true;
 
             for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
