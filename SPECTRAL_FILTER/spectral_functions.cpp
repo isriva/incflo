@@ -64,6 +64,57 @@ void FillVelocityWithGhosts(const amrex::MultiFab& velocity,
     velocity_g.FillBoundary(geom.periodicity());
 }
 
+using ComplexFab = amrex::BaseFab<amrex::GpuComplex<amrex::Real>>;
+using ComplexFabArray = amrex::FabArray<ComplexFab>;
+
+// Copy Fourier modes between real-to-complex spectra with different real-space
+// sizes. The first spectral direction is the nonnegative half-spectrum; the
+// remaining directions contain both positive and negative modes.
+void RemapFourierModes(const ComplexFabArray& source,
+                       ComplexFabArray& destination,
+                       const amrex::IntVect& source_size,
+                       const amrex::IntVect& destination_size)
+{
+    destination.setVal(amrex::GpuComplex<amrex::Real>(0.0, 0.0));
+
+    amrex::MFIter dmfi(destination);
+    amrex::MFIter smfi(source);
+    for (; dmfi.isValid(); ++dmfi, ++smfi) {
+        amrex::Box const& dbx = dmfi.fabbox();
+        amrex::Box const& sbx = smfi.fabbox();
+        auto const& src = source.const_array(smfi);
+        auto const& dst = destination.array(dmfi);
+
+        amrex::ParallelFor(dbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+        {
+            int const dcoord[AMREX_SPACEDIM] = {i, j, k};
+            int scoord[AMREX_SPACEDIM] = {0, 0, 0};
+            bool valid = true;
+
+            for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+                int const dmode = dcoord[idim] - dbx.smallEnd(idim);
+                if (idim == 0) {
+                    valid = dmode <= source_size[idim] / 2;
+                    scoord[idim] = sbx.smallEnd(idim) + dmode;
+                } else {
+                    int mode = dmode;
+                    if (mode > destination_size[idim] / 2) {
+                        mode -= destination_size[idim];
+                    }
+                    int const abs_mode = (mode < 0) ? -mode : mode;
+                    valid = valid && (abs_mode <= source_size[idim] / 2);
+                    int const source_mode = (mode < 0) ? mode + source_size[idim] : mode;
+                    scoord[idim] = sbx.smallEnd(idim) + source_mode;
+                }
+            }
+
+            if (valid) {
+                dst(i,j,k) = src(scoord[0], scoord[1], scoord[2]);
+            }
+        });
+    }
+}
+
 void ComputeVorticityField(const amrex::MultiFab& velocity_g,
                            amrex::MultiFab& vort,
                            const amrex::Geometry& geom)
@@ -388,78 +439,135 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
         vv_filter.nComp() >= num_vv_comps,
         "SpectralVelProductDecomp: vv_filter must have enough components to store the symmetric tensor");
 
-    // Compute the pointwise product v_i * v_j in real space
-    amrex::MultiFab vv_real(velocity.boxArray(), velocity.DistributionMap(), num_vv_comps, 0);
-    
-    for (amrex::MFIter mfi(vv_real, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
-        amrex::Box const& bx = mfi.tilebox();
-        amrex::Array4<const amrex::Real> const& vel = velocity.const_array(mfi);
-        amrex::Array4<amrex::Real> const& vv = vv_real.array(mfi);
+    constexpr amrex::Real padding_factor = amrex::Real(1.5);
+    amrex::Box const domain = geom.Domain();
+    amrex::IntVect original_size = amrex::IntVect::TheZeroVector();
+    amrex::IntVect padded_size = amrex::IntVect::TheZeroVector();
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+        int const n = domain.length(idim);
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            n % 2 == 0,
+            "SpectralVelProductDecomp: every domain dimension must be even for 3/2 padding");
+        original_size[idim] = n;
+        padded_size[idim] = static_cast<int>(padding_factor * n);
+    }
 
+    amrex::Box padded_domain = domain;
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+        padded_domain.setBig(idim, padded_domain.smallEnd(idim) + padded_size[idim] - 1);
+    }
+
+    amrex::BoxArray const ba_onegrid(domain);
+    amrex::DistributionMapping const dm_onegrid(ba_onegrid);
+    amrex::BoxArray const ba_padded_onegrid(padded_domain);
+    amrex::DistributionMapping const dm_padded_onegrid(ba_padded_onegrid);
+
+    amrex::MultiFab velocity_onegrid(ba_onegrid, dm_onegrid, AMREX_SPACEDIM, 0);
+    velocity_onegrid.ParallelCopy(velocity, 0, 0, AMREX_SPACEDIM, 0, 0);
+
+    amrex::FFT::R2C<> original_fft(domain);
+    amrex::FFT::R2C<> padded_fft(padded_domain);
+    auto const& [ba_original_fft, dm_original_fft] = original_fft.getSpectralDataLayout();
+    auto const& [ba_padded_fft, dm_padded_fft] = padded_fft.getSpectralDataLayout();
+
+    amrex::FabArray<ComplexFab> original_fft_dist(ba_original_fft, dm_original_fft, 1, 0);
+    amrex::FabArray<ComplexFab> padded_fft_dist(ba_padded_fft, dm_padded_fft, 1, 0);
+    amrex::FabArray<ComplexFab> original_fft_onegrid(
+        amrex::BoxArray(ba_original_fft.minimalBox()), dm_onegrid, 1, 0);
+    amrex::FabArray<ComplexFab> padded_fft_onegrid(
+        amrex::BoxArray(ba_padded_fft.minimalBox()), dm_padded_onegrid, 1, 0);
+
+    amrex::MultiFab padded_product(ba_padded_onegrid, dm_padded_onegrid, num_vv_comps, 0);
+    amrex::MultiFab filtered_onegrid(ba_onegrid, dm_onegrid, 1, 0);
+
+    amrex::Real const padded_scale = padded_fft.scalingFactor();
+    amrex::Real const original_scale = original_fft.scalingFactor();
+    amrex::Real const kmin2 = kmin * kmin;
+    amrex::Real const kmax2 = kmax * kmax;
+
+    // Dealias the velocity by padding its spectrum, then transform once to the
+    // padded real-space grid.
+    amrex::MultiFab padded_velocity_all(ba_padded_onegrid, dm_padded_onegrid,
+                                         AMREX_SPACEDIM, 0);
+    for (int comp = 0; comp < AMREX_SPACEDIM; ++comp) {
+        amrex::MultiFab velocity_component(ba_onegrid, dm_onegrid, 1, 0);
+        amrex::MultiFab::Copy(velocity_component, velocity_onegrid, comp, 0, 1, 0);
+        original_fft.forward(velocity_component, original_fft_dist);
+        original_fft_onegrid.ParallelCopy(original_fft_dist, 0, 0, 1);
+        RemapFourierModes(original_fft_onegrid, padded_fft_onegrid,
+                          original_size, padded_size);
+        padded_fft_dist.ParallelCopy(padded_fft_onegrid, 0, 0, 1);
+        for (amrex::MFIter mfi(padded_fft_dist); mfi.isValid(); ++mfi) {
+            amrex::Box const& bx = mfi.fabbox();
+            auto const& spectrum = padded_fft_dist.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+            {
+                spectrum(i,j,k) *= padded_scale;
+            });
+        }
+        amrex::MultiFab component_padded(ba_padded_onegrid, dm_padded_onegrid, 1, 0);
+        padded_fft.backward(padded_fft_dist, component_padded);
+        amrex::MultiFab::Copy(padded_velocity_all, component_padded, 0, comp, 1, 0);
+    }
+
+    for (amrex::MFIter mfi(padded_product, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+        amrex::Box const& bx = mfi.tilebox();
+        auto const& vel = padded_velocity_all.const_array(mfi);
+        auto const& product = padded_product.array(mfi);
         amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
         {
-            vv(i,j,k,0) = vel(i,j,k,0) * vel(i,j,k,0); // uu
-            vv(i,j,k,1) = vel(i,j,k,1) * vel(i,j,k,1); // vv
+            product(i,j,k,0) = vel(i,j,k,0) * vel(i,j,k,0);
+            product(i,j,k,1) = vel(i,j,k,1) * vel(i,j,k,1);
 #if (AMREX_SPACEDIM == 3)
-            vv(i,j,k,2) = vel(i,j,k,2) * vel(i,j,k,2); // ww
-            vv(i,j,k,3) = vel(i,j,k,0) * vel(i,j,k,1); // uv
-            vv(i,j,k,4) = vel(i,j,k,0) * vel(i,j,k,2); // uw
-            vv(i,j,k,5) = vel(i,j,k,1) * vel(i,j,k,2); // vw
+            product(i,j,k,2) = vel(i,j,k,2) * vel(i,j,k,2);
+            product(i,j,k,3) = vel(i,j,k,0) * vel(i,j,k,1);
+            product(i,j,k,4) = vel(i,j,k,0) * vel(i,j,k,2);
+            product(i,j,k,5) = vel(i,j,k,1) * vel(i,j,k,2);
 #else
-            vv(i,j,k,2) = vel(i,j,k,0) * vel(i,j,k,1); // uv
+            product(i,j,k,2) = vel(i,j,k,0) * vel(i,j,k,1);
 #endif
         });
     }
 
-    amrex::Box const domain = geom.Domain();
-    int const nx = domain.length(0);
-#if (AMREX_SPACEDIM >= 2)
-    int const ny = domain.length(1);
-#else
-    int const ny = 1;
-#endif
-#if (AMREX_SPACEDIM == 3)
-    int const nz = domain.length(2);
-#else
-    int const nz = 1;
-#endif
-
-    amrex::Real const kmin2 = kmin * kmin;
-    amrex::Real const kmax2 = kmax * kmax;
-
-    amrex::FFT::R2C<> fft(domain);
-    amrex::Real const scale = fft.scalingFactor();
-
-    amrex::MultiFab vv_single(velocity.boxArray(), velocity.DistributionMap(), 1, 0);
-    amrex::MultiFab filtered_single(velocity.boxArray(), velocity.DistributionMap(), 1, 0);
-
-    // Perform the FFT, Filter, and inverse FFT on each component
     for (int comp = 0; comp < num_vv_comps; ++comp) {
-        amrex::MultiFab::Copy(vv_single, vv_real, comp, 0, 1, 0);
-        filtered_single.setVal(0.0);
+        amrex::MultiFab product_component(ba_padded_onegrid, dm_padded_onegrid, 1, 0);
+        amrex::MultiFab::Copy(product_component, padded_product, comp, 0, 1, 0);
+        padded_fft.forward(product_component, padded_fft_dist);
+        padded_fft_onegrid.ParallelCopy(padded_fft_dist, 0, 0, 1);
 
-        fft.forwardThenBackward(
-            vv_single,
-            filtered_single,
-            [=] AMREX_GPU_DEVICE (int i, int j, int k, amrex::GpuComplex<amrex::Real>& sp) noexcept
+        for (amrex::MFIter mfi(padded_fft_onegrid); mfi.isValid(); ++mfi) {
+            amrex::Box const& bx = mfi.fabbox();
+            auto const& spectrum = padded_fft_onegrid.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
-                int const ik = (i <= nx / 2) ? i : i - nx;
-                int const jk = (j <= ny / 2) ? j : j - ny;
+                int const ik = (i <= padded_size[0] / 2) ? i : i - padded_size[0];
+                int const jk = (j <= padded_size[1] / 2) ? j : j - padded_size[1];
 #if (AMREX_SPACEDIM == 3)
-                int const kk = (k <= nz / 2) ? k : k - nz;
+                int const kk = (k <= padded_size[2] / 2) ? k : k - padded_size[2];
 #else
-                amrex::ignore_unused(k, nz);
+                amrex::ignore_unused(k);
                 int const kk = 0;
 #endif
                 amrex::Real const ksq = amrex::Real(ik*ik + jk*jk + kk*kk);
                 if (ksq < kmin2 || ksq > kmax2) {
-                    sp = amrex::GpuComplex<amrex::Real>(0.0, 0.0);
-                } else {
-                    sp *= scale;
+                    spectrum(i,j,k) = amrex::GpuComplex<amrex::Real>(0.0, 0.0);
                 }
             });
+        }
 
-        amrex::MultiFab::Copy(vv_filter, filtered_single, 0, comp, 1, 0);
+        RemapFourierModes(padded_fft_onegrid, original_fft_onegrid,
+                          padded_size, original_size);
+        original_fft_dist.ParallelCopy(original_fft_onegrid, 0, 0, 1);
+        for (amrex::MFIter mfi(original_fft_dist); mfi.isValid(); ++mfi) {
+            amrex::Box const& bx = mfi.fabbox();
+            auto const& spectrum = original_fft_dist.array(mfi);
+            amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+            {
+                spectrum(i,j,k) *= original_scale;
+            });
+        }
+        original_fft.backward(original_fft_dist, filtered_onegrid);
+        amrex::MultiFab::Copy(vv_filter, filtered_onegrid, 0, comp, 1, 0);
     }
 }
 
