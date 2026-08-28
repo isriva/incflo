@@ -78,11 +78,10 @@ void RemapFourierModes(const ComplexFabArray& source,
     destination.setVal(amrex::GpuComplex<amrex::Real>(0.0, 0.0));
 
     amrex::MFIter dmfi(destination);
-    amrex::MFIter smfi(source);
-    for (; dmfi.isValid(); ++dmfi, ++smfi) {
+    for (; dmfi.isValid(); ++dmfi) {
         amrex::Box const& dbx = dmfi.fabbox();
-        amrex::Box const& sbx = smfi.fabbox();
-        auto const& src = source.const_array(smfi);
+        amrex::Box const& sbx = source.boxArray()[dmfi.index()];
+        auto const& src = source.const_array(dmfi);
         auto const& dst = destination.array(dmfi);
 
         amrex::ParallelFor(dbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
@@ -480,8 +479,8 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
     amrex::MultiFab padded_product(ba_padded_onegrid, dm_padded_onegrid, num_vv_comps, 0);
     amrex::MultiFab filtered_onegrid(ba_onegrid, dm_onegrid, 1, 0);
 
-    amrex::Real const padded_scale = padded_fft.scalingFactor();
     amrex::Real const original_scale = original_fft.scalingFactor();
+    amrex::Real const padded_scale = padded_fft.scalingFactor();
     amrex::Real const kmin2 = kmin * kmin;
     amrex::Real const kmax2 = kmax * kmax;
 
@@ -502,7 +501,7 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
             auto const& spectrum = padded_fft_dist.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
-                spectrum(i,j,k) *= padded_scale;
+                spectrum(i,j,k) *= original_scale;
             });
         }
         amrex::MultiFab component_padded(ba_padded_onegrid, dm_padded_onegrid, 1, 0);
@@ -563,11 +562,11 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
             auto const& spectrum = original_fft_dist.array(mfi);
             amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
             {
-                spectrum(i,j,k) *= original_scale;
+                spectrum(i,j,k) *= padded_scale;
             });
         }
         original_fft.backward(original_fft_dist, filtered_onegrid);
-        amrex::MultiFab::Copy(vv_filter, filtered_onegrid, 0, comp, 1, 0);
+        vv_filter.ParallelCopy(filtered_onegrid, 0, comp, 1, 0, 0);
     }
 }
 
