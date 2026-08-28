@@ -43,6 +43,8 @@ void incflo::prob_init_fluid (int lev)
     Real F_0 = Real(0);
     Real n_WN = Real(0);
 
+    Real thermal_velocity_stddev = Real(0);
+
     if (3001 == m_probtype || 3002 == m_probtype) {
         ParmParse pp("kh");
         pp.get("eps", kh_eps);
@@ -122,6 +124,30 @@ void incflo::prob_init_fluid (int lev)
         ParmParse pp("kolm");
         pp.query("F_0", F_0);
         pp.query("n_WN", n_WN);
+    } else if (5000 == m_probtype) {
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            m_ro_0 > Real(0),
+            "probtype 5000 requires incflo.ro_0 > 0");
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            m_stochastic_k_B > Real(0),
+            "probtype 5000 requires incflo.stochastic_k_B > 0");
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            m_stochastic_temperature > Real(0),
+            "probtype 5000 requires incflo.stochastic_temperature > 0");
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            m_stochastic_cell_depth > Real(0),
+            "probtype 5000 requires incflo.stochastic_cell_depth > 0");
+
+        Real cell_volume = Real(1);
+        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+            cell_volume *= dx[dir];
+        }
+#if (AMREX_SPACEDIM == 2)
+        cell_volume *= m_stochastic_cell_depth;
+#endif
+        thermal_velocity_stddev = std::sqrt(
+            m_stochastic_k_B * m_stochastic_temperature /
+            (m_ro_0 * cell_volume));
     }
 
     for (MFIter mfi(ld.density); mfi.isValid(); ++mfi)
@@ -320,6 +346,17 @@ void incflo::prob_init_fluid (int lev)
                                ld.density.array(mfi),
                                ld.tracer.array(mfi),
                                domain, dx, problo, probhi, F_0, n_WN);
+        }
+        else if (5000 == m_probtype)
+        {
+            Array4<Real> const& vel = ld.velocity.array(mfi);
+            ParallelForRNG(vbx, AMREX_SPACEDIM,
+            [=] AMREX_GPU_DEVICE (int i, int j, int k, int n,
+                                  RandomEngine const& engine) noexcept
+            {
+                vel(i,j,k,n) = thermal_velocity_stddev *
+                    RandomNormal(Real(0), Real(1), engine);
+            });
         }
         else
         {
