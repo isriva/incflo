@@ -624,7 +624,8 @@ void SpectralWritePlotFile(int step,
                            const amrex::Geometry& geom,
                            const amrex::MultiFab& velocity,
                            const amrex::MultiFab& velocity_filter,
-                           const amrex::MultiFab& vv_filter)
+                           const amrex::MultiFab& vv_filter,
+                           bool use_prime_tau)
 {
     BL_PROFILE_VAR("SpectralWritePlotFile()", SpectralWritePlotFile);
 
@@ -716,17 +717,23 @@ void SpectralWritePlotFile(int step,
             
             out(i,j,k,11) =  S_12;    // S_12
 
-            amrex::Real const tau_11 = out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
-            amrex::Real const tau_22 = out(i,j,k,7) - out(i,j,k,3) * out(i,j,k,3);
-            amrex::Real const tau_12 = out(i,j,k,8) - out(i,j,k,2) * out(i,j,k,3);
+            // amrex::Real const tau_11 = out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
+            // amrex::Real const tau_22 = out(i,j,k,7) - out(i,j,k,3) * out(i,j,k,3);
+            // amrex::Real const tau_12 = out(i,j,k,8) - out(i,j,k,2) * out(i,j,k,3);
             // amrex::Real const u_prime = vel(i,j,k,0) - filt(i,j,k,0);
             // amrex::Real const v_prime = vel(i,j,k,1) - filt(i,j,k,1);
             // amrex::Real const tau_11 = u_prime * u_prime;
             // amrex::Real const tau_22 = v_prime * v_prime;
             // amrex::Real const tau_12 = u_prime * v_prime;
-            // amrex::Real const tau_11 = out(i,j,k,6);
-            // amrex::Real const tau_22 = out(i,j,k,7);
-            // amrex::Real const tau_12 = out(i,j,k,8);
+            amrex::Real const tau_11 = use_prime_tau
+                ? out(i,j,k,6)
+                : out(i,j,k,6) - out(i,j,k,2) * out(i,j,k,2);
+            amrex::Real const tau_22 = use_prime_tau
+                ? out(i,j,k,7)
+                : out(i,j,k,7) - out(i,j,k,3) * out(i,j,k,3);
+            amrex::Real const tau_12 = use_prime_tau
+                ? out(i,j,k,8)
+                : out(i,j,k,8) - out(i,j,k,2) * out(i,j,k,3);
 
             // Calculate half of the trace for the 2D isotropic stress
             amrex::Real const trace_half = amrex::Real(0.5) * (tau_11 + tau_22);

@@ -40,7 +40,8 @@ void SpectralWritePlotFile(int step,
                            const amrex::Geometry& geom,
                            const amrex::MultiFab& velocity,
                            const amrex::MultiFab& velocity_filter,
-                           const amrex::MultiFab& vv_filter);
+                           const amrex::MultiFab& vv_filter,
+                           bool use_prime_tau);
 
 void SpectralWriteFourierPlotFile(int step,
                                   amrex::Real kmin,

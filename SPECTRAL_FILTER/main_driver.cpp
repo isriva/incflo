@@ -44,6 +44,13 @@ void main_driver(const char* argv)
     int plot_fourier = 0;
     pp.query("plot_fourier", plot_fourier);
 
+    int use_prime_tau_int = 0;
+    pp.query("use_prime_tau", use_prime_tau_int);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        use_prime_tau_int == 0 || use_prime_tau_int == 1,
+        "use_prime_tau must be either 0 or 1");
+    bool const use_prime_tau = (use_prime_tau_int == 1);
+
     Vector<int> is_periodic(AMREX_SPACEDIM, 1);
     int const nper = pp.countval("is_periodic");
     if (nper > 0) {
@@ -63,7 +70,6 @@ void main_driver(const char* argv)
     SpectralReadCheckPoint(restart_file, is_periodic, geom, ba, dmap, velocity, step, time);
 
     MultiFab velocity_filter(ba, dmap, 3, 0);
-    // MultiFab velocity_prime(ba, dmap, AMREX_SPACEDIM, 0);
 
 #if (AMREX_SPACEDIM == 3)
     int constexpr num_vv_comps = 6;
@@ -85,12 +91,15 @@ void main_driver(const char* argv)
         SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
         velocity_filter.FillBoundary(geom.periodicity());
 
-        // MultiFab::Copy(velocity_prime, velocity, 0, 0, AMREX_SPACEDIM, 0);
-        // MultiFab::Subtract(velocity_prime, velocity_filter, 0, 0, AMREX_SPACEDIM, 0);
-    
         // Filter the outer product of the velocity
-        SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax, geom);
-        // SpectralVelProductDecomp(velocity_prime, vv_filter, kmin, kmax, geom);
+        if (use_prime_tau) {
+            MultiFab velocity_prime(ba, dmap, AMREX_SPACEDIM, 0);
+            MultiFab::Copy(velocity_prime, velocity, 0, 0, AMREX_SPACEDIM, 0);
+            MultiFab::Subtract(velocity_prime, velocity_filter, 0, 0, AMREX_SPACEDIM, 0);
+            SpectralVelProductDecomp(velocity_prime, vv_filter, kmin, kmax, geom);
+        } else {
+            SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax, geom);
+        }
         vv_filter.FillBoundary(geom.periodicity());
     
         // velocity.FillBoundary(geom.periodicity());
@@ -98,7 +107,8 @@ void main_driver(const char* argv)
         // velocity_filter.FillBoundary(geom.periodicity());
     
         if (plot_filter != 0) {
-            SpectralWritePlotFile(step, kmin, kmax, geom, velocity, velocity_filter, vv_filter);
+            SpectralWritePlotFile(
+                step, kmin, kmax, geom, velocity, velocity_filter, vv_filter, use_prime_tau);
         }
         if (plot_fourier != 0) {
             SpectralWriteFourierPlotFile(step, kmin, kmax, geom, velocity_filter, vv_filter);
