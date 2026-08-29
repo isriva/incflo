@@ -185,8 +185,9 @@ void incflo::Evolve()
             m_last_smallplt = m_nstep;
         }
 
-        if (m_check_int > 0 && m_nstep >= m_check_int &&
-            (m_nstep % m_check_int) < m_check_count)
+        if (m_check_int > 0 && m_nstep > 0 &&
+            ((m_nstep % m_check_int) == 0 ||
+             (m_nstep % m_check_int) > (m_check_int - m_check_count)))
         {
             WriteCheckPointFile();
             m_last_chk = m_nstep;
