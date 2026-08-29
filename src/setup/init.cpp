@@ -347,6 +347,10 @@ void incflo::ReadIOParameters()
 
     pp.query("check_file", m_check_file);
     pp.query("check_int", m_check_int);
+    pp.query("check_count", m_check_count);
+    if (m_check_count < 1) {
+        amrex::Abort("amr.check_count must be at least 1");
+    }
     pp.query("restart", m_restart_file);
 
     pp.query("plotfile_on_restart", m_plotfile_on_restart);

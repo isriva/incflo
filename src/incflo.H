@@ -680,6 +680,7 @@ private:
     std::string m_plot_file{"plt"};
 
     int m_check_int = -1;
+    int m_check_count = 1;
     int m_last_chk = -1;
     int m_KE_int = -1;
     std::string m_check_file{"chk"};
