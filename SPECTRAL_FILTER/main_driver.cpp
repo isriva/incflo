@@ -3,8 +3,54 @@
 #include <AMReX.H>
 #include <AMReX_ParmParse.H>
 #include <AMReX_ParallelDescriptor.H>
+#include <AMReX_String.H>
 
 using namespace amrex;
+
+namespace {
+
+std::string PreviousCheckpointName(const std::string& restart_file, int step)
+{
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        step > 0,
+        "restart_file must identify a checkpoint after step zero");
+
+    std::string const step_suffix = amrex::Concatenate("", step);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        restart_file.size() >= step_suffix.size() &&
+            restart_file.compare(restart_file.size() - step_suffix.size(),
+                                 step_suffix.size(), step_suffix) == 0,
+        "restart_file name does not match its checkpoint Header step");
+
+    std::string const checkpoint_root =
+        restart_file.substr(0, restart_file.size() - step_suffix.size());
+    return amrex::Concatenate(checkpoint_root, step - 1);
+}
+
+void AssertMatchingCheckpointGeometry(const Geometry& geom,
+                                      const BoxArray& ba,
+                                      const Geometry& previous_geom,
+                                      const BoxArray& previous_ba)
+{
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        previous_ba == ba,
+        "Previous checkpoint grid does not match the current checkpoint grid");
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        previous_geom.Domain() == geom.Domain(),
+        "Previous checkpoint domain does not match the current checkpoint domain");
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        previous_geom.Coord() == geom.Coord(),
+        "Previous checkpoint coordinate system does not match the current checkpoint");
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            previous_geom.ProbLo(idim) == geom.ProbLo(idim) &&
+                previous_geom.ProbHi(idim) == geom.ProbHi(idim) &&
+                previous_geom.isPeriodic(idim) == geom.isPeriodic(idim),
+            "Previous checkpoint physical geometry does not match the current checkpoint");
+    }
+}
+
+} // namespace
 
 void main_driver(const char* argv)
 {
@@ -69,7 +115,23 @@ void main_driver(const char* argv)
 
     SpectralReadCheckPoint(restart_file, is_periodic, geom, ba, dmap, velocity, step, time);
 
+    std::string const previous_restart_file = PreviousCheckpointName(restart_file, step);
+    Geometry previous_geom;
+    BoxArray previous_ba;
+    DistributionMapping previous_dmap;
+    MultiFab previous_velocity;
+    int previous_step = 0;
+    Real previous_time = 0.0;
+    SpectralReadCheckPoint(previous_restart_file, is_periodic, previous_geom, previous_ba,
+                           previous_dmap, previous_velocity, previous_step, previous_time);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        previous_step == step - 1,
+        "Previous checkpoint Header step must equal the current Header step minus one");
+    AssertMatchingCheckpointGeometry(geom, ba, previous_geom, previous_ba);
+    amrex::ignore_unused(previous_time);
+
     MultiFab velocity_filter(ba, dmap, 3, 0);
+    MultiFab previous_velocity_filter(previous_ba, previous_dmap, 3, 0);
 
 #if (AMREX_SPACEDIM == 3)
     int constexpr num_vv_comps = 6;
@@ -81,15 +143,19 @@ void main_driver(const char* argv)
     
 
     velocity.FillBoundary(geom.periodicity());
+    previous_velocity.FillBoundary(previous_geom.periodicity());
 
     // Loop over all of the kmax values
     for (Real kmax : kmax_list) {
         velocity_filter.setVal(0.0);
+        previous_velocity_filter.setVal(0.0);
         vv_filter.setVal(0.0);
         
-        // Filter the velocity
+        // Filter both checkpoints with identical spectral bounds.
         SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
+        SpectralVelDecomp(previous_velocity, previous_velocity_filter, kmin, kmax, previous_geom);
         velocity_filter.FillBoundary(geom.periodicity());
+        previous_velocity_filter.FillBoundary(previous_geom.periodicity());
 
         // Filter the outer product of the velocity
         if (use_prime_tau) {
@@ -108,7 +174,8 @@ void main_driver(const char* argv)
     
         if (plot_filter != 0) {
             SpectralWritePlotFile(
-                step, kmin, kmax, geom, velocity, velocity_filter, vv_filter, use_prime_tau);
+                step, kmin, kmax, geom, velocity, velocity_filter,
+                previous_velocity_filter, vv_filter, use_prime_tau);
         }
         if (plot_fourier != 0) {
             SpectralWriteFourierPlotFile(step, kmin, kmax, geom, velocity_filter, vv_filter);
