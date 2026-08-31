@@ -484,7 +484,7 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
     amrex::Real const kmin2 = kmin * kmin;
     amrex::Real const kmax2 = kmax * kmax;
 
-    // Dealias the velocity by padding its spectrum, then transform once to the
+    // Dealias the velocity by padding its spectrum, then transform back to the
     // padded real-space grid.
     amrex::MultiFab padded_velocity_all(ba_padded_onegrid, dm_padded_onegrid,
                                          AMREX_SPACEDIM, 0);
@@ -509,6 +509,7 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
         amrex::MultiFab::Copy(padded_velocity_all, component_padded, 0, comp, 1, 0);
     }
 
+    // Compute the outer product of the velocity field with itself
     for (amrex::MFIter mfi(padded_product, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
         amrex::Box const& bx = mfi.tilebox();
         auto const& vel = padded_velocity_all.const_array(mfi);
@@ -531,6 +532,7 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
     for (int comp = 0; comp < num_vv_comps; ++comp) {
         amrex::MultiFab product_component(ba_padded_onegrid, dm_padded_onegrid, 1, 0);
         amrex::MultiFab::Copy(product_component, padded_product, comp, 0, 1, 0);
+        // Do a forward fft on the padded components
         padded_fft.forward(product_component, padded_fft_dist);
         padded_fft_onegrid.ParallelCopy(padded_fft_dist, 0, 0, 1);
 
