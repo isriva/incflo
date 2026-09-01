@@ -84,6 +84,30 @@ void main_driver(const char* argv)
     for (Real kmax : kmax_list) {
         AMREX_ALWAYS_ASSERT_WITH_MESSAGE(kmax >= kmin, "Every kmax must be greater than or equal to kmin");
     }
+
+    std::string filter_type_name = "sharp";
+    pp.query("filter_type", filter_type_name);
+    SpectralFilterOptions filter_options;
+    if (filter_type_name == "sharp") {
+        filter_options.filter_type = SpectralFilterType::Sharp;
+    } else if (filter_type_name == "sinc_sq") {
+        filter_options.filter_type = SpectralFilterType::SincSq;
+    } else {
+        Abort("filter_type must be either sharp or sinc_sq");
+    }
+
+    int zero_outside_range = 1;
+    pp.query("zero_outside_range", zero_outside_range);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        zero_outside_range == 0 || zero_outside_range == 1,
+        "zero_outside_range must be either 0 or 1");
+    filter_options.zero_outside_range = (zero_outside_range == 1);
+
+    if (filter_options.filter_type == SpectralFilterType::SincSq) {
+        for (Real kmax : kmax_list) {
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(kmax > 0.0, "sinc_sq requires every kmax to be positive");
+        }
+    }
     int plot_filter = 0;
     pp.query("plot_filter", plot_filter);
 
@@ -152,8 +176,9 @@ void main_driver(const char* argv)
         vv_filter.setVal(0.0);
         
         // Filter both checkpoints with identical spectral bounds.
-        SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, geom);
-        SpectralVelDecomp(previous_velocity, previous_velocity_filter, kmin, kmax, previous_geom);
+        SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, filter_options, geom);
+        SpectralVelDecomp(previous_velocity, previous_velocity_filter, kmin, kmax,
+                          filter_options, previous_geom);
         velocity_filter.FillBoundary(geom.periodicity());
         previous_velocity_filter.FillBoundary(previous_geom.periodicity());
 
@@ -162,9 +187,11 @@ void main_driver(const char* argv)
             MultiFab velocity_prime(ba, dmap, AMREX_SPACEDIM, 0);
             MultiFab::Copy(velocity_prime, velocity, 0, 0, AMREX_SPACEDIM, 0);
             MultiFab::Subtract(velocity_prime, velocity_filter, 0, 0, AMREX_SPACEDIM, 0);
-            SpectralVelProductDecomp(velocity_prime, vv_filter, kmin, kmax, geom);
+            SpectralVelProductDecomp(velocity_prime, vv_filter, kmin, kmax,
+                                     filter_options, geom);
         } else {
-            SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax, geom);
+            SpectralVelProductDecomp(velocity, vv_filter, kmin, kmax,
+                                     filter_options, geom);
         }
         vv_filter.FillBoundary(geom.periodicity());
     
@@ -174,11 +201,12 @@ void main_driver(const char* argv)
     
         if (plot_filter != 0) {
             SpectralWritePlotFile(
-                step, kmin, kmax, geom, velocity, velocity_filter,
+                step, kmin, kmax, filter_options, geom, velocity, velocity_filter,
                 previous_velocity_filter, vv_filter, use_prime_tau);
         }
         if (plot_fourier != 0) {
-            SpectralWriteFourierPlotFile(step, kmin, kmax, geom, velocity_filter, vv_filter);
+            SpectralWriteFourierPlotFile(step, kmin, kmax, filter_options, geom,
+                                         velocity_filter, vv_filter);
         }
     }
 

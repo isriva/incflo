@@ -36,22 +36,56 @@ void ReadProbLine(std::istream& is, amrex::Real* prob, const char* name)
     }
 }
 
-std::string FilterPlotFileName(int step, amrex::Real kmin, amrex::Real kmax)
+std::string FilterTypeName(SpectralFilterType filter_type)
+{
+    return filter_type == SpectralFilterType::Sharp ? "sharp" : "sinc_sq";
+}
+
+std::string FilterSuffix(const SpectralFilterOptions& filter_options)
+{
+    return "_" + FilterTypeName(filter_options.filter_type) + "_zero_outside_" +
+           (filter_options.zero_outside_range ? "1" : "0");
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+amrex::Real SpectralFilterMultiplier(amrex::Real ksq,
+                                     amrex::Real kmin,
+                                     amrex::Real kmax,
+                                     SpectralFilterOptions filter_options) noexcept
+{
+    amrex::Real const kr = std::sqrt(ksq);
+    if (filter_options.zero_outside_range && (kr < kmin || kr > kmax)) {
+        return amrex::Real(0.0);
+    }
+    if (filter_options.filter_type == SpectralFilterType::SincSq && kr != amrex::Real(0.0)) {
+        constexpr amrex::Real pi = amrex::Real(3.14159265358979323846);
+        amrex::Real const x = pi * kr / kmax;
+        amrex::Real const sinc = std::sin(x) / x;
+        return sinc * sinc;
+    }
+    return amrex::Real(1.0);
+}
+
+std::string FilterPlotFileName(int step, amrex::Real kmin, amrex::Real kmax,
+                               const SpectralFilterOptions& filter_options)
 {
     std::ostringstream os;
-    os << "filtered_" << step << "_" << std::setprecision(12) << kmin << "_" << kmax;
+    os << "filtered_" << step << "_" << std::setprecision(12) << kmin << "_" << kmax
+       << FilterSuffix(filter_options);
     return os.str();
 }
 
-std::string Delta_nu_FileName(int step)
+std::string Delta_nu_FileName(int step, const SpectralFilterOptions& filter_options)
 {
-    return amrex::Concatenate("Delta_nu_", step, 7) + ".txt";
+    return amrex::Concatenate("Delta_nu_", step, 7) + FilterSuffix(filter_options) + ".txt";
 }
 
-std::string FourierPlotFileName(int step, amrex::Real kmin, amrex::Real kmax)
+std::string FourierPlotFileName(int step, amrex::Real kmin, amrex::Real kmax,
+                                const SpectralFilterOptions& filter_options)
 {
     std::ostringstream os;
-    os << "filtered_fourier_" << step << "_" << std::setprecision(12) << kmin << "_" << kmax;
+    os << "filtered_fourier_" << step << "_" << std::setprecision(12) << kmin << "_" << kmax
+       << FilterSuffix(filter_options);
     return os.str();
 }
 
@@ -349,6 +383,7 @@ void SpectralVelDecomp(const amrex::MultiFab& velocity,
                        amrex::MultiFab& velocity_filter,
                        amrex::Real kmin,
                        amrex::Real kmax,
+                       const SpectralFilterOptions& filter_options,
                        const amrex::Geometry& geom)
 {
     BL_PROFILE_VAR("SpectralVelDecomp()", SpectralVelDecomp);
@@ -372,9 +407,6 @@ void SpectralVelDecomp(const amrex::MultiFab& velocity,
 #else
     int const nz = 1;
 #endif
-
-    amrex::Real const kmin2 = kmin * kmin;
-    amrex::Real const kmax2 = kmax * kmax;
 
     amrex::FFT::R2C<> fft(domain);
     amrex::Real const scale = fft.scalingFactor();
@@ -400,11 +432,7 @@ void SpectralVelDecomp(const amrex::MultiFab& velocity,
                 int const kk = 0;
 #endif
                 amrex::Real const ksq = amrex::Real(ik*ik + jk*jk + kk*kk);
-                if (ksq < kmin2 || ksq > kmax2) {
-                    sp = amrex::GpuComplex<amrex::Real>(0.0, 0.0);
-                } else {
-                    sp *= scale;
-                }
+                sp *= scale * SpectralFilterMultiplier(ksq, kmin, kmax, filter_options);
             });
 
         amrex::MultiFab::Copy(velocity_filter, filtered_single, 0, comp, 1, 0);
@@ -421,6 +449,7 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
                               amrex::MultiFab& vv_filter,
                               amrex::Real kmin,
                               amrex::Real kmax,
+                              const SpectralFilterOptions& filter_options,
                               const amrex::Geometry& geom)
 {
     BL_PROFILE_VAR("SpectralVelProductDecomp()", SpectralVelProductDecomp);
@@ -481,8 +510,6 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
 
     amrex::Real const original_scale = original_fft.scalingFactor();
     amrex::Real const padded_scale = padded_fft.scalingFactor();
-    amrex::Real const kmin2 = kmin * kmin;
-    amrex::Real const kmax2 = kmax * kmax;
 
     // Dealias the velocity by padding its spectrum, then transform back to the
     // padded real-space grid.
@@ -550,9 +577,8 @@ void SpectralVelProductDecomp(const amrex::MultiFab& velocity,
                 int const kk = 0;
 #endif
                 amrex::Real const ksq = amrex::Real(ik*ik + jk*jk + kk*kk);
-                if (ksq < kmin2 || ksq > kmax2) {
-                    spectrum(i,j,k) = amrex::GpuComplex<amrex::Real>(0.0, 0.0);
-                }
+                spectrum(i,j,k) *= SpectralFilterMultiplier(
+                    ksq, kmin, kmax, filter_options);
             });
         }
 
@@ -577,7 +603,8 @@ void ProcessDeltaEtaSpectrum(int step,
                              const amrex::MultiFab& output, 
                              const amrex::Geometry& geom, 
                              amrex::Real kmin, 
-                             amrex::Real kmax)
+                             amrex::Real kmax,
+                             const SpectralFilterOptions& filter_options)
 {
     BL_PROFILE("ProcessDeltaEtaSpectrum()");
 
@@ -610,7 +637,8 @@ void ProcessDeltaEtaSpectrum(int step,
 
     // Format the base file name to include kmin and kmax
     std::ostringstream os;
-    os << "Delta_eta_spectrum_" << kmin << "_" << kmax << "_";
+    os << "Delta_eta_spectrum_" << kmin << "_" << kmax
+       << FilterSuffix(filter_options) << "_";
     
     // Integrate over shells and write the text file using the custom prefix
     delta_eta_struct_fact.integrateTensorShells(step, os.str());
@@ -623,6 +651,7 @@ void ProcessDeltaEtaSpectrum(int step,
 void SpectralWritePlotFile(int step,
                            amrex::Real kmin,
                            amrex::Real kmax,
+                           const SpectralFilterOptions& filter_options,
                            const amrex::Geometry& geom,
                            const amrex::MultiFab& velocity,
                            const amrex::MultiFab& velocity_filter,
@@ -899,7 +928,7 @@ void SpectralWritePlotFile(int step,
     amrex::MultiFab::Saxpy(output, amrex::Real(2.0) * delta_nu, output, 9, 12, 3, 0);
 
     if (amrex::ParallelDescriptor::IOProcessor()) {
-        std::string const dNufilename = Delta_nu_FileName(step);
+        std::string const dNufilename = Delta_nu_FileName(step, filter_options);
 
         static std::set<std::string> opened;   // truncate once per run, then append
         bool const first = opened.insert(dNufilename).second;
@@ -924,7 +953,7 @@ void SpectralWritePlotFile(int step,
         "tau_dev_11", "tau_dev_22", "tau_dev_12",
         "tau_11", "tau_22", "tau_12"};
 
-    ProcessDeltaEtaSpectrum(step, output, geom, kmin, kmax);
+    ProcessDeltaEtaSpectrum(step, output, geom, kmin, kmax, filter_options);
 #else
     amrex::Vector<std::string> varNames{
         "velx", "vely", "velz",
@@ -935,7 +964,7 @@ void SpectralWritePlotFile(int step,
         "S11", "S22", "S33", "S12", "S13", "S23"};
 #endif
 
-    std::string const plotfilename = FilterPlotFileName(step, kmin, kmax);
+    std::string const plotfilename = FilterPlotFileName(step, kmin, kmax, filter_options);
     amrex::Print() << "Writing filtered velocity plotfile " << plotfilename << "\n";
     amrex::WriteSingleLevelPlotfile(plotfilename, output, varNames, geom, 0.0, step);
 
@@ -946,6 +975,7 @@ void SpectralWritePlotFile(int step,
 void SpectralWriteFourierPlotFile(int step,
                                   amrex::Real kmin,
                                   amrex::Real kmax,
+                                  const SpectralFilterOptions& filter_options,
                                   const amrex::Geometry& geom,
                                   const amrex::MultiFab& velocity_filter,
                                   const amrex::MultiFab& vv_filter)
@@ -1007,7 +1037,7 @@ void SpectralWriteFourierPlotFile(int step,
         varNames[n+nfields] = baseNames[n] + "_imag";
     }
 
-    std::string const plotfilename = FourierPlotFileName(step, kmin, kmax);
+    std::string const plotfilename = FourierPlotFileName(step, kmin, kmax, filter_options);
     amrex::Print() << "Writing filtered Fourier plotfile " << plotfilename << "\n";
     amrex::WriteSingleLevelPlotfile(plotfilename, output, varNames, geom, 0.0, step);
 }

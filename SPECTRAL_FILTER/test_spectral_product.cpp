@@ -36,7 +36,9 @@ int main(int argc, char* argv[])
         amrex::MultiFab vv_filter(ba, dmap, 3, 0);
         // 2*mode=20 is above the retained cutoff and aliases to 12 without
         // dealiasing. The correct filtered result is sin(mode*x)^2 -> 1/2.
-        SpectralVelProductDecomp(velocity, vv_filter, 0.0, 15.0, geom);
+        SpectralFilterOptions const filter_options;
+        SpectralVelProductDecomp(velocity, vv_filter, 0.0, 15.0,
+                                 filter_options, geom);
 
         amrex::Real max_error = amrex::ReduceMax(
             vv_filter, 0,
