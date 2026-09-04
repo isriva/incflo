@@ -52,13 +52,13 @@ public:
     [[nodiscard]] int nCovariances() const noexcept { return m_ncov; }
     [[nodiscard]] amrex::Vector<std::string> const& names() const noexcept { return m_cov_names; }
 
-private:
     void computeFFT(amrex::MultiFab const& variables,
                     amrex::MultiFab& variables_dft_real,
                     amrex::MultiFab& variables_dft_imag,
                     bool unpack = true) const;
     void shiftFFT(amrex::MultiFab& dft_out, int zero_mode = 1) const;
 
+private:
     int m_nvar = 1;
     int m_nvar_unique = 1;
     int m_ncov = 1;
