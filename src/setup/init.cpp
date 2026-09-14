@@ -99,6 +99,7 @@ void incflo::ReadParameters ()
         pp.query("turb_spectrum_int"               , m_turb_spectrum_int);
         pp.query("turb_spectrum_file"              , m_turb_spectrum_file);
         pp.query("struct_fact_zero_mode"           , m_struct_fact_zero_mode);
+        pp.query("struct_fact_velocity_lt"         , m_struct_fact_velocity_lt);
         pp.query("struct_fact_verbosity"           , m_struct_fact_verbosity);
         pp.query("struct_fact_cell_depth"          , m_struct_fact_cell_depth);
 
@@ -255,6 +256,14 @@ void incflo::ReadParameters ()
     if (m_struct_fact_zero_mode != 0 && m_struct_fact_zero_mode != 1) {
         amrex::Abort("incflo.struct_fact_zero_mode must be 0 or 1");
     }
+    if (m_struct_fact_velocity_lt != 0 && m_struct_fact_velocity_lt != 1) {
+        amrex::Abort("incflo.struct_fact_velocity_lt must be 0 or 1");
+    }
+#if (AMREX_SPACEDIM == 3)
+    if (m_struct_fact_velocity_lt != 0) {
+        amrex::Abort("incflo.struct_fact_velocity_lt is supported only in 2D");
+    }
+#endif
 
     ReadIOParameters();
     ReadRheologyParameters();

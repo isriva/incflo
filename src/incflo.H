@@ -642,6 +642,7 @@ private:
     int m_turb_spectrum_int = -1;
     std::string m_turb_spectrum_file{"turb_vel"};
     int m_struct_fact_zero_mode = 1;
+    int m_struct_fact_velocity_lt = 0;
     int m_struct_fact_verbosity = 0;
     amrex::Real m_struct_fact_cell_depth = -1.0;
     int m_last_struct_fact_sample = -1;

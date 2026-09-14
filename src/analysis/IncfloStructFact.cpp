@@ -49,7 +49,8 @@ IncfloStructFact::define(BoxArray const& ba,
                          Geometry const& geom,
                          Vector<std::string> const& var_names,
                          Vector<Real> const& var_scaling,
-                         int verbosity)
+                         int verbosity,
+                         bool velocity_lt)
 {
     int const nvar = static_cast<int>(var_names.size());
     Vector<int> pair_a(nvar * (nvar + 1) / 2);
@@ -64,7 +65,8 @@ IncfloStructFact::define(BoxArray const& ba,
         }
     }
 
-    define(ba, dm, geom, var_names, var_scaling, pair_a, pair_b, verbosity);
+    define(ba, dm, geom, var_names, var_scaling, pair_a, pair_b, verbosity,
+           velocity_lt);
 }
 
 void
@@ -75,20 +77,29 @@ IncfloStructFact::define(BoxArray const& ba,
                          Vector<Real> const& var_scaling,
                          Vector<int> const& pair_a,
                          Vector<int> const& pair_b,
-                         int verbosity)
+                         int verbosity,
+                         bool velocity_lt)
 {
     BL_PROFILE("IncfloStructFact::define()");
 
     m_verbosity = verbosity;
+    m_velocity_lt = velocity_lt;
+
+#if (AMREX_SPACEDIM == 3)
+    if (m_velocity_lt) {
+        Abort("IncfloStructFact::define: velocity L/T structure factors are supported only in 2D");
+    }
+#endif
 
     if (pair_a.size() != pair_b.size()) {
         Abort("IncfloStructFact::define: pair vectors must have the same length");
     }
 
     m_nvar = static_cast<int>(var_names.size());
-    m_ncov = static_cast<int>(pair_a.size());
+    m_ncov_base = static_cast<int>(pair_a.size());
+    m_ncov = m_ncov_base + (m_velocity_lt ? 2 : 0);
 
-    if (m_ncov != static_cast<int>(var_scaling.size())) {
+    if (m_ncov_base != static_cast<int>(var_scaling.size())) {
         Abort("IncfloStructFact::define: covariance count does not match scaling count");
     }
 
@@ -96,7 +107,7 @@ IncfloStructFact::define(BoxArray const& ba,
     m_pair_a.resize(m_ncov);
     m_pair_b.resize(m_ncov);
 
-    for (int n = 0; n < m_ncov; ++n) {
+    for (int n = 0; n < m_ncov_base; ++n) {
         if (var_scaling[n] == Real(0.0)) {
             Abort("IncfloStructFact::define: zero covariance scaling");
         }
@@ -107,6 +118,18 @@ IncfloStructFact::define(BoxArray const& ba,
             m_pair_b[n] < 0 || m_pair_b[n] >= m_nvar) {
             Abort("IncfloStructFact::define: covariance pair index is out of range");
         }
+    }
+
+    if (m_velocity_lt) {
+        if (m_nvar != 2 || m_ncov_base != 3) {
+            Abort("IncfloStructFact::define: velocity L/T structure factors require the 2D velocity tensor");
+        }
+        m_scaling[m_ncov_base] = m_scaling[0];
+        m_scaling[m_ncov_base + 1] = m_scaling[0];
+        m_pair_a[m_ncov_base] = 0;
+        m_pair_b[m_ncov_base] = 0;
+        m_pair_a[m_ncov_base + 1] = 1;
+        m_pair_b[m_ncov_base + 1] = 1;
     }
 
     Vector<int> var_unique_temp;
@@ -136,13 +159,18 @@ IncfloStructFact::define(BoxArray const& ba,
     reset();
 
     m_cov_names.resize(m_ncov);
-    for (int n = 0; n < m_ncov; ++n) {
+    for (int n = 0; n < m_ncov_base; ++n) {
         m_cov_names[n] = "struct_fact_" + var_names[m_pair_b[n]] + "_" +
                          var_names[m_pair_a[n]];
+    }
+    if (m_velocity_lt) {
+        m_cov_names[m_ncov_base] = "struct_fact_velL_velL";
+        m_cov_names[m_ncov_base + 1] = "struct_fact_velT_velT";
     }
 
     Box const domain = geom.Domain();
     m_ncell = domain.size();
+    m_prob_length = geom.ProbLengthArray();
 
     Vector<Real> kspace_lo(AMREX_SPACEDIM);
     Vector<Real> kspace_hi(AMREX_SPACEDIM);
@@ -180,7 +208,7 @@ IncfloStructFact::sample(MultiFab const& variables, int reset_sample)
     MultiFab cov_temp(ba, dm, 1, 0);
     MultiFab cov_temp2(m_cov_real.boxArray(), m_cov_real.DistributionMap(), 1, 0);
 
-    for (int n = 0; n < m_ncov; ++n) {
+    for (int n = 0; n < m_ncov_base; ++n) {
         int const i = m_pair_a[n];
         int const j = m_pair_b[n];
 
@@ -205,6 +233,56 @@ IncfloStructFact::sample(MultiFab const& variables, int reset_sample)
             MultiFab::Copy(m_cov_imag, cov_temp2, 0, n, 1, 0);
         } else {
             MultiFab::Add(m_cov_imag, cov_temp2, 0, n, 1, 0);
+        }
+    }
+
+    if (m_velocity_lt) {
+        MultiFab velocity_lt_real(ba, dm, 2, 0);
+        MultiFab velocity_lt_imag(ba, dm, 2, 0);
+        int const nx = m_ncell[0];
+        int const ny = m_ncell[1];
+        Real const lx = m_prob_length[0];
+        Real const ly = m_prob_length[1];
+
+        for (MFIter mfi(velocity_lt_real, TilingIfNotGPU()); mfi.isValid(); ++mfi) {
+            Box const& bx = mfi.tilebox();
+            Array4<Real const> const dft_real = variables_dft_real.const_array(mfi);
+            Array4<Real const> const dft_imag = variables_dft_imag.const_array(mfi);
+            Array4<Real> const lt_real = velocity_lt_real.array(mfi);
+            Array4<Real> const lt_imag = velocity_lt_imag.array(mfi);
+
+            ParallelFor(bx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+            {
+                int const ni = (i <= nx / 2) ? i : i - nx;
+                int const nj = (j <= ny / 2) ? j : j - ny;
+                Real const kx = Real(2.0) * std::acos(Real(-1.0)) * Real(ni) / lx;
+                Real const ky = Real(2.0) * std::acos(Real(-1.0)) * Real(nj) / ly;
+                Real const kmag = std::sqrt(kx*kx + ky*ky);
+                if (kmag == Real(0.0)) {
+                    lt_real(i,j,k,0) = lt_real(i,j,k,1) = Real(0.0);
+                    lt_imag(i,j,k,0) = lt_imag(i,j,k,1) = Real(0.0);
+                } else {
+                    Real const khatx = kx / kmag;
+                    Real const khaty = ky / kmag;
+                    lt_real(i,j,k,0) = khatx * dft_real(i,j,k,0) + khaty * dft_real(i,j,k,1);
+                    lt_imag(i,j,k,0) = khatx * dft_imag(i,j,k,0) + khaty * dft_imag(i,j,k,1);
+                    lt_real(i,j,k,1) = -khaty * dft_real(i,j,k,0) + khatx * dft_real(i,j,k,1);
+                    lt_imag(i,j,k,1) = -khaty * dft_imag(i,j,k,0) + khatx * dft_imag(i,j,k,1);
+                }
+            });
+        }
+
+        for (int n = 0; n < 2; ++n) {
+            cov_temp.setVal(0.0);
+            MultiFab::AddProduct(cov_temp, velocity_lt_real, n, velocity_lt_real, n, 0, 1, 0);
+            MultiFab::AddProduct(cov_temp, velocity_lt_imag, n, velocity_lt_imag, n, 0, 1, 0);
+            cov_temp2.ParallelCopy(cov_temp, 0, 0, 1);
+            if (reset_sample == 1) {
+                MultiFab::Copy(m_cov_real, cov_temp2, 0, m_ncov_base + n, 1, 0);
+                m_cov_imag.setVal(0.0, m_ncov_base + n, 1, 0);
+            } else {
+                MultiFab::Add(m_cov_real, cov_temp2, 0, m_ncov_base + n, 1, 0);
+            }
         }
     }
 
@@ -727,7 +805,7 @@ IncfloStructFact::writeCheckpoint(std::string const& checkpoint_dir) const
 
         header.precision(17);
         header << "incflo structure factor checkpoint\n";
-        header << 2 << "\n";
+        header << 3 << "\n";
         header << m_nvar << "\n";
         header << m_nvar_unique << "\n";
         header << m_ncov << "\n";
@@ -736,6 +814,7 @@ IncfloStructFact::writeCheckpoint(std::string const& checkpoint_dir) const
             header << m_ncell[d] << " ";
         }
         header << "\n";
+        header << m_velocity_lt << "\n";
         for (int n = 0; n < m_ncov; ++n) {
             header << m_cov_names[n] << "\n";
         }
@@ -761,6 +840,7 @@ IncfloStructFact::readCheckpoint(std::string const& checkpoint_dir)
     int nvar_unique = 0;
     int ncov = 0;
     int nsamples = 0;
+    bool velocity_lt = false;
     IntVect ncell{AMREX_D_DECL(1, 1, 1)};
     Vector<std::string> cov_names;
     Vector<int> pair_a;
@@ -784,6 +864,10 @@ IncfloStructFact::readCheckpoint(std::string const& checkpoint_dir)
             is >> ncell[d];
         }
         goto_next_line(is);
+        if (version >= 3) {
+            is >> velocity_lt;
+            goto_next_line(is);
+        }
 
         cov_names.resize(ncov);
         pair_a.resize(ncov);
@@ -799,7 +883,7 @@ IncfloStructFact::readCheckpoint(std::string const& checkpoint_dir)
         }
     }
 
-    if (version != 2 || nvar != m_nvar || nvar_unique != m_nvar_unique ||
+    if ((version != 2 && version != 3) || nvar != m_nvar || nvar_unique != m_nvar_unique ||
         ncov != m_ncov) {
         Abort("IncfloStructFact::readCheckpoint: checkpoint metadata does not match current analysis configuration");
     }
@@ -807,6 +891,9 @@ IncfloStructFact::readCheckpoint(std::string const& checkpoint_dir)
         if (ncell[d] != m_ncell[d]) {
             Abort("IncfloStructFact::readCheckpoint: checkpoint domain does not match current analysis configuration");
         }
+    }
+    if (velocity_lt != m_velocity_lt) {
+        Abort("IncfloStructFact::readCheckpoint: velocity L/T setting does not match current analysis configuration");
     }
     for (int n = 0; n < m_ncov; ++n) {
         Real const scale_tol = Real(64.0) * std::numeric_limits<Real>::epsilon() *

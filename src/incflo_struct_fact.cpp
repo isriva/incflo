@@ -41,7 +41,7 @@ velocity_cell_volume(Geometry const& geom, Real cell_depth)
 
 #ifdef INCFLO_USE_FFT
 bool
-struct_fact_checkpoint_exists(std::string const& checkpoint_dir)
+struct_fact_checkpoint_exists(std::string const& checkpoint_dir, bool velocity_lt)
 {
     std::ifstream header(checkpoint_dir + "/Header");
     if (!header.good()) {
@@ -54,8 +54,25 @@ struct_fact_checkpoint_exists(std::string const& checkpoint_dir)
         MultiFabFileFullPrefix(0, checkpoint_dir, "Level_", "cov_imag");
     std::string const cov_mag =
         MultiFabFileFullPrefix(0, checkpoint_dir, "Level_", "cov_mag");
-    return VisMF::Exist(cov_real) && VisMF::Exist(cov_imag) &&
-           VisMF::Exist(cov_mag);
+    if (!VisMF::Exist(cov_real) || !VisMF::Exist(cov_imag) || !VisMF::Exist(cov_mag)) {
+        return false;
+    }
+
+    std::string title;
+    int version = 0;
+    std::getline(header, title);
+    header >> version;
+    if (version < 3) {
+        return !velocity_lt;
+    }
+
+    std::getline(header, title);
+    for (int n = 0; n < 5; ++n) {
+        std::getline(header, title);
+    }
+    bool checkpoint_velocity_lt = false;
+    header >> checkpoint_velocity_lt;
+    return checkpoint_velocity_lt == velocity_lt;
 }
 #endif
 
@@ -146,11 +163,13 @@ incflo::InitStructFact (bool restarted)
         m_struct_fact->define(m_leveldata[0]->velocity.boxArray(),
                               m_leveldata[0]->velocity.DistributionMap(),
                               Geom(0), var_names, scaling,
-                              m_struct_fact_verbosity);
+                              m_struct_fact_verbosity,
+                              m_struct_fact_velocity_lt != 0);
 
         if (restarted) {
             std::string const checkpoint_dir = m_restart_file + "/StructFact";
-            if (struct_fact_checkpoint_exists(checkpoint_dir)) {
+            if (struct_fact_checkpoint_exists(checkpoint_dir,
+                                              m_struct_fact_velocity_lt != 0)) {
                 m_struct_fact->readCheckpoint(checkpoint_dir);
                 m_struct_fact_needs_write = m_struct_fact->samples() > 0;
             } else {

@@ -4,6 +4,7 @@
 #include <AMReX_BoxArray.H>
 #include <AMReX_DistributionMapping.H>
 #include <AMReX_Geometry.H>
+#include <AMReX_GpuContainers.H>
 #include <AMReX_MultiFab.H>
 #include <AMReX_REAL.H>
 #include <AMReX_Vector.H>
@@ -20,7 +21,8 @@ public:
                 amrex::Geometry const& geom,
                 amrex::Vector<std::string> const& var_names,
                 amrex::Vector<amrex::Real> const& var_scaling,
-                int verbosity = 0);
+                int verbosity = 0,
+                bool velocity_lt = false);
 
     void define(amrex::BoxArray const& ba,
                 amrex::DistributionMapping const& dm,
@@ -29,7 +31,8 @@ public:
                 amrex::Vector<amrex::Real> const& var_scaling,
                 amrex::Vector<int> const& pair_a,
                 amrex::Vector<int> const& pair_b,
-                int verbosity = 0);
+                int verbosity = 0,
+                bool velocity_lt = false);
 
     void sample(amrex::MultiFab const& variables, int reset = 0);
     void reset();
@@ -61,6 +64,7 @@ public:
 private:
     int m_nvar = 1;
     int m_nvar_unique = 1;
+    int m_ncov_base = 1;
     int m_ncov = 1;
     int m_verbosity = 0;
     int m_nsamples = 0;
@@ -73,6 +77,8 @@ private:
 
     amrex::Geometry m_kspace_geom;
     amrex::IntVect m_ncell{AMREX_D_DECL(1, 1, 1)};
+    amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> m_prob_length;
+    bool m_velocity_lt = false;
 
     amrex::MultiFab m_cov_real;
     amrex::MultiFab m_cov_imag;
