@@ -170,7 +170,9 @@ IncfloStructFact::define(BoxArray const& ba,
 
     Box const domain = geom.Domain();
     m_ncell = domain.size();
-    m_prob_length = geom.ProbLengthArray();
+    for (int d = 0; d < AMREX_SPACEDIM; ++d) {
+        m_prob_length[d] = geom.ProbHi(d) - geom.ProbLo(d);
+    }
 
     Vector<Real> kspace_lo(AMREX_SPACEDIM);
     Vector<Real> kspace_hi(AMREX_SPACEDIM);
