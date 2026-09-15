@@ -657,7 +657,10 @@ void SpectralWritePlotFile(int step,
                            const amrex::MultiFab& velocity_filter,
                            const amrex::MultiFab& previous_velocity_filter,
                            const amrex::MultiFab& vv_filter,
-                           bool use_prime_tau)
+                           bool use_prime_tau,
+                           const KolmogorovStrainOptions& kolmogorov_strain_options,
+                           amrex::Real time,
+                           amrex::Real previous_time)
 {
     BL_PROFILE_VAR("SpectralWritePlotFile()", SpectralWritePlotFile);
 
@@ -705,6 +708,10 @@ void SpectralWritePlotFile(int step,
     amrex::Real const idy = geom.InvCellSize(1);
 #if (AMREX_SPACEDIM == 3)
     amrex::Real const idz = geom.InvCellSize(2);
+#else
+    amrex::Real const prob_lo_y = geom.ProbLo(1);
+    amrex::Real const dy = geom.CellSize(1);
+    int const domain_small_end_y = geom.Domain().smallEnd(1);
 #endif
 
     for (amrex::MFIter mfi(output, amrex::TilingIfNotGPU()); mfi.isValid(); ++mfi) {
@@ -757,17 +764,35 @@ void SpectralWritePlotFile(int step,
             amrex::Real const S_22_temp = vy_f;
             amrex::Real const S_trace_half = amrex::Real(0.5) * (S_11_temp + S_22_temp);
             // Enforce that S should be deviatoric
-            amrex::Real const S_11 = S_11_temp - S_trace_half;
-            amrex::Real const S_22 = S_22_temp - S_trace_half;
+            amrex::Real S_11 = S_11_temp - S_trace_half;
+            amrex::Real S_22 = S_22_temp - S_trace_half;
 
             // amrex::Real const S_12 = amrex::Real(0.5) * (uy + vx);
-            amrex::Real const S_12 = amrex::Real(0.5) * (uy_f + vx_f);
+            amrex::Real S_12 = amrex::Real(0.5) * (uy_f + vx_f);
             amrex::Real const previous_S_trace_half = amrex::Real(0.5) *
                 (previous_ux_f + previous_vy_f);
-            amrex::Real const previous_S_11 = previous_ux_f - previous_S_trace_half;
-            amrex::Real const previous_S_22 = previous_vy_f - previous_S_trace_half;
-            amrex::Real const previous_S_12 = amrex::Real(0.5) *
+            amrex::Real previous_S_11 = previous_ux_f - previous_S_trace_half;
+            amrex::Real previous_S_22 = previous_vy_f - previous_S_trace_half;
+            amrex::Real previous_S_12 = amrex::Real(0.5) *
                 (previous_uy_f + previous_vx_f);
+
+            if (kolmogorov_strain_options.enabled) {
+                amrex::Real const y = prob_lo_y +
+                    (amrex::Real(j - domain_small_end_y) + amrex::Real(0.5)) * dy;
+                amrex::Real const strain_scale = amrex::Real(0.5) *
+                    kolmogorov_strain_options.k * kolmogorov_strain_options.u0;
+                amrex::Real const decay_rate = kolmogorov_strain_options.nu *
+                    kolmogorov_strain_options.k * kolmogorov_strain_options.k;
+                amrex::Real const y_factor = std::cos(kolmogorov_strain_options.k * y);
+                S_11 = amrex::Real(0.0);
+                S_22 = amrex::Real(0.0);
+                S_12 = strain_scale * (amrex::Real(1.0) - std::exp(-decay_rate * time)) *
+                    y_factor;
+                previous_S_11 = amrex::Real(0.0);
+                previous_S_22 = amrex::Real(0.0);
+                previous_S_12 = strain_scale *
+                    (amrex::Real(1.0) - std::exp(-decay_rate * previous_time)) * y_factor;
+            }
             out(i,j,k,9)  = S_11;                               // S_11
             out(i,j,k,10) = S_22;                               // S_22
             

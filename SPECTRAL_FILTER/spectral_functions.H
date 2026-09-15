@@ -17,6 +17,13 @@ struct SpectralFilterOptions {
     bool zero_outside_range = true;
 };
 
+struct KolmogorovStrainOptions {
+    bool enabled = false;
+    amrex::Real u0 = 0.0;
+    amrex::Real k = 0.0;
+    amrex::Real nu = 0.0;
+};
+
 void SpectralReadCheckPoint(const std::string& restart_file,
                             const amrex::Vector<int>& is_periodic,
                             amrex::Geometry& geom,
@@ -56,7 +63,10 @@ void SpectralWritePlotFile(int step,
                            const amrex::MultiFab& velocity_filter,
                            const amrex::MultiFab& previous_velocity_filter,
                            const amrex::MultiFab& vv_filter,
-                           bool use_prime_tau);
+                           bool use_prime_tau,
+                           const KolmogorovStrainOptions& kolmogorov_strain_options,
+                           amrex::Real time,
+                           amrex::Real previous_time);
 
 void SpectralWriteFourierPlotFile(int step,
                                   amrex::Real kmin,

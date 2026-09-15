@@ -121,6 +121,32 @@ void main_driver(const char* argv)
         "use_prime_tau must be either 0 or 1");
     bool const use_prime_tau = (use_prime_tau_int == 1);
 
+    int kolmogorov_strain_int = 0;
+    pp.query("kolmogorov_strain", kolmogorov_strain_int);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        kolmogorov_strain_int == 0 || kolmogorov_strain_int == 1,
+        "kolmogorov_strain must be either 0 or 1");
+
+    KolmogorovStrainOptions kolmogorov_strain_options;
+    kolmogorov_strain_options.enabled = (kolmogorov_strain_int == 1);
+    if (kolmogorov_strain_options.enabled) {
+#if (AMREX_SPACEDIM == 3)
+        Abort("kolmogorov_strain is supported only in 2D");
+#else
+        if (!pp.query("kolmogorov_u0", kolmogorov_strain_options.u0) ||
+            !pp.query("kolmogorov_k", kolmogorov_strain_options.k) ||
+            !pp.query("kolmogorov_nu", kolmogorov_strain_options.nu)) {
+            Abort("kolmogorov_strain=1 requires kolmogorov_u0, kolmogorov_k, and kolmogorov_nu");
+        }
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            kolmogorov_strain_options.k > 0.0,
+            "kolmogorov_k must be positive");
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            kolmogorov_strain_options.nu >= 0.0,
+            "kolmogorov_nu must be non-negative");
+#endif
+    }
+
     Vector<int> is_periodic(AMREX_SPACEDIM, 1);
     int const nper = pp.countval("is_periodic");
     if (nper > 0) {
@@ -152,7 +178,6 @@ void main_driver(const char* argv)
         previous_step == step - 1,
         "Previous checkpoint Header step must equal the current Header step minus one");
     AssertMatchingCheckpointGeometry(geom, ba, previous_geom, previous_ba);
-    amrex::ignore_unused(previous_time);
 
     MultiFab velocity_filter(ba, dmap, 3, 0);
     MultiFab previous_velocity_filter(previous_ba, previous_dmap, 3, 0);
@@ -202,7 +227,8 @@ void main_driver(const char* argv)
         if (plot_filter != 0) {
             SpectralWritePlotFile(
                 step, kmin, kmax, filter_options, geom, velocity, velocity_filter,
-                previous_velocity_filter, vv_filter, use_prime_tau);
+                previous_velocity_filter, vv_filter, use_prime_tau,
+                kolmogorov_strain_options, time, previous_time);
         }
         if (plot_fourier != 0) {
             SpectralWriteFourierPlotFile(step, kmin, kmax, filter_options, geom,
