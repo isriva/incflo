@@ -659,6 +659,7 @@ void SpectralWritePlotFile(int step,
                            const amrex::MultiFab& vv_filter,
                            bool use_prime_tau,
                            const KolmogorovStrainOptions& kolmogorov_strain_options,
+                           bool write_filter_plotfile,
                            amrex::Real time,
                            amrex::Real previous_time)
 {
@@ -978,7 +979,9 @@ void SpectralWritePlotFile(int step,
         "tau_dev_11", "tau_dev_22", "tau_dev_12",
         "tau_11", "tau_22", "tau_12"};
 
-    ProcessDeltaEtaSpectrum(step, output, geom, kmin, kmax, filter_options);
+    if (write_filter_plotfile) {
+        ProcessDeltaEtaSpectrum(step, output, geom, kmin, kmax, filter_options);
+    }
 #else
     amrex::Vector<std::string> varNames{
         "velx", "vely", "velz",
@@ -989,9 +992,11 @@ void SpectralWritePlotFile(int step,
         "S11", "S22", "S33", "S12", "S13", "S23"};
 #endif
 
-    std::string const plotfilename = FilterPlotFileName(step, kmin, kmax, filter_options);
-    amrex::Print() << "Writing filtered velocity plotfile " << plotfilename << "\n";
-    amrex::WriteSingleLevelPlotfile(plotfilename, output, varNames, geom, 0.0, step);
+    if (write_filter_plotfile) {
+        std::string const plotfilename = FilterPlotFileName(step, kmin, kmax, filter_options);
+        amrex::Print() << "Writing filtered velocity plotfile " << plotfilename << "\n";
+        amrex::WriteSingleLevelPlotfile(plotfilename, output, varNames, geom, 0.0, step);
+    }
 
     
 }

@@ -65,6 +65,7 @@ void SpectralWritePlotFile(int step,
                            const amrex::MultiFab& vv_filter,
                            bool use_prime_tau,
                            const KolmogorovStrainOptions& kolmogorov_strain_options,
+                           bool write_filter_plotfile,
                            amrex::Real time,
                            amrex::Real previous_time);
 

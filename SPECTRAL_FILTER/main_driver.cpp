@@ -111,6 +111,13 @@ void main_driver(const char* argv)
     int plot_filter = 0;
     pp.query("plot_filter", plot_filter);
 
+    int write_filter_plotfile_int = 1;
+    pp.query("write_filter_plotfile", write_filter_plotfile_int);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        write_filter_plotfile_int == 0 || write_filter_plotfile_int == 1,
+        "write_filter_plotfile must be either 0 or 1");
+    bool const write_filter_plotfile = (write_filter_plotfile_int == 1);
+
     int plot_fourier = 0;
     pp.query("plot_fourier", plot_fourier);
 
@@ -228,7 +235,7 @@ void main_driver(const char* argv)
             SpectralWritePlotFile(
                 step, kmin, kmax, filter_options, geom, velocity, velocity_filter,
                 previous_velocity_filter, vv_filter, use_prime_tau,
-                kolmogorov_strain_options, time, previous_time);
+                kolmogorov_strain_options, write_filter_plotfile, time, previous_time);
         }
         if (plot_fourier != 0) {
             SpectralWriteFourierPlotFile(step, kmin, kmax, filter_options, geom,
