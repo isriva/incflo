@@ -75,9 +75,11 @@ std::string FilterPlotFileName(int step, amrex::Real kmin, amrex::Real kmax,
     return os.str();
 }
 
-std::string Delta_nu_FileName(int step, const SpectralFilterOptions& filter_options)
+std::string Delta_nu_FileName(int step, const SpectralFilterOptions& filter_options,
+                             bool kolmogorov_strain)
 {
-    return amrex::Concatenate("Delta_nu_", step, 7) + FilterSuffix(filter_options) + ".txt";
+    return amrex::Concatenate("Delta_nu_", step, 7) + FilterSuffix(filter_options) +
+           (kolmogorov_strain ? "_kolmogorov_strain_1.txt" : "_kolmogorov_strain_0.txt");
 }
 
 std::string FourierPlotFileName(int step, amrex::Real kmin, amrex::Real kmax,
@@ -954,7 +956,8 @@ void SpectralWritePlotFile(int step,
     amrex::MultiFab::Saxpy(output, amrex::Real(2.0) * delta_nu, output, 9, 12, 3, 0);
 
     if (amrex::ParallelDescriptor::IOProcessor()) {
-        std::string const dNufilename = Delta_nu_FileName(step, filter_options);
+        std::string const dNufilename =
+            Delta_nu_FileName(step, filter_options, kolmogorov_strain_options.enabled);
 
         static std::set<std::string> opened;   // truncate once per run, then append
         bool const first = opened.insert(dNufilename).second;
