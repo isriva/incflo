@@ -11,6 +11,7 @@
 
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <fstream>
 #include <set>
@@ -38,13 +39,23 @@ void ReadProbLine(std::istream& is, amrex::Real* prob, const char* name)
 
 std::string FilterTypeName(SpectralFilterType filter_type)
 {
-    return filter_type == SpectralFilterType::Sharp ? "sharp" : "sinc_sq";
+    if (filter_type == SpectralFilterType::Sharp) return "sharp";
+    if (filter_type == SpectralFilterType::SincSq) return "sinc_sq";
+    return "exponential";
 }
 
 std::string FilterSuffix(const SpectralFilterOptions& filter_options)
 {
-    return "_" + FilterTypeName(filter_options.filter_type) + "_zero_outside_" +
-           (filter_options.zero_outside_range ? "1" : "0");
+    std::string suffix = "_" + FilterTypeName(filter_options.filter_type) + "_zero_outside_" +
+                         (filter_options.zero_outside_range ? "1" : "0");
+    if (filter_options.filter_type == SpectralFilterType::Exponential) {
+        std::ostringstream os;
+        os << suffix << "_alpha_"
+           << std::setprecision(std::numeric_limits<amrex::Real>::max_digits10)
+           << filter_options.filter_alpha << "_m_" << filter_options.filter_order_m;
+        return os.str();
+    }
+    return suffix;
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -62,6 +73,10 @@ amrex::Real SpectralFilterMultiplier(amrex::Real ksq,
         amrex::Real const x = pi * kr / kmax;
         amrex::Real const sinc = std::sin(x) / x;
         return sinc * sinc;
+    }
+    if (filter_options.filter_type == SpectralFilterType::Exponential) {
+        return std::exp(-filter_options.filter_alpha *
+                        std::pow(kr / kmax, amrex::Real(filter_options.filter_order_m)));
     }
     return amrex::Real(1.0);
 }

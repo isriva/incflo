@@ -9,12 +9,15 @@
 
 enum class SpectralFilterType : int {
     Sharp,
-    SincSq
+    SincSq,
+    Exponential
 };
 
 struct SpectralFilterOptions {
     SpectralFilterType filter_type = SpectralFilterType::Sharp;
     bool zero_outside_range = true;
+    amrex::Real filter_alpha = 0.0;
+    int filter_order_m = 0;
 };
 
 struct KolmogorovStrainOptions {

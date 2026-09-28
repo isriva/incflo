@@ -5,6 +5,8 @@
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_String.H>
 
+#include <cmath>
+
 using namespace amrex;
 
 namespace {
@@ -92,8 +94,10 @@ void main_driver(const char* argv)
         filter_options.filter_type = SpectralFilterType::Sharp;
     } else if (filter_type_name == "sinc_sq") {
         filter_options.filter_type = SpectralFilterType::SincSq;
+    } else if (filter_type_name == "exponential") {
+        filter_options.filter_type = SpectralFilterType::Exponential;
     } else {
-        Abort("filter_type must be either sharp or sinc_sq");
+        Abort("filter_type must be sharp, sinc_sq, or exponential");
     }
 
     int zero_outside_range = 1;
@@ -103,9 +107,23 @@ void main_driver(const char* argv)
         "zero_outside_range must be either 0 or 1");
     filter_options.zero_outside_range = (zero_outside_range == 1);
 
-    if (filter_options.filter_type == SpectralFilterType::SincSq) {
+    if (filter_options.filter_type == SpectralFilterType::Exponential) {
+        if (!pp.query("filter_alpha", filter_options.filter_alpha) ||
+            !pp.query("filter_order_m", filter_options.filter_order_m)) {
+            Abort("exponential requires filter_alpha and filter_order_m");
+        }
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            std::isfinite(filter_options.filter_alpha) && filter_options.filter_alpha > 0.0,
+            "filter_alpha must be finite and positive");
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            filter_options.filter_order_m > 0, "filter_order_m must be a positive integer");
+    }
+
+    if (filter_options.filter_type == SpectralFilterType::SincSq ||
+        filter_options.filter_type == SpectralFilterType::Exponential) {
         for (Real kmax : kmax_list) {
-            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(kmax > 0.0, "sinc_sq requires every kmax to be positive");
+            AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+                kmax > 0.0, "sinc_sq and exponential require every kmax to be positive");
         }
     }
     int plot_filter = 0;
