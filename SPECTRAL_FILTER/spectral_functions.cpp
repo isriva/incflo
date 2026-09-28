@@ -91,10 +91,11 @@ std::string FilterPlotFileName(int step, amrex::Real kmin, amrex::Real kmax,
 }
 
 std::string Delta_nu_FileName(int step, const SpectralFilterOptions& filter_options,
-                             bool kolmogorov_strain)
+                             bool kolmogorov_strain, bool use_previous_strain)
 {
     return amrex::Concatenate("Delta_nu_", step, 7) + FilterSuffix(filter_options) +
-           (kolmogorov_strain ? "_kolmogorov_strain_1.txt" : "_kolmogorov_strain_0.txt");
+           (kolmogorov_strain ? "_kolmogorov_strain_1" : "_kolmogorov_strain_0") +
+           (use_previous_strain ? "_previous_strain_1.txt" : "_previous_strain_0.txt");
 }
 
 std::string FourierPlotFileName(int step, amrex::Real kmin, amrex::Real kmax,
@@ -675,6 +676,7 @@ void SpectralWritePlotFile(int step,
                            const amrex::MultiFab& previous_velocity_filter,
                            const amrex::MultiFab& vv_filter,
                            bool use_prime_tau,
+                           bool use_previous_strain,
                            const KolmogorovStrainOptions& kolmogorov_strain_options,
                            bool write_filter_plotfile,
                            amrex::Real time,
@@ -688,9 +690,11 @@ void SpectralWritePlotFile(int step,
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
         velocity_filter.nComp() == 3,
         "SpectralWritePlotFile: velocity_filter must have exactly 3 components");
-    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
-        previous_velocity_filter.nComp() == 3,
-        "SpectralWritePlotFile: previous_velocity_filter must have exactly 3 components");
+    if (use_previous_strain) {
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            previous_velocity_filter.nComp() == 3,
+            "SpectralWritePlotFile: previous_velocity_filter must have exactly 3 components");
+    }
 
 #if (AMREX_SPACEDIM == 2)
     int constexpr nplot = 21;
@@ -702,17 +706,20 @@ void SpectralWritePlotFile(int step,
 
     amrex::MultiFab velocity_g(velocity.boxArray(), velocity.DistributionMap(), 3, 1);
     amrex::MultiFab velocity_filter_g(velocity_filter.boxArray(), velocity_filter.DistributionMap(), 3, 1);
-    amrex::MultiFab previous_velocity_filter_g(
-        velocity_filter.boxArray(), velocity_filter.DistributionMap(), 3, 1);
+    amrex::MultiFab previous_velocity_filter_g;
     velocity_g.setVal(0.0);
     velocity_filter_g.setVal(0.0);
-    previous_velocity_filter_g.setVal(0.0);
     amrex::MultiFab::Copy(velocity_g, velocity, 0, 0, AMREX_SPACEDIM, 0);
     amrex::MultiFab::Copy(velocity_filter_g, velocity_filter, 0, 0, 3, 0);
-    previous_velocity_filter_g.ParallelCopy(previous_velocity_filter, 0, 0, 3, 0, 0);
     velocity_g.FillBoundary(geom.periodicity());
     velocity_filter_g.FillBoundary(geom.periodicity());
-    previous_velocity_filter_g.FillBoundary(geom.periodicity());
+    if (use_previous_strain) {
+        previous_velocity_filter_g.define(
+            velocity_filter.boxArray(), velocity_filter.DistributionMap(), 3, 1);
+        previous_velocity_filter_g.setVal(0.0);
+        previous_velocity_filter_g.ParallelCopy(previous_velocity_filter, 0, 0, 3, 0, 0);
+        previous_velocity_filter_g.FillBoundary(geom.periodicity());
+    }
 
     amrex::MultiFab output(velocity.boxArray(), velocity.DistributionMap(), nplot, 0);
     output.setVal(0.0);
@@ -737,8 +744,8 @@ void SpectralWritePlotFile(int step,
         amrex::Array4<amrex::Real> const& out = output.array(mfi);
         amrex::Array4<const amrex::Real> const& vel = velocity_g.const_array(mfi);
         amrex::Array4<const amrex::Real> const& filt = velocity_filter_g.const_array(mfi);
-        amrex::Array4<const amrex::Real> const& previous_filt =
-            previous_velocity_filter_g.const_array(mfi);
+        amrex::Array4<const amrex::Real> const previous_filt = use_previous_strain
+            ? previous_velocity_filter_g.const_array(mfi) : filt;
 
         amrex::Array4<const amrex::Real> const& vv_filt = vv_filter.const_array(mfi);
 
@@ -761,14 +768,6 @@ void SpectralWritePlotFile(int step,
             amrex::Real const uy = amrex::Real(0.5) * (vel(i,j+1,k,0) - vel(i,j-1,k,0)) * idy;
             amrex::Real const vx_f = amrex::Real(0.5) * (filt(i+1,j,k,1) - filt(i-1,j,k,1)) * idx;
             amrex::Real const uy_f = amrex::Real(0.5) * (filt(i,j+1,k,0) - filt(i,j-1,k,0)) * idy;
-            amrex::Real const previous_ux_f = amrex::Real(0.5) *
-                (previous_filt(i+1,j,k,0) - previous_filt(i-1,j,k,0)) * idx;
-            amrex::Real const previous_vy_f = amrex::Real(0.5) *
-                (previous_filt(i,j+1,k,1) - previous_filt(i,j-1,k,1)) * idy;
-            amrex::Real const previous_vx_f = amrex::Real(0.5) *
-                (previous_filt(i+1,j,k,1) - previous_filt(i-1,j,k,1)) * idx;
-            amrex::Real const previous_uy_f = amrex::Real(0.5) *
-                (previous_filt(i,j+1,k,0) - previous_filt(i,j-1,k,0)) * idy;
             out(i,j,k,4) = vx - uy;
             out(i,j,k,5) = vx_f - uy_f;
 
@@ -787,12 +786,25 @@ void SpectralWritePlotFile(int step,
 
             // amrex::Real const S_12 = amrex::Real(0.5) * (uy + vx);
             amrex::Real S_12 = amrex::Real(0.5) * (uy_f + vx_f);
-            amrex::Real const previous_S_trace_half = amrex::Real(0.5) *
-                (previous_ux_f + previous_vy_f);
-            amrex::Real previous_S_11 = previous_ux_f - previous_S_trace_half;
-            amrex::Real previous_S_22 = previous_vy_f - previous_S_trace_half;
-            amrex::Real previous_S_12 = amrex::Real(0.5) *
-                (previous_uy_f + previous_vx_f);
+            amrex::Real previous_S_11 = S_11;
+            amrex::Real previous_S_22 = S_22;
+            amrex::Real previous_S_12 = S_12;
+            if (use_previous_strain) {
+                amrex::Real const previous_ux_f = amrex::Real(0.5) *
+                    (previous_filt(i+1,j,k,0) - previous_filt(i-1,j,k,0)) * idx;
+                amrex::Real const previous_vy_f = amrex::Real(0.5) *
+                    (previous_filt(i,j+1,k,1) - previous_filt(i,j-1,k,1)) * idy;
+                amrex::Real const previous_vx_f = amrex::Real(0.5) *
+                    (previous_filt(i+1,j,k,1) - previous_filt(i-1,j,k,1)) * idx;
+                amrex::Real const previous_uy_f = amrex::Real(0.5) *
+                    (previous_filt(i,j+1,k,0) - previous_filt(i,j-1,k,0)) * idy;
+                amrex::Real const previous_S_trace_half = amrex::Real(0.5) *
+                    (previous_ux_f + previous_vy_f);
+                previous_S_11 = previous_ux_f - previous_S_trace_half;
+                previous_S_22 = previous_vy_f - previous_S_trace_half;
+                previous_S_12 = amrex::Real(0.5) *
+                    (previous_uy_f + previous_vx_f);
+            }
 
             if (kolmogorov_strain_options.enabled) {
                 amrex::Real const y = prob_lo_y +
@@ -806,10 +818,16 @@ void SpectralWritePlotFile(int step,
                 S_22 = amrex::Real(0.0);
                 S_12 = strain_scale * (amrex::Real(1.0) - std::exp(-decay_rate * time)) *
                     y_factor;
-                previous_S_11 = amrex::Real(0.0);
-                previous_S_22 = amrex::Real(0.0);
-                previous_S_12 = strain_scale *
-                    (amrex::Real(1.0) - std::exp(-decay_rate * previous_time)) * y_factor;
+                if (use_previous_strain) {
+                    previous_S_11 = amrex::Real(0.0);
+                    previous_S_22 = amrex::Real(0.0);
+                    previous_S_12 = strain_scale *
+                        (amrex::Real(1.0) - std::exp(-decay_rate * previous_time)) * y_factor;
+                } else {
+                    previous_S_11 = S_11;
+                    previous_S_22 = S_22;
+                    previous_S_12 = S_12;
+                }
             }
             out(i,j,k,9)  = S_11;                               // S_11
             out(i,j,k,10) = S_22;                               // S_22
@@ -857,12 +875,7 @@ void SpectralWritePlotFile(int step,
             //                           (vv_filt(i,j,k,1) - filt(i,j,k,1) * filt(i,j,k,1)) * vy + 
             //                           amrex::Real(2.0) *(vv_filt(i,j,k,2) - filt(i,j,k,0) * filt(i,j,k,1)) * S_12;
             
-            // Same-time contractions temporarily replaced by cross-time contractions.
-            // amrex::Real const term1 = tau_11_dev * S_11 +
-            //                           tau_22_dev * S_22 +
-            //                           amrex::Real(2.0) * tau_12 * S_12;
-            // amrex::Real const term2 = S_11 * S_11 + S_22 * S_22 +
-            //                           amrex::Real(2.0) * S_12 * S_12;
+            // In same-time mode, previous_S equals S; otherwise it comes from the prior step.
             amrex::Real const term1 = tau_11_dev * previous_S_11 +
                                       tau_22_dev * previous_S_22 +
                                       amrex::Real(2.0) * tau_12 * previous_S_12;
@@ -972,7 +985,8 @@ void SpectralWritePlotFile(int step,
 
     if (amrex::ParallelDescriptor::IOProcessor()) {
         std::string const dNufilename =
-            Delta_nu_FileName(step, filter_options, kolmogorov_strain_options.enabled);
+            Delta_nu_FileName(step, filter_options, kolmogorov_strain_options.enabled,
+                              use_previous_strain);
 
         static std::set<std::string> opened;   // truncate once per run, then append
         bool const first = opened.insert(dNufilename).second;

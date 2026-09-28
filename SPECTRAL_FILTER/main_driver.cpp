@@ -146,6 +146,15 @@ void main_driver(const char* argv)
         "use_prime_tau must be either 0 or 1");
     bool const use_prime_tau = (use_prime_tau_int == 1);
 
+    int use_previous_strain_int;
+    if (!pp.query("use_previous_strain", use_previous_strain_int)) {
+        Abort("SPECTRAL_FILTER requires use_previous_strain=0|1");
+    }
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+        use_previous_strain_int == 0 || use_previous_strain_int == 1,
+        "use_previous_strain must be either 0 or 1");
+    bool const use_previous_strain = (use_previous_strain_int == 1);
+
     int kolmogorov_strain_int = 0;
     pp.query("kolmogorov_strain", kolmogorov_strain_int);
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
@@ -190,22 +199,27 @@ void main_driver(const char* argv)
 
     SpectralReadCheckPoint(restart_file, is_periodic, geom, ba, dmap, velocity, step, time);
 
-    std::string const previous_restart_file = PreviousCheckpointName(restart_file, step);
     Geometry previous_geom;
     BoxArray previous_ba;
     DistributionMapping previous_dmap;
     MultiFab previous_velocity;
     int previous_step = 0;
     Real previous_time = 0.0;
-    SpectralReadCheckPoint(previous_restart_file, is_periodic, previous_geom, previous_ba,
-                           previous_dmap, previous_velocity, previous_step, previous_time);
-    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
-        previous_step == step - 1,
-        "Previous checkpoint Header step must equal the current Header step minus one");
-    AssertMatchingCheckpointGeometry(geom, ba, previous_geom, previous_ba);
+    if (use_previous_strain) {
+        std::string const previous_restart_file = PreviousCheckpointName(restart_file, step);
+        SpectralReadCheckPoint(previous_restart_file, is_periodic, previous_geom, previous_ba,
+                               previous_dmap, previous_velocity, previous_step, previous_time);
+        AMREX_ALWAYS_ASSERT_WITH_MESSAGE(
+            previous_step == step - 1,
+            "Previous checkpoint Header step must equal the current Header step minus one");
+        AssertMatchingCheckpointGeometry(geom, ba, previous_geom, previous_ba);
+    }
 
     MultiFab velocity_filter(ba, dmap, 3, 0);
-    MultiFab previous_velocity_filter(previous_ba, previous_dmap, 3, 0);
+    MultiFab previous_velocity_filter;
+    if (use_previous_strain) {
+        previous_velocity_filter.define(previous_ba, previous_dmap, 3, 0);
+    }
 
 #if (AMREX_SPACEDIM == 3)
     int constexpr num_vv_comps = 6;
@@ -217,20 +231,28 @@ void main_driver(const char* argv)
     
 
     velocity.FillBoundary(geom.periodicity());
-    previous_velocity.FillBoundary(previous_geom.periodicity());
+    if (use_previous_strain) {
+        previous_velocity.FillBoundary(previous_geom.periodicity());
+    }
 
     // Loop over all of the kmax values
     for (Real kmax : kmax_list) {
         velocity_filter.setVal(0.0);
-        previous_velocity_filter.setVal(0.0);
+        if (use_previous_strain) {
+            previous_velocity_filter.setVal(0.0);
+        }
         vv_filter.setVal(0.0);
         
-        // Filter both checkpoints with identical spectral bounds.
         SpectralVelDecomp(velocity, velocity_filter, kmin, kmax, filter_options, geom);
-        SpectralVelDecomp(previous_velocity, previous_velocity_filter, kmin, kmax,
-                          filter_options, previous_geom);
+        if (use_previous_strain) {
+            // Filter both checkpoints with identical spectral bounds.
+            SpectralVelDecomp(previous_velocity, previous_velocity_filter, kmin, kmax,
+                              filter_options, previous_geom);
+        }
         velocity_filter.FillBoundary(geom.periodicity());
-        previous_velocity_filter.FillBoundary(previous_geom.periodicity());
+        if (use_previous_strain) {
+            previous_velocity_filter.FillBoundary(previous_geom.periodicity());
+        }
 
         // Filter the outer product of the velocity
         if (use_prime_tau) {
@@ -252,7 +274,7 @@ void main_driver(const char* argv)
         if (plot_filter != 0) {
             SpectralWritePlotFile(
                 step, kmin, kmax, filter_options, geom, velocity, velocity_filter,
-                previous_velocity_filter, vv_filter, use_prime_tau,
+                previous_velocity_filter, vv_filter, use_prime_tau, use_previous_strain,
                 kolmogorov_strain_options, write_filter_plotfile, time, previous_time);
         }
         if (plot_fourier != 0) {
