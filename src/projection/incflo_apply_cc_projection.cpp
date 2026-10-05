@@ -341,22 +341,36 @@ void incflo::ApplyCCProjection (Vector<MultiFab const*> density,
         }
     }
 
-    Vector<MultiFab*> cc_phi(finest_level+1);
-    Vector<MultiFab*> cc_gphi(finest_level+1);
+    Vector<MultiFab> cc_phi(finest_level+1);
+    Vector<MultiFab> cc_gphi(finest_level+1);
     for (int lev = 0; lev <= finest_level; ++lev )
     {
-        cc_phi[lev]  = new MultiFab(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
-        cc_gphi[lev] = new MultiFab(grids[lev], dmap[lev], AMREX_SPACEDIM, 0, MFInfo(), Factory(lev));
-        cc_phi[lev]->setVal(0.);
-        cc_gphi[lev]->setVal(0.);
+        cc_phi[lev].define(grids[lev], dmap[lev], 1, 1, MFInfo(), Factory(lev));
+        cc_gphi[lev].define(grids[lev], dmap[lev], AMREX_SPACEDIM, 0, MFInfo(), Factory(lev));
+        cc_phi[lev].setVal(0.);
+        cc_gphi[lev].setVal(0.);
     }
 
+    // Scratch face velocities for the projection.  The u_mac/v_mac/w_mac passed in
+    // are the caller's MAC-projected half-time velocities, which the caller still
+    // needs after this routine (tracer particle advection, small-cell correction),
+    // so they must not be overwritten here.
+    Vector<Array<MultiFab,AMREX_SPACEDIM> > umac_proj(finest_level+1);
     Vector<Array<MultiFab*,AMREX_SPACEDIM> > mac_vec(finest_level+1);
     for (int lev=0; lev <= finest_level; ++lev)
     {
-        AMREX_D_TERM(mac_vec[lev][0] = u_mac[lev];,
-                     mac_vec[lev][1] = v_mac[lev];,
-                     mac_vec[lev][2] = w_mac[lev];);
+        AMREX_D_TERM(umac_proj[lev][0].define(u_mac[lev]->boxArray(), dmap[lev], 1,
+                                              u_mac[lev]->nGrow(), MFInfo(), Factory(lev));,
+                     umac_proj[lev][1].define(v_mac[lev]->boxArray(), dmap[lev], 1,
+                                              v_mac[lev]->nGrow(), MFInfo(), Factory(lev));,
+                     umac_proj[lev][2].define(w_mac[lev]->boxArray(), dmap[lev], 1,
+                                              w_mac[lev]->nGrow(), MFInfo(), Factory(lev)););
+        AMREX_D_TERM(umac_proj[lev][0].setVal(0.);,
+                     umac_proj[lev][1].setVal(0.);,
+                     umac_proj[lev][2].setVal(0.););
+        AMREX_D_TERM(mac_vec[lev][0] = &umac_proj[lev][0];,
+                     mac_vec[lev][1] = &umac_proj[lev][1];,
+                     mac_vec[lev][2] = &umac_proj[lev][2];);
     }
 
     // Compute velocity on faces
@@ -367,7 +381,7 @@ void incflo::ApplyCCProjection (Vector<MultiFab const*> density,
         vel[lev]->FillBoundary(geom[lev].periodicity());
 #if 1
         MOL::ExtrapVelToFaces(*vel[lev],
-                              AMREX_D_DECL(*u_mac[lev], *v_mac[lev], *w_mac[lev]),
+                              AMREX_D_DECL(*mac_vec[lev][0], *mac_vec[lev][1], *mac_vec[lev][2]),
                               geom[lev],
                               get_velocity_bcrec(), get_velocity_bcrec_device_ptr());
 
@@ -382,7 +396,7 @@ void incflo::ApplyCCProjection (Vector<MultiFab const*> density,
     //
     // Perform MAC projection:  - del dot (dt/rho) grad phi = div(U)
     //
-    macproj->project(cc_phi,m_mac_mg_rtol,m_mac_mg_atol);
+    macproj->project(GetVecOfPtrs(cc_phi),m_mac_mg_rtol,m_mac_mg_atol);
 
     //
     // After the projection we grab the dt/rho (grad phi) used in the projection
@@ -403,9 +417,9 @@ void incflo::ApplyCCProjection (Vector<MultiFab const*> density,
     // Note that "fluxes" comes back as MINUS (dt/rho) Gphi
     //
 #ifdef AMREX_USE_EB
-    macproj->getFluxes(amrex::GetVecOfArrOfPtrs(m_fluxes), cc_phi, MLMG::Location::FaceCentroid);
+    macproj->getFluxes(amrex::GetVecOfArrOfPtrs(m_fluxes), GetVecOfPtrs(cc_phi), MLMG::Location::FaceCentroid);
 #else
-    macproj->getFluxes(amrex::GetVecOfArrOfPtrs(m_fluxes), cc_phi, MLMG::Location::FaceCenter);
+    macproj->getFluxes(amrex::GetVecOfArrOfPtrs(m_fluxes), GetVecOfPtrs(cc_phi), MLMG::Location::FaceCenter);
 #endif
 
     for (int lev=0; lev <= finest_level; ++lev)
@@ -413,7 +427,7 @@ void incflo::ApplyCCProjection (Vector<MultiFab const*> density,
 #ifdef AMREX_USE_EB
         amrex::Abort("Haven't written mac_to_ccvel for EB");
 #else
-        average_mac_to_ccvel(GetArrOfPtrs(m_fluxes[lev]),*cc_gphi[lev]);
+        average_mac_to_ccvel(GetArrOfPtrs(m_fluxes[lev]),cc_gphi[lev]);
 #endif
     }
 
@@ -427,8 +441,8 @@ void incflo::ApplyCCProjection (Vector<MultiFab const*> density,
             Box const& tbx = mfi.tilebox();
             Array4<Real> const& gp_cc = ld.gp.array(mfi);
             Array4<Real> const&  p_cc = ld.p_cc.array(mfi);
-            Array4<Real const> const& gphi = cc_gphi[lev]->const_array(mfi);
-            Array4<Real const> const&  phi = cc_phi[lev]->const_array(mfi);
+            Array4<Real const> const& gphi = cc_gphi[lev].const_array(mfi);
+            Array4<Real const> const&  phi = cc_phi[lev].const_array(mfi);
 
             Array4<Real> const& u = ld.velocity.array(mfi);
             Array4<Real const> const& rho = density[lev]->const_array(mfi);

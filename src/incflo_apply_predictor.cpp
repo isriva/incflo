@@ -78,6 +78,12 @@ void incflo::ApplyPredictor (StepType step_type, bool incremental_projection)
 {
     BL_PROFILE("incflo::ApplyPredictor");
 
+#ifdef INCFLO_USE_PARTICLES
+    const bool advect_particles_in_predictor =
+        !incremental_projection && m_advection_type != "MOL" &&
+        !uses_predictor_corrector_advection();
+#endif
+
     // Stage 1 produces U^(1), associated with the end of the RK interval.
     Real new_time = m_cur_time + m_dt;
 
@@ -256,7 +262,7 @@ void incflo::ApplyPredictor (StepType step_type, bool incremental_projection)
     // **************************************************************************************
     // Update the particle positions
     // **************************************************************************************
-    if (!uses_predictor_corrector_advection()) {
+    if (advect_particles_in_predictor) {
         evolveTracerParticles(AMREX_D_DECL(GetVecOfConstPtrs(u_mac), GetVecOfConstPtrs(v_mac),
                                            GetVecOfConstPtrs(w_mac)));
     }

@@ -60,9 +60,6 @@ void incflo::MakeNewLevelFromCoarse (int lev,
     macproj = std::make_unique<Hydro::MacProjector>(Geom(0,lev));
 #endif
     macproj_stochastic_flux.reset();
-#ifdef INCFLO_USE_PARTICLES
-    particleData.Redistribute();
-#endif
 }
 
 // Remake an existing level using provided BoxArray and DistributionMapping and
@@ -121,9 +118,6 @@ void incflo::RemakeLevel (int lev, Real time, const BoxArray& ba,
     macproj = std::make_unique<Hydro::MacProjector>(Geom(0,finest_level));
 #endif
     macproj_stochastic_flux.reset();
-#ifdef INCFLO_USE_PARTICLES
-    particleData.Redistribute();
-#endif
 }
 
 // Rebuild macproj on demand.  Note that this must not be done inside ClearLevel:
