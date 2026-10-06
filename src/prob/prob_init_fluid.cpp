@@ -37,6 +37,7 @@ void incflo::prob_init_fluid (int lev)
 
     Real kh_sigma = Real(0);
     Real kh_eps = Real(0);
+    Real kh_U_initial = Real(0);
     Gpu::DeviceVector<Real> eta1;
     Gpu::DeviceVector<Real> eta2;
 
@@ -49,6 +50,12 @@ void incflo::prob_init_fluid (int lev)
         ParmParse pp("kh");
         pp.get("eps", kh_eps);
         pp.get("sigma", kh_sigma);
+    }
+
+    if (3020 == m_probtype) {
+        ParmParse pp("kh");
+        pp.get("sigma", kh_sigma);
+        pp.get("U_initial", kh_U_initial);
     }
 
     if (3001 == m_probtype) {
@@ -345,6 +352,15 @@ void incflo::prob_init_fluid (int lev)
                 ld.tracer.array(mfi),
                 domain, dx, problo, probhi, kh_eps, kh_sigma);
         } 
+        else if (3020 == m_probtype)
+        {
+            init_KH_2d_smoothed(
+                vbx, gbx,
+                ld.velocity.array(mfi),
+                ld.density.array(mfi),
+                ld.tracer.array(mfi),
+                domain, dx, problo, probhi, kh_sigma, kh_U_initial);
+        }
         else if (4000 == m_probtype)
         {
             init_KOLMOGOROV_2d(vbx, gbx,
@@ -1402,6 +1418,33 @@ void incflo::init_KH_2d (Box const& vbx, Box const& /*gbx*/,
                          vel(i,j,k,1) = 0.0;,
                          vel(i,j,k,2) = 0.0;);
         }
+    });
+}
+
+void incflo::init_KH_2d_smoothed (Box const& vbx, Box const& /*gbx*/,
+                                  Array4<Real> const& vel,
+                                  Array4<Real> const& /*density*/,
+                                  Array4<Real> const& /*tracer*/,
+                                  Box const& /*domain*/,
+                                  GpuArray<Real, AMREX_SPACEDIM> const& dx,
+                                  GpuArray<Real, AMREX_SPACEDIM> const& problo,
+                                  GpuArray<Real, AMREX_SPACEDIM> const& probhi,
+                                  Real sigma, Real U_initial)
+{
+    const Real Ly = probhi[1] - problo[1];
+    const Real quarter = problo[1] + Real(0.25) * Ly;
+    const Real threequarter = problo[1] + Real(0.75) * Ly;
+
+    ParallelFor(vbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+    {
+        const Real y = problo[1] + (Real(j) + Real(0.5)) * dx[1];
+        vel(i,j,k,0) = Real(0.5) * U_initial *
+            (std::tanh((y - quarter) / sigma) -
+             std::tanh((y - threequarter) / sigma) - Real(1));
+        vel(i,j,k,1) = Real(0);
+#if (AMREX_SPACEDIM == 3)
+        vel(i,j,k,2) = Real(0);
+#endif
     });
 }
 
