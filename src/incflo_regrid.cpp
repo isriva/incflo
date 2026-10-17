@@ -152,4 +152,7 @@ void incflo::ClearLevel (int lev)
     m_diffusion_scalar_op.reset();
     macproj.reset();
     macproj_stochastic_flux.reset();
+#ifdef INCFLO_USE_FFT
+    m_cross_proj.reset();
+#endif
 }

@@ -42,6 +42,24 @@ using namespace amrex;
 //
 // Note: scaling_factor equals dt except when called during initial projection, when it is 1.0
 //
+// Rebuild the nodal-projection solver on demand.  Follows the macproj lazy
+// pattern: ClearLevel resets it and the next call rebuilds it.
+#ifdef INCFLO_USE_FFT
+FFT::CrossProj<MultiFab>*
+incflo::get_cross_proj ()
+{
+    if (!m_cross_proj) {
+        auto periodic_bc = std::make_pair(FFT::Boundary::periodic,
+                                          FFT::Boundary::periodic);
+        amrex::Array<std::pair<FFT::Boundary,FFT::Boundary>,AMREX_SPACEDIM>
+            fft_bc{AMREX_D_DECL(periodic_bc, periodic_bc, periodic_bc)};
+        m_cross_proj = std::make_unique<FFT::CrossProj<MultiFab>>(Geom(0), fft_bc);
+    }
+    return m_cross_proj.get();
+}
+#endif
+
+
 void incflo::ApplyNodalProjection (Vector<MultiFab const*> density,
                                    Real time, Real scaling_factor, bool incremental, bool update_pressure_proj, bool add_lagged_pressure)
 {
@@ -124,12 +142,7 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> const& density,
         amrex::Abort("CrossProj test currently supports only non-incremental projection");
     }
 
-    auto periodic_bc = std::make_pair(FFT::Boundary::periodic,
-                                      FFT::Boundary::periodic);
-    amrex::Array<std::pair<FFT::Boundary,FFT::Boundary>,AMREX_SPACEDIM>
-        fft_bc{AMREX_D_DECL(periodic_bc, periodic_bc, periodic_bc)};
-    FFT::CrossProj crossproj(Geom(0), fft_bc);
-    crossproj.solve(*vel[0], *vel[0]);
+    get_cross_proj()->solve(*vel[0], *vel[0]);
     vel[0]->FillBoundary(Geom(0).periodicity());
 
     // Legacy nodal-projector path retained below for reference.

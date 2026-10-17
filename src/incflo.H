@@ -10,6 +10,18 @@
 #include <hydro_MacProjector.H>
 #include <hydro_NodalProjector.H>
 
+#ifdef INCFLO_USE_FFT
+// AMReX_FFT_CrossProj.H defines detail::fill_physbc / detail::FFTPhysBCTag, which
+// collide with the ones in AMReX_FFT_Poisson.H if both are included in the same
+// translation unit.  Rename them here exactly as incflo_apply_nodal_projection.cpp
+// does, so incflo can hold a persistent FFT::CrossProj member.
+#define FFTPhysBCTag CrossProjPhysBCTag
+#define fill_physbc CrossProj_fill_physbc
+#include <AMReX_FFT_CrossProj.H>
+#undef fill_physbc
+#undef FFTPhysBCTag
+#endif
+
 #ifdef AMREX_USE_EB
 #include <AMReX_EBMultiFabUtil.H>
 #endif
@@ -487,6 +499,18 @@ private:
     // otherwise leave macproj null until the next projection dereferenced it.
     // Same lazy pattern as get_diffusion_tensor_op / get_diffusion_scalar_op.
     Hydro::MacProjector* get_mac_projector ();
+
+#ifdef INCFLO_USE_FFT
+    // Persistent nodal-projection solver (FFT-based).  Constructing FFT::CrossProj
+    // on every call rebuilds the FFTW plans, its internal buffer MultiFabs and its
+    // transpose comm metadata 2x per time step, which shows up as allocator churn
+    // and per-step cost at high rank counts.  The solve() itself is stateless, so
+    // reusing one instance is bitwise identical.  Follows the macproj lazy pattern:
+    // ClearLevel resets it and the next ApplyNodalProjection rebuilds it.
+    std::unique_ptr<amrex::FFT::CrossProj<amrex::MultiFab>> m_cross_proj;
+
+    amrex::FFT::CrossProj<amrex::MultiFab>* get_cross_proj ();
+#endif
 
     int m_mac_mg_max_coarsening_level = 100;
 

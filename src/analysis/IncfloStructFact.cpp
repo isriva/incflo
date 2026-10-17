@@ -607,6 +607,7 @@ IncfloStructFact::integrateShells(int step, std::string const& output_base) cons
     Gpu::DeviceVector<Real> phisum_device(npts);
     Gpu::DeviceVector<int> phicnt_device(npts);
     Gpu::HostVector<Real> phisum_host(npts);
+    Gpu::HostVector<int> phicnt_host(npts);
 
     Real* phisum_ptr = phisum_device.dataPtr();
     int* phicnt_ptr = phicnt_device.dataPtr();
@@ -639,13 +640,23 @@ IncfloStructFact::integrateShells(int step, std::string const& output_base) cons
         });
     }
 
-    for (int d = 1; d < npts; ++d) {
-        ParallelDescriptor::ReduceRealSum(phisum_device[d]);
-        ParallelDescriptor::ReduceIntSum(phicnt_device[d]);
-    }
+    // One blocking collective per array instead of one per shell: per-shell
+    // loops issue 2*npts sequential MPI reductions, which dominates the
+    // spectrum cost at high rank counts.
+    Gpu::copy(Gpu::deviceToHost, phisum_device.begin(), phisum_device.end(),
+              phisum_host.begin());
+    Gpu::copy(Gpu::deviceToHost, phicnt_device.begin(), phicnt_device.end(),
+              phicnt_host.begin());
+    ParallelDescriptor::ReduceRealSum(phisum_host.dataPtr(), npts);
+    ParallelDescriptor::ReduceIntSum(phicnt_host.dataPtr(), npts);
 
     Real const pi = Real(4.0) * std::atan(Real(1.0));
     Real const dk = Real(1.0);
+
+    Gpu::copy(Gpu::hostToDevice, phisum_host.begin(), phisum_host.end(),
+              phisum_device.begin());
+    Gpu::copy(Gpu::hostToDevice, phicnt_host.begin(), phicnt_host.end(),
+              phicnt_device.begin());
 
 #if (AMREX_SPACEDIM == 2)
     ParallelFor(npts, [=] AMREX_GPU_DEVICE (int d) noexcept
@@ -703,6 +714,7 @@ IncfloStructFact::integrateTensorShells(int step, std::string const& output_base
     Gpu::DeviceVector<Real> phisum_device(npts);
     Gpu::DeviceVector<int> phicnt_device(npts);
     Gpu::HostVector<Real> phisum_host(npts);
+    Gpu::HostVector<int> phicnt_host(npts);
 
     Real* phisum_ptr = phisum_device.dataPtr();
     int* phicnt_ptr = phicnt_device.dataPtr();
@@ -737,20 +749,30 @@ IncfloStructFact::integrateTensorShells(int step, std::string const& output_base
                     Real weight = (n == 2) ? Real(2.0) : Real(1.0);
                     tensor_energy += weight * (amp * amp);
                 }
-                
+
                 HostDevice::Atomic::Add(&(phisum_ptr[shell]), tensor_energy);
                 HostDevice::Atomic::Add(&(phicnt_ptr[shell]), 1);
             }
         });
     }
 
-    for (int d = 1; d < npts; ++d) {
-        ParallelDescriptor::ReduceRealSum(phisum_device[d]);
-        ParallelDescriptor::ReduceIntSum(phicnt_device[d]);
-    }
+    // One blocking collective per array instead of one per shell: per-shell
+    // loops issue 2*npts sequential MPI reductions, which dominates the
+    // spectrum cost at high rank counts.
+    Gpu::copy(Gpu::deviceToHost, phisum_device.begin(), phisum_device.end(),
+              phisum_host.begin());
+    Gpu::copy(Gpu::deviceToHost, phicnt_device.begin(), phicnt_device.end(),
+              phicnt_host.begin());
+    ParallelDescriptor::ReduceRealSum(phisum_host.dataPtr(), npts);
+    ParallelDescriptor::ReduceIntSum(phicnt_host.dataPtr(), npts);
 
     Real const pi = Real(4.0) * std::atan(Real(1.0));
     Real const dk = Real(1.0);
+
+    Gpu::copy(Gpu::hostToDevice, phisum_host.begin(), phisum_host.end(),
+              phisum_device.begin());
+    Gpu::copy(Gpu::hostToDevice, phicnt_host.begin(), phicnt_host.end(),
+              phicnt_device.begin());
 
 #if (AMREX_SPACEDIM == 2)
     ParallelFor(npts, [=] AMREX_GPU_DEVICE (int d) noexcept
