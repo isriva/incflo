@@ -1458,8 +1458,7 @@ void incflo::init_KH_2d_pertubed (Box const& vbx, Box const& /*gbx*/,
                                   GpuArray<Real, AMREX_SPACEDIM> const& probhi,
                                   Real const* eta1,
                                   Real const* eta2,
-                                  Real sigma,
-                                  Real eps)
+                                  Real sigma, Real eps, Real U_initial)
 {
     const int domlo_x = domain.smallEnd(0);
 
@@ -1498,17 +1497,28 @@ void incflo::init_KH_2d_pertubed (Box const& vbx, Box const& /*gbx*/,
         // vel(i,j,k,0) = a * (Real(2) * s - Real(1));
         // vel(i,j,k,1) = Real(0);
 
+        // Smooth interface
+        vel(i,j,k,0) = Real(0.5) * U_initial *
+            (std::tanh((y_rel - y_low) / sigma) -
+             std::tanh((y_rel - y_high) / sigma) - Real(1));
+        vel(i,j,k,1) = Real(0);
+#if (AMREX_SPACEDIM == 3)
+        vel(i,j,k,2) = Real(0);
+#endif
 
-        // Discontinuous setup:
-        if (y_rel < y_low || y_rel > y_high) {
-            AMREX_D_TERM(vel(i,j,k,0) = -1.0;,
-                         vel(i,j,k,1) = 0.0;,
-                         vel(i,j,k,2) = 0.0;);
-        } else {
-            AMREX_D_TERM(vel(i,j,k,0) = 1.0;,
-                         vel(i,j,k,1) = 0.0;,
-                         vel(i,j,k,2) = 0.0;);
-        }
+
+        // // Discontinuous setup:
+        // if (y_rel < y_low || y_rel > y_high) {
+        //     AMREX_D_TERM(vel(i,j,k,0) = -1.0;,
+        //                  vel(i,j,k,1) = 0.0;,
+        //                  vel(i,j,k,2) = 0.0;);
+        // } else {
+        //     AMREX_D_TERM(vel(i,j,k,0) = 1.0;,
+        //                  vel(i,j,k,1) = 0.0;,
+        //                  vel(i,j,k,2) = 0.0;);
+        // }
+
+        
 
         int nx = domain.length(0);
         int iip1 = (i+1) % nx;
