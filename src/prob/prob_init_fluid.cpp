@@ -52,6 +52,11 @@ void incflo::prob_init_fluid (int lev)
         pp.get("sigma", kh_sigma);
     }
 
+    if (3001 == m_probtype) {
+        ParmParse pp("kh");
+        pp.get("U_initial", kh_U_initial);
+    }
+
     if (3020 == m_probtype) {
         ParmParse pp("kh");
         pp.get("sigma", kh_sigma);
@@ -341,7 +346,8 @@ void incflo::prob_init_fluid (int lev)
                                 ld.density.array(mfi),
                                 ld.tracer.array(mfi),
                                 domain, dx, problo, probhi,
-                                eta1.dataPtr(), eta2.dataPtr(), kh_sigma, kh_eps);
+                                eta1.dataPtr(), eta2.dataPtr(), kh_sigma, kh_eps,
+                                kh_U_initial);
         } 
         else if (3002 == m_probtype)
         {

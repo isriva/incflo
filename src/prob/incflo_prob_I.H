@@ -205,8 +205,8 @@
                               amrex::GpuArray<amrex::Real, AMREX_SPACEDIM> const& probhi,
                               amrex::Real const* eta1,
                               amrex::Real const* eta2,
-                              amrex::Real sigma,
-                              amrex::Real eps);
+                              amrex::Real sigma, amrex::Real eps,
+                              amrex::Real U_initial);
     
     void init_KH_2d_sine_perturbed (amrex::Box const& vbx, amrex::Box const& gbx,
                                     amrex::Array4<amrex::Real> const& vel,
