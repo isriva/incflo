@@ -20,6 +20,12 @@
 #include <AMReX_FFT_CrossProj.H>
 #undef fill_physbc
 #undef FFTPhysBCTag
+// GMG::CrossProj (amrex PR #6103): multigrid cross-stencil projection.  While
+// it is the active nodal-projection solver (see the m_cross_proj member below),
+// its header is included here so every translation unit that includes incflo.H
+// sees the complete type.  USE_FFT must stay TRUE: the GMG bottom solver is a
+// small FFT::LocalR2C.
+#include <AMReX_CrossProj.H>
 #endif
 
 #ifdef AMREX_USE_EB
@@ -501,15 +507,27 @@ private:
     Hydro::MacProjector* get_mac_projector ();
 
 #ifdef INCFLO_USE_FFT
-    // Persistent nodal-projection solver (FFT-based).  Constructing FFT::CrossProj
-    // on every call rebuilds the FFTW plans, its internal buffer MultiFabs and its
-    // transpose comm metadata 2x per time step, which shows up as allocator churn
-    // and per-step cost at high rank counts.  The solve() itself is stateless, so
-    // reusing one instance is bitwise identical.  Follows the macproj lazy pattern:
-    // ClearLevel resets it and the next ApplyNodalProjection rebuilds it.
-    std::unique_ptr<amrex::FFT::CrossProj<amrex::MultiFab>> m_cross_proj;
+    // Persistent nodal-projection solver.  Constructing the solver on every
+    // call rebuilds its internal buffers/comm metadata 2x per time step,
+    // which shows up as allocator churn and per-step cost at high rank
+    // counts.  Follows the macproj lazy pattern: ClearLevel resets it and
+    // the next ApplyNodalProjection rebuilds it.
 
-    amrex::FFT::CrossProj<amrex::MultiFab>* get_cross_proj ();
+    // OLD solver: FFT::CrossProj (FFT-based, all-to-all transposes dominate
+    // at 8192 ranks).  Commented out while GMG::CrossProj is under test; to
+    // switch back, uncomment these two and the get_cross_proj() body in
+    // incflo_apply_nodal_projection.cpp, then comment out the GMG versions.
+    // std::unique_ptr<amrex::FFT::CrossProj<amrex::MultiFab>> m_cross_proj;
+    //
+    // amrex::FFT::CrossProj<amrex::MultiFab>* get_cross_proj ();
+
+    // NEW solver: GMG::CrossProj (amrex PR #6103, branch gmg-crossproj).
+    // Geometric-multigrid cross-stencil projection, no all-to-all.  Same
+    // lazy pattern as above; m_cross_proj.reset() in incflo_regrid.cpp
+    // works for either type.
+    std::unique_ptr<amrex::GMG::CrossProj> m_cross_proj;
+
+    amrex::GMG::CrossProj* get_cross_proj ();
 #endif
 
     int m_mac_mg_max_coarsening_level = 100;

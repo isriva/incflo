@@ -15,6 +15,7 @@
 #undef fill_physbc
 #undef FFTPhysBCTag
 
+#include <AMReX_CrossProj.H>
 #include <AMReX_PhysBCFunct.H>
 #include <hydro_utils.H>
 #include <incflo.H>
@@ -45,15 +46,40 @@ using namespace amrex;
 // Rebuild the nodal-projection solver on demand.  Follows the macproj lazy
 // pattern: ClearLevel resets it and the next call rebuilds it.
 #ifdef INCFLO_USE_FFT
-FFT::CrossProj<MultiFab>*
+// OLD solver (FFT::CrossProj): commented out while GMG::CrossProj is under
+// test.  To switch back: uncomment this body and the FFT member declarations
+// in incflo.H, then comment out the GMG versions there and below.
+// FFT::CrossProj<MultiFab>*
+// incflo::get_cross_proj ()
+// {
+//     if (!m_cross_proj) {
+//         auto periodic_bc = std::make_pair(FFT::Boundary::periodic,
+//                                           FFT::Boundary::periodic);
+//         amrex::Array<std::pair<FFT::Boundary,FFT::Boundary>,AMREX_SPACEDIM>
+//             fft_bc{AMREX_D_DECL(periodic_bc, periodic_bc, periodic_bc)};
+//         m_cross_proj = std::make_unique<FFT::CrossProj<MultiFab>>(Geom(0), fft_bc);
+//     }
+//     return m_cross_proj.get();
+// }
+
+// NEW solver: GMG::CrossProj (amrex PR #6103).  Iterative (PCG + GMG cycle)
+// with a relative-tolerance stopping criterion (default 1e-10), so the
+// tolerance is exposed as an inputs knob, nodal_proj.mg_reltol.  Verbose is
+// likewise wired to the existing nodal_proj.verbose input.
+GMG::CrossProj*
 incflo::get_cross_proj ()
 {
     if (!m_cross_proj) {
-        auto periodic_bc = std::make_pair(FFT::Boundary::periodic,
-                                          FFT::Boundary::periodic);
-        amrex::Array<std::pair<FFT::Boundary,FFT::Boundary>,AMREX_SPACEDIM>
-            fft_bc{AMREX_D_DECL(periodic_bc, periodic_bc, periodic_bc)};
-        m_cross_proj = std::make_unique<FFT::CrossProj<MultiFab>>(Geom(0), fft_bc);
+        m_cross_proj = std::make_unique<GMG::CrossProj>(Geom(0));
+        ParmParse pp("nodal_proj");
+        Real mg_reltol = Real(1.e-10);
+        if (pp.query("mg_reltol", mg_reltol)) {
+            m_cross_proj->setRelTol(mg_reltol);
+        }
+        int verbose = 0;
+        if (pp.query("verbose", verbose)) {
+            m_cross_proj->setVerbose(verbose);
+        }
     }
     return m_cross_proj.get();
 }
@@ -142,7 +168,16 @@ void incflo::ApplyNodalProjection (Vector<MultiFab const*> const& density,
         amrex::Abort("CrossProj test currently supports only non-incremental projection");
     }
 
-    get_cross_proj()->solve(*vel[0], *vel[0]);
+    // OLD solver (FFT::CrossProj): commented out while GMG::CrossProj is
+    // under test; uncomment together with the FFT get_cross_proj() above.
+    // get_cross_proj()->solve(*vel[0], *vel[0]);
+    // vel[0]->FillBoundary(Geom(0).periodicity());
+
+    // NEW solver: GMG::CrossProj (PR #6103).  GMG::solve fills one ghost
+    // layer itself when a_soln has ghost cells; the explicit FillBoundary is
+    // kept so behavior matches the FFT path in either configuration.
+    GMG::CrossProj* cross_proj = get_cross_proj();
+    cross_proj->solve(*vel[0], *vel[0]);
     vel[0]->FillBoundary(Geom(0).periodicity());
 
     // Legacy nodal-projector path retained below for reference.
