@@ -339,16 +339,18 @@ IncfloStructFact::computeFFT(MultiFab const& variables,
     // Persistent FFT plan: the domain is fixed for the life of the run, so
     // build FFT::R2C lazily on the first sample and reuse it (constructing a
     // fresh object per sample cost ~2 s each at 16384^2/8192 ranks).
-    // computeFFT is const and forward() is non-const, hence the const_cast.
+    // computeFFT is const but both the lazy construction and forward() mutate
+    // the member, hence the single const_cast.
     // OLD (fresh plan per sample, all ranks): FFT::R2C my_fft(domain);
-    if (!m_fft) {
+    auto* self = const_cast<IncfloStructFact*>(this);
+    if (!self->m_fft) {
         FFT::Info info;
         if (m_fft_nprocs > 0) {
             info.setNumProcs(m_fft_nprocs);
         }
-        m_fft = std::make_unique<FFT::R2C<>>(domain, info);
+        self->m_fft = std::make_unique<FFT::R2C<>>(domain, info);
     }
-    auto& my_fft = *const_cast<IncfloStructFact*>(this)->m_fft;
+    auto& my_fft = *self->m_fft;
     auto const& [ba_fft, dm_fft] = my_fft.getSpectralDataLayout();
     FabArray<BaseFab<GpuComplex<Real>>> phi_fft(ba_fft, dm_fft, 1, 0);
 
