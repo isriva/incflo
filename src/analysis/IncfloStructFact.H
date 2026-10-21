@@ -3,12 +3,14 @@
 
 #include <AMReX_BoxArray.H>
 #include <AMReX_DistributionMapping.H>
+#include <AMReX_FFT.H>
 #include <AMReX_Geometry.H>
 #include <AMReX_GpuContainers.H>
 #include <AMReX_MultiFab.H>
 #include <AMReX_REAL.H>
 #include <AMReX_Vector.H>
 
+#include <memory>
 #include <string>
 
 class IncfloStructFact
@@ -61,6 +63,14 @@ public:
                     bool unpack = true) const;
     void shiftFFT(amrex::MultiFab& dft_out, int zero_mode = 1) const;
 
+    // Cap the number of MPI ranks used by the internal FFT::R2C transform
+    // (FFT::Info::setNumProcs).  Negative or zero means no cap (all ranks).
+    // At very high rank counts an uncapped transform spends most of its time
+    // in all-to-all transposes, so capping it (e.g. 1024 of 8192 ranks) makes
+    // infrequent spectrum samples much cheaper.  Results are unchanged; only
+    // the data distribution differs.
+    void setFFTNumProcs (int n) { m_fft_nprocs = n; }
+
 private:
     int m_nvar = 1;
     int m_nvar_unique = 1;
@@ -83,6 +93,13 @@ private:
     amrex::MultiFab m_cov_real;
     amrex::MultiFab m_cov_imag;
     amrex::MultiFab m_cov_mag;
+
+    // Persistent FFT plan for computeFFT.  The domain is fixed for the life
+    // of the run (single level), so the FFT::R2C object is built lazily on
+    // the first sample and reused; constructing it per sample cost ~2 s per
+    // spectrum at 16384^2/8192 ranks.
+    std::unique_ptr<amrex::FFT::R2C<>> m_fft;
+    int m_fft_nprocs = -1;
 };
 
 #endif

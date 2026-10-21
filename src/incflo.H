@@ -680,6 +680,11 @@ private:
     std::string m_struct_fact_file{"plt_SF"};
     int m_turb_spectrum_int = -1;
     std::string m_turb_spectrum_file{"turb_vel"};
+    // Cap the number of ranks used by the spectra FFT (FFT::Info::setNumProcs).
+    // <= 0 means no cap.  At very high rank counts the all-to-all transposes
+    // dominate, so capping (e.g. 1024 of 8192) makes infrequent samples much
+    // cheaper; the results are unchanged, only the data distribution differs.
+    int m_turb_spectrum_fft_nprocs = -1;
     int m_struct_fact_zero_mode = 1;
     int m_struct_fact_velocity_lt = 0;
     int m_struct_fact_verbosity = 0;

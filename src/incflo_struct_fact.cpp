@@ -192,6 +192,7 @@ incflo::InitStructFact (bool restarted)
                                 m_leveldata[0]->velocity.DistributionMap(),
                                 Geom(0), var_names, scaling, pair_a, pair_b,
                                 m_struct_fact_verbosity);
+        m_turb_spectrum->setFFTNumProcs(m_turb_spectrum_fft_nprocs);
     }
 #endif
 }

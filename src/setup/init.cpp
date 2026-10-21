@@ -113,6 +113,7 @@ void incflo::ReadParameters ()
         pp.query("struct_fact_file"                , m_struct_fact_file);
         pp.query("turb_spectrum_int"               , m_turb_spectrum_int);
         pp.query("turb_spectrum_file"              , m_turb_spectrum_file);
+        pp.query("turb_spectrum_fft_nprocs"        , m_turb_spectrum_fft_nprocs);
         pp.query("struct_fact_zero_mode"           , m_struct_fact_zero_mode);
         pp.query("struct_fact_velocity_lt"         , m_struct_fact_velocity_lt);
         pp.query("struct_fact_verbosity"           , m_struct_fact_verbosity);
